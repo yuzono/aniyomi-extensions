@@ -1,0 +1,14 @@
+ext {
+    extName = 'Animenix'
+    extClass = '.Animenix'
+    themePkg = 'dooplay'
+    baseUrl = 'https://animenix.com'
+    overrideVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
+
+dependencies {
+    implementation(project(":lib:filemoon-extractor"))
+    implementation(project(":lib:streamwish-extractor"))
+}
