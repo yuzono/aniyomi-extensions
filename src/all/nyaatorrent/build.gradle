@@ -1,0 +1,10 @@
+ext {
+    extName = 'Nyaa (Torrent)'
+    extClass = '.NyaaFactory'
+    extVersionCode = 1
+    isTorrent = true
+    isNsfw = true
+}
+
+apply from: "$rootDir/common.gradle"
+

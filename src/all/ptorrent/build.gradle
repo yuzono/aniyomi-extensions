@@ -1,0 +1,10 @@
+ext {
+    extName = 'PTorrent (Torrent)'
+    extClass = '.PTorrent'
+    extVersionCode = 1
+    isTorrent = true
+    isNsfw = true
+}
+
+apply from: "$rootDir/common.gradle"
+

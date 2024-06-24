@@ -1,0 +1,7 @@
+ext {
+    extName = 'AniList'
+    extClass = '.AniList'
+    extVersionCode = 3
+}
+
+apply from: "$rootDir/common.gradle"
