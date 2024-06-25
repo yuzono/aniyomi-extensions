@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.animeextension.es.animenix
 import androidx.preference.CheckBoxPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
@@ -11,6 +12,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.FormBody
+import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -87,8 +89,66 @@ class Animenix : DooPlay(
 
     override fun latestUpdatesNextPageSelector() = "div.pagination > *:last-child:not(span):not(.current)"
 
+    // =============================== Search ===============================
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val params = AnimenixFilters.getSearchParameters(filters)
+        val path = when {
+            params.genre.isNotBlank() -> {
+                if (params.genre in listOf("tendencias", "ratings")) {
+                    "/" + params.genre
+                } else {
+                    "/genero/${params.genre}"
+                }
+            }
+            params.language.isNotBlank() -> "/genero/${params.language}"
+            params.year.isNotBlank() -> "/release/${params.year}"
+            params.movie.isNotBlank() -> {
+                if (params.movie == "pelicula") {
+                    "/pelicula"
+                } else {
+                    "/genero/${params.movie}"
+                }
+            }
+            else -> buildString {
+                append(
+                    when {
+                        query.isNotBlank() -> "/?s=$query"
+                        params.letter.isNotBlank() -> "/letra/${params.letter}/?"
+                        else -> "/tendencias/?"
+                    },
+                )
+
+                append(
+                    if (contains("tendencias")) {
+                        "&get=${when (params.type){
+                            "anime" -> "serie"
+                            "pelicula" -> "pelicula"
+                            else -> "todos"
+                        }}"
+                    } else {
+                        "&tipo=${params.type}"
+                    },
+                )
+
+                if (params.isInverted) append("&orden=asc")
+            }
+        }
+
+        return if (path.startsWith("/?s=")) {
+            GET("$baseUrl/page/$page$path")
+        } else if (path.startsWith("/letra") || path.startsWith("/tendencias")) {
+            val before = path.substringBeforeLast("/")
+            val after = path.substringAfterLast("/")
+            GET("$baseUrl$before/page/$page/$after")
+        } else {
+            GET("$baseUrl$path/page/$page")
+        }
+    }
+
     // ============================== Filters ===============================
     override val fetchGenres = false
+
+    override fun getFilterList() = AnimenixFilters.FILTER_LIST
 
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
