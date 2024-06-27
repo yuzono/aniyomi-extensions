@@ -69,9 +69,9 @@ class Animenix : DooPlay(
         return when {
             link.contains("filemoon") -> filemoonExtractor.videosFromUrl(link)
             link.contains("swdyu") -> streamWishExtractor.videosFromUrl(link)
-
-            else -> null
-        }.orEmpty()
+            link.contains("wishembed") || link.contains("cdnwish") || link.contains("flaswish") || link.contains("sfastwish") || link.contains("streamwish") || link.contains("asnwish") -> streamWishExtractor.videosFromUrl(link)
+            else -> emptyList()
+        }
     }
 
     // =========================== Anime Details ============================
