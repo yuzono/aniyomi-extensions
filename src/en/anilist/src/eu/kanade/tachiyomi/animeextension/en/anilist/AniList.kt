@@ -278,7 +278,7 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         val episodeData = client.newCall(
             anilistEpisodeRequest(anilistId),
         ).execute().parseAs<AniListEpisodeResponse>().data.Media
-        val episodeCount = episodeData.nextAiringEpisode?.let { it.episode - 1 } ?: episodeData.episodes ?: 1
+        val episodeCount = episodeData.nextAiringEpisode?.let { it.episode - 1 } ?: episodeData.episodes ?: 0
 
         if (malId != null) {
             val episodeList = runCatching {
