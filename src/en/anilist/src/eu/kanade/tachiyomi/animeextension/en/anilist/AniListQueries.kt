@@ -52,10 +52,16 @@ query (
 fun getDetailsQuery() = """
 query media(%id: Int, %type: MediaType) {
   Media(id: %id, type: %type) {
+    id
     title {
         romaji
         english
         native
+    }
+    coverImage {
+        extraLarge
+        large
+        medium
     }
     description
     season
@@ -64,6 +70,7 @@ query media(%id: Int, %type: MediaType) {
     status(version: 2)
     genres
     episodes
+    format
     studios {
       edges {
         isMain

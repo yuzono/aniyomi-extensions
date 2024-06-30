@@ -6,6 +6,13 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 
 @Serializable
+class Mapping(
+    val mal_id: Int? = null,
+    val anilist_id: Int? = null,
+    val thetvdb_id: Int? = null,
+)
+
+@Serializable
 class PagesResponse(
     val data: PagesData,
 ) {
@@ -46,13 +53,6 @@ class PagesResponse(
                     val english: String? = null,
                     val native: String? = null,
                 )
-
-                @Serializable
-                class CoverObject(
-                    val extraLarge: String? = null,
-                    val large: String? = null,
-                    val medium: String? = null,
-                )
             }
         }
     }
@@ -68,8 +68,10 @@ class DetailsResponse(
     ) {
         @Serializable
         class MediaObject(
+            val id: Int,
             @SerialName("title")
             val animeTitle: TitleObject,
+            val coverImage: CoverObject,
             val description: String? = null,
             val season: String? = null,
             val seasonYear: Int? = null,
@@ -80,6 +82,8 @@ class DetailsResponse(
             val episodes: Int? = null,
         ) {
             fun toSAnime(titlePref: String): SAnime = SAnime.create().apply {
+                url = id.toString()
+                thumbnail_url = coverImage.extraLarge ?: coverImage.large ?: coverImage.medium ?: ""
                 title = when (titlePref) {
                     "romaji" -> animeTitle.romaji ?: animeTitle.english ?: animeTitle.native ?: ""
                     "english" -> animeTitle.english ?: animeTitle.romaji ?: animeTitle.native ?: ""
@@ -142,6 +146,13 @@ class DetailsResponse(
         }
     }
 }
+
+@Serializable
+class CoverObject(
+    val extraLarge: String? = null,
+    val large: String? = null,
+    val medium: String? = null,
+)
 
 @Serializable
 class AniListEpisodeResponse(

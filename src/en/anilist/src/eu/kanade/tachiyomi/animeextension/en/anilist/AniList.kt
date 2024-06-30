@@ -51,6 +51,12 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
+    private val mappings by lazy {
+        client.newCall(
+            GET("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", headers),
+        ).execute().parseAs<List<Mapping>>()
+    }
+
     // ============================== Popular ===============================
 
     private fun createSortRequest(
@@ -76,7 +82,8 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         return POST(apiUrl, body = body)
     }
 
-    override fun popularAnimeRequest(page: Int): Request = createSortRequest("TRENDING_DESC", page)
+    override fun popularAnimeRequest(page: Int): Request =
+        createSortRequest("TRENDING_DESC", page)
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val titleLang = preferences.titleLang
@@ -159,6 +166,17 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         return "$baseUrl/anime/${anime.url}"
     }
 
+    override suspend fun getAnimeDetails(anime: SAnime): SAnime {
+        return if (currentAnime == anime.url) {
+            SAnime.create().apply {
+                thumbnail_url = coverList[coverIndex]
+                coverIndex = (coverIndex + 1) % coverList.size
+            }
+        } else {
+            super.getAnimeDetails(anime)
+        }
+    }
+
     override fun animeDetailsRequest(anime: SAnime): Request {
         val variablesObject = buildJsonObject {
             put("id", anime.url.toInt())
@@ -174,12 +192,54 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         return POST(apiUrl, body = body)
     }
 
+    private var coverList = emptyList<String>()
+    private var coverIndex = 0
+    private var currentAnime = ""
+    private var currentEpisodeList = emptyList<SEpisode>()
+
+    private val coverProviders by lazy { CoverProviders(client, headers) }
+
     override fun animeDetailsParse(response: Response): SAnime {
         val titleLang = preferences.titleLang
-        return response.parseAs<DetailsResponse>().data.Media.toSAnime(titleLang)
+        val animeData = response.parseAs<DetailsResponse>().data.Media
+        val anime = animeData.toSAnime(titleLang)
+
+        if (currentAnime != anime.url) {
+            val type = if (animeData.format == "MOVIE") "movies" else "tv"
+
+            val data = mappings.firstOrNull {
+                it.anilist_id == anime.url.toInt()
+            }
+            val malId = data?.mal_id?.toString()
+            val tvdbId = data?.thetvdb_id?.toString()
+
+            coverList = buildList {
+                add(anime.thumbnail_url ?: "")
+                malId?.let {
+                    addAll(coverProviders.getMALCovers(malId))
+                }
+                tvdbId?.let {
+                    addAll(coverProviders.getFanartCovers(tvdbId, type))
+                }
+            }.filter { it.isNotEmpty() }
+            coverIndex = 0
+            currentAnime = anime.url
+        }
+
+        return anime
     }
 
     // ============================== Episodes ==============================
+
+    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
+        return if (currentAnime == anime.url) {
+            currentEpisodeList
+        } else {
+            val episodeList = super.getEpisodeList(anime)
+            currentEpisodeList = episodeList
+            return episodeList
+        }
+    }
 
     override fun episodeListRequest(anime: SAnime): Request {
         val variablesObject = buildJsonObject {
@@ -206,7 +266,15 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         ).execute().parseAs<AniListEpisodeResponse>().data.Media
         val episodeCount = episodeData.nextAiringEpisode?.let { it.episode - 1 } ?: episodeData.episodes ?: 1
 
-        if (malId != null) return getFromMal(malId, episodeCount)
+        if (malId != null) {
+            val episodeList = runCatching {
+                getFromMal(malId, episodeCount)
+            }.getOrNull()
+
+            if (episodeList != null) {
+                return episodeList
+            }
+        }
 
         return (1..episodeCount).map {
             SEpisode.create().apply {
