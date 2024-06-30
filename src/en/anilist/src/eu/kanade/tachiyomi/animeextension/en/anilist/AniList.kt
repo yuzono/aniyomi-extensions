@@ -167,14 +167,19 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
-        return if (currentAnime == anime.url) {
-            SAnime.create().apply {
+        val currentTime = System.currentTimeMillis() / 1000L
+        val lastRefresh = lastRefreshed.getOrDefault(anime.url, 0L)
+
+        val newAnime = if (currentTime - lastRefresh < refreshInterval) {
+            anime.apply {
                 thumbnail_url = coverList[coverIndex]
                 coverIndex = (coverIndex + 1) % coverList.size
             }
         } else {
             super.getAnimeDetails(anime)
         }
+        lastRefreshed[anime.url] = currentTime
+        return newAnime
     }
 
     override fun animeDetailsRequest(anime: SAnime): Request {
@@ -195,7 +200,9 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
     private var coverList = emptyList<String>()
     private var coverIndex = 0
     private var currentAnime = ""
-    private var currentEpisodeList = emptyList<SEpisode>()
+    private val lastRefreshed = mutableMapOf<String, Long>()
+    private val episodeListMap = mutableMapOf<String, List<SEpisode>>()
+    private val refreshInterval = 15
 
     private val coverProviders by lazy { CoverProviders(client, headers) }
 
@@ -205,6 +212,7 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
         val anime = animeData.toSAnime(titleLang)
 
         if (currentAnime != anime.url) {
+            currentAnime = ""
             val type = if (animeData.format == "MOVIE") "movies" else "tv"
 
             val data = mappings.firstOrNull {
@@ -222,8 +230,10 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
                     addAll(coverProviders.getFanartCovers(tvdbId, type))
                 }
             }.filter { it.isNotEmpty() }
+            if (currentAnime.isNotEmpty()) {
+                currentAnime = anime.url
+            }
             coverIndex = 0
-            currentAnime = anime.url
         }
 
         return anime
@@ -232,13 +242,17 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
     // ============================== Episodes ==============================
 
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
-        return if (currentAnime == anime.url) {
-            currentEpisodeList
+        val currentTime = System.currentTimeMillis() / 1000L
+        val lastRefresh = lastRefreshed.getOrDefault(anime.url, 0L)
+
+        val episodeList = if (currentTime - lastRefresh < refreshInterval) {
+            episodeListMap.getOrDefault(anime.url, emptyList())
         } else {
-            val episodeList = super.getEpisodeList(anime)
-            currentEpisodeList = episodeList
-            return episodeList
+            super.getEpisodeList(anime)
         }
+
+        episodeListMap[anime.url] = episodeList
+        return episodeList
     }
 
     override fun episodeListRequest(anime: SAnime): Request {

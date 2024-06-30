@@ -38,12 +38,12 @@ class CoverProviders(private val client: OkHttpClient, private val headers: Head
 
         return client.newCall(
             GET(url, headers),
-        ).execute().parseAs<FanartDto>().tvposter.map { it.url }
+        ).execute().parseAs<FanartDto>().tvposter?.map { it.url } ?: emptyList()
     }
 
     @Serializable
     class FanartDto(
-        val tvposter: List<ImageDto>,
+        val tvposter: List<ImageDto>? = null,
     ) {
         @Serializable
         class ImageDto(
