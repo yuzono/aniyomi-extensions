@@ -28,7 +28,6 @@ import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -113,7 +112,7 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
             val apiResponse = client.newCall(GET(apiUrl)).execute().asJsoup()
             val regIsUrl = "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)".toRegex()
             val encryptedList = apiResponse.select("#PlayerDisplay div[class*=\"OptionsLangDisp\"] div[class*=\"ODDIV\"] div[class*=\"OD\"] li")
-            encryptedList.parallelCatchingFlatMapBlocking {
+            encryptedList.flatMap {
                 val url = it.attr("onclick")
                     .substringAfter("go_to_player('")
                     .substringAfter("go_to_playerVast('")
@@ -140,7 +139,7 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
 
         // verifier for old series
         if (!apiUrl.isNullOrEmpty() && !apiUrl.contains("/video/") || alternativeServers.any()) {
-            document.select("ul.TbVideoNv.nav.nav-tabs li").parallelCatchingFlatMapBlocking { id ->
+            document.select("ul.TbVideoNv.nav.nav-tabs li").flatMap { id ->
                 val serverName = id.select("a").text().lowercase()
                 val serverId = id.attr("data-id")
                 var serverUrl = data?.substringAfter("video[$serverId] = '", "")?.substringBefore("';", "")
