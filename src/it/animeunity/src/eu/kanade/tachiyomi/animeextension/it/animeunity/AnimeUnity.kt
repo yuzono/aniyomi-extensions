@@ -353,7 +353,7 @@ class AnimeUnity :
         val iframeHeaders =
             headers
                 .newBuilder()
-                .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+                .add("Accept", "*/*")
                 .add("Host", iframeUrl.toHttpUrl().host)
                 .add("Referer", "$baseUrl/")
                 .build()
@@ -366,41 +366,34 @@ class AnimeUnity :
                 .asJsoup()
         val scripts = iframe.select("script")
         val script = scripts.find { it.data().contains("masterPlaylist") }!!.data().replace("\n", "\t")
-        var playlistUrl = Regex("""url: ?'(.*?)'""").find(script)!!.groupValues[1]
-        val filename = playlistUrl.slice(playlistUrl.lastIndexOf("/") + 1 until playlistUrl.length)
-        if (!filename.endsWith(".m3u8")) {
-            playlistUrl = playlistUrl.replace(filename, filename + ".m3u8")
-        }
+        val playlistUrl = Regex("""url: ?'(.*?)'""").find(script)!!.groupValues[1]
+        // val filename = playlistUrl.slice(playlistUrl.lastIndexOf("/") + 1 until playlistUrl.length)
+        // if (!filename.endsWith(".m3u8")) {
+        //    playlistUrl = playlistUrl.replace(filename, filename + ".m3u8")
+        // }
 
         val expires = Regex("""'expires': ?'(\d+)'""").find(script)!!.groupValues[1]
         val token = Regex("""'token': ?'([\w-]+)'""").find(script)!!.groupValues[1]
         // Get subtitles
-        val masterPlUrl = "$playlistUrl?token=$token&expires=$expires&n=1"
+        val masterPlUrl = "$playlistUrl?token=$token&expires=$expires&h=1"
         val masterPl =
             client
                 .newCall(GET(masterPlUrl))
                 .execute()
                 .body
                 .string()
+        // Log.i("AnimeUnity", masterPl)
         val subList =
             Regex("""#EXT-X-MEDIA:TYPE=SUBTITLES.*?NAME="(.*?)".*?URI="(.*?)"""")
                 .findAll(masterPl)
                 .map {
                     Track(it.groupValues[2], it.groupValues[1])
                 }.toList()
-        Regex("""'token(\d+p?)': ?'([\w-]+)'""").findAll(script).forEach { match ->
-            val quality = match.groupValues[1]
+        Regex("""RESOLUTION=.*?x(.*).*?\n(.*)""").findAll(masterPl).forEach { match ->
+            val quality = "${match.groupValues[1]}p"
 
-            val videoUrl =
-                buildString {
-                    append(playlistUrl)
-                    append("?type=video&rendition=")
-                    append(quality)
-                    append("&token=")
-                    append(match.groupValues[2])
-                    append("&expires=$expires")
-                    append("&n=1")
-                }
+            val videoUrl = match.groupValues[2]
+            // Log.i("AnimeUnity", videoUrl)
             videoList.add(Video(videoUrl, quality, videoUrl, subtitleTracks = subList))
         }
 
