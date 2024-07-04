@@ -280,16 +280,16 @@ class StreamingCommunity : ConfigurableAnimeSource, AnimeHttpSource() {
                 .asJsoup()
         val script = iframe.selectFirst("script:containsData(masterPlaylist)")!!.data().replace("\n", "\t")
         var playlistUrl = PLAYLIST_URL_REGEX.find(script)!!.groupValues[1]
-        val filename = playlistUrl.substringAfterLast("/")
-        if (!filename.endsWith(".m3u8")) {
-            playlistUrl = playlistUrl.replace(filename, filename + ".m3u8")
-        }
+        // val filename = playlistUrl.substringAfterLast("/")
+        // if (!filename.endsWith(".m3u8")) {
+        //    playlistUrl = playlistUrl.replace(filename, filename + ".m3u8")
+        // }
 
         val expires = EXPIRES_REGEX.find(script)!!.groupValues[1]
         val token = TOKEN_REGEX.find(script)!!.groupValues[1]
 
         // Get subtitles
-        val masterPlUrl = "$playlistUrl?token=$token&expires=$expires&n=1"
+        val masterPlUrl = "$playlistUrl?token=$token&expires=$expires&h=1"
         val masterPl =
             client
                 .newCall(GET(masterPlUrl))
@@ -301,19 +301,11 @@ class StreamingCommunity : ConfigurableAnimeSource, AnimeHttpSource() {
                 .map {
                     Track(it.groupValues[2], it.groupValues[1])
                 }.toList()
-        TOKEN_QUALITY_REGEX.findAll(script).forEach { match ->
-            val quality = match.groupValues[1]
+        QUALITY_REGEX.findAll(masterPl).forEach { match ->
+            val quality = "${match.groupValues[1]}p"
 
-            val videoUrl =
-                buildString {
-                    append(playlistUrl)
-                    append("?type=video&rendition=")
-                    append(quality)
-                    append("&token=")
-                    append(match.groupValues[2])
-                    append("&expires=$expires")
-                    append("&n=1")
-                }
+            val videoUrl = match.groupValues[2]
+            // Log.i("AnimeUnity", videoUrl)
             videoList.add(Video(videoUrl, quality, videoUrl, subtitleTracks = subList))
         }
 
@@ -359,10 +351,10 @@ class StreamingCommunity : ConfigurableAnimeSource, AnimeHttpSource() {
         private val PLAYLIST_URL_REGEX = Regex("""url: ?'(.*?)'""")
         private val EXPIRES_REGEX = Regex("""'expires': ?'(\d+)'""")
         private val TOKEN_REGEX = Regex("""'token': ?'([\w-]+)'""")
-        private val TOKEN_QUALITY_REGEX = Regex("""'token(\d+p?)': ?'([\w-]+)'""")
+        private val QUALITY_REGEX = Regex("""RESOLUTION=.*?x(.*).*?\n(.*)""")
         private val SUBTITLES_REGEX = Regex("""#EXT-X-MEDIA:TYPE=SUBTITLES.*?NAME="(.*?)".*?URI="(.*?)"""")
         private const val PREF_QUALITY_KEY = "preferred_quality"
-        private const val PREF_QUALITY_DEFAULT = "720"
+        private const val PREF_QUALITY_DEFAULT = "1080"
     }
 
     // ============================== Settings ==============================
