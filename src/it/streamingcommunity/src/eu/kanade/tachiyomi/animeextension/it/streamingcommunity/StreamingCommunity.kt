@@ -30,7 +30,7 @@ class StreamingCommunity : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "StreamingCommunity"
 
-    override val baseUrl = "https://streamingcommunity.forum"
+    override val baseUrl = "https://streamingcommunity.boston"
 
     override val lang = "it"
 
