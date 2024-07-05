@@ -176,7 +176,13 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
             videoUrl,
             videoNameGen = { "Sudatchi (Private IPFS Gateway) - $it" },
             subtitleList = subtitles.map {
-                Track("$baseUrl${it.url}", "${it.SubtitlesName.name} (${it.SubtitlesName.language})")
+                Track(
+                    when {
+                        it.url.startsWith("/ipfs") -> "$ipfsUrl${it.url}"
+                        else -> "$baseUrl${it.url}"
+                    },
+                    "${it.SubtitlesName.name} (${it.SubtitlesName.language})",
+                )
             }.sort(),
         )
     }
