@@ -12,9 +12,9 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
+import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -24,6 +24,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.jsoup.select.Elements
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
@@ -118,33 +119,42 @@ class AnimeID : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun episodeFromElement(element: Element) = throw UnsupportedOperationException()
 
     override fun videoListParse(response: Response): List<Video> {
-        val document = response.asJsoup()
+        val document: Document = response.asJsoup()
+        val parts: Elements = document.select("#partes div.container li.subtab div.parte")
         val videoList = mutableListOf<Video>()
-        document.select("#partes div.container li.subtab div.parte").forEach { script ->
-            val jsonString = script.attr("data")
-            val jsonUnescape = unescapeJava(jsonString)!!.replace("\\", "")
-            val url = jsonUnescape.substringAfter("src=\"").substringBefore("\"").replace("\\\\", "\\")
-            if (url.contains("streamtape")) {
-                StreamTapeExtractor(client).videoFromUrl(url)?.let { videoList.add(it) }
+
+        for (part: Element in parts) {
+            val jsonString = part.attr("data")
+            val jsonUnescaped = unescapeJava(jsonString)
+            val url = jsonUnescaped.substringAfter("SRC=\"").substringBefore("\"")
+            val url2 = jsonUnescaped.substringAfter("src=\"").substringBefore("\"")
+            when {
+                url.contains("obeywish") -> {
+                    StreamWishExtractor(client, headers).videosFromUrl(url).forEach { videoList.add(it) }
+                }
+                url2.contains("streamtape") -> {
+                    StreamTapeExtractor(client).videosFromUrl(url2).forEach { videoList.add(it) }
+                }
             }
         }
+
         return videoList
     }
 
     private fun unescapeJava(escaped: String): String {
         var escaped = escaped
         if (escaped.indexOf("\\u") == -1) return escaped
-        var processed = ""
+        val processed = StringBuilder()
         var position = escaped.indexOf("\\u")
         while (position != -1) {
-            if (position != 0) processed += escaped.substring(0, position)
+            if (position != 0) processed.append(escaped.substring(0, position))
             val token = escaped.substring(position + 2, position + 6)
             escaped = escaped.substring(position + 6)
-            processed += token.toInt(16).toChar()
+            processed.append(token.toInt(16).toChar())
             position = escaped.indexOf("\\u")
         }
-        processed += escaped
-        return processed
+        processed.append(escaped)
+        return processed.toString()
     }
 
     override fun animeDetailsParse(document: Document): SAnime {
@@ -349,9 +359,9 @@ class AnimeID : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         ListPreference(screen.context).apply {
             key = "preferred_quality"
             title = "Preferred server"
-            entries = arrayOf("StreamTape")
-            entryValues = arrayOf("StreamTape")
-            setDefaultValue("StreamTape")
+            entries = arrayOf("StreamTape", "StreamWish")
+            entryValues = arrayOf("StreamTape", "StreamWish")
+            setDefaultValue("StreamWish")
             summary = "%s"
 
             setOnPreferenceChangeListener { _, newValue ->
