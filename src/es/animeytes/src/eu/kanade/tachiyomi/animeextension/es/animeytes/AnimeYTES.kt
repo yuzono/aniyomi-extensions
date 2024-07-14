@@ -30,7 +30,12 @@ class AnimeYTES : AnimeStream(
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_DEFAULT = "Amazon"
         private val SERVER_LIST = arrayOf(
-            "YourUpload", "SendVid", "BurstCloud", "StreamTape", "Filemoon","Okru",
+            "YourUpload",
+            "SendVid",
+            "BurstCloud",
+            "StreamTape",
+            "Filemoon",
+            "Okru",
         )
     }
 
@@ -45,7 +50,6 @@ class AnimeYTES : AnimeStream(
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
 
     override fun getVideoList(url: String, name: String): List<Video> {
-        print("test1 $url")
         return when (name) {
             "OK" -> okruExtractor.videosFromUrl(url)
             "Stream" -> streamtapeExtractor.videosFromUrl(url)
