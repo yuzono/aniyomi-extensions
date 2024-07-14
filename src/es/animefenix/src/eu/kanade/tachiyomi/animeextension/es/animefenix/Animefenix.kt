@@ -28,6 +28,10 @@ import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -140,7 +144,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
             .split("tabsArray").map { it.substringAfter("src='").substringBefore("'").replace("amp;", "") }
             .filter { it.contains("https") }
 
-        servers.forEach { server ->
+        servers.parallelForEachBlocking { server ->
             val decodedUrl = URLDecoder.decode(server, "UTF-8")
             val realUrl = try {
                 client.newCall(GET(decodedUrl)).execute().asJsoup().selectFirst("script")!!
@@ -410,5 +414,21 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
                 preferences.edit().putString(key, entry).commit()
             }
         }.also(screen::addPreference)
+    }
+
+    suspend inline fun <A> Iterable<A>.parallelForEach(crossinline f: suspend (A) -> Unit) {
+        coroutineScope {
+            for (item in this@parallelForEach) {
+                launch(Dispatchers.IO) {
+                    f(item)
+                }
+            }
+        }
+    }
+
+    inline fun <A> Iterable<A>.parallelForEachBlocking(crossinline f: suspend (A) -> Unit) {
+        runBlocking {
+            this@parallelForEachBlocking.parallelForEach(f)
+        }
     }
 }
