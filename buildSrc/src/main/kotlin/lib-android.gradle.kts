@@ -14,11 +14,6 @@ android {
     namespace = "eu.kanade.tachiyomi.lib.${name.replace("-", "")}"
 }
 
-versionCatalogs
-    .named("libs")
-    .findBundle("common")
-    .ifPresent { common ->
-        dependencies {
-            compileOnly(common)
-        }
-    }
+dependencies {
+    compileOnly(versionCatalogs.named("libs").findBundle("common").get())
+}

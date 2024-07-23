@@ -7,9 +7,9 @@ import org.jsoup.Jsoup
 
 @Serializable
 class Mapping(
-    val mal_id: Int? = null,
-    val anilist_id: Int? = null,
-    val thetvdb_id: Int? = null,
+    @SerialName("mal_id") val malId: Int? = null,
+    @SerialName("anilist_id") val anilistId: Int? = null,
+    @SerialName("thetvdb_id") val thetvdbId: Int? = null,
 )
 
 @Serializable
@@ -18,7 +18,7 @@ class PagesResponse(
 ) {
     @Serializable
     class PagesData(
-        val Page: PageObject,
+        @SerialName("Page") val page: PageObject,
     ) {
         @Serializable
         class PageObject(
@@ -64,7 +64,7 @@ class DetailsResponse(
 ) {
     @Serializable
     class DetailsData(
-        val Media: MediaObject,
+        @SerialName("Media") val media: MediaObject,
     ) {
         @Serializable
         class MediaObject(
@@ -118,7 +118,10 @@ class DetailsResponse(
 
                 genre = this@MediaObject.genres.joinToString(", ")
 
-                author = studios?.let { it.edges.firstOrNull { it.isMain }?.node?.name ?: it.edges.firstOrNull()?.node?.name }
+                author = studios?.let {
+                    it.edges.firstOrNull { edge -> edge.isMain }?.node?.name
+                        ?: it.edges.firstOrNull()?.node?.name
+                }
             }
 
             @Serializable
@@ -160,7 +163,7 @@ class AniListEpisodeResponse(
 ) {
     @Serializable
     class DataObject(
-        val Media: MediaObject,
+        @SerialName("Media") val media: MediaObject,
     ) {
         @Serializable
         class MediaObject(
@@ -181,12 +184,75 @@ class AnilistToMalResponse(
 ) {
     @Serializable
     class DataObject(
-        val Media: MediaObject,
+        @SerialName("Media") val media: MediaObject,
     ) {
         @Serializable
         class MediaObject(
             val id: Int,
+            val status: String,
             val idMal: Int? = null,
         )
     }
+}
+
+@Serializable
+class JikanAnimeDto(
+    val data: JikanAnimeDataDto,
+) {
+    @Serializable
+    class JikanAnimeDataDto(
+        val aired: AiredDto,
+    ) {
+        @Serializable
+        class AiredDto(
+            val from: String,
+        )
+    }
+}
+
+@Serializable
+class JikanEpisodesDto(
+    val pagination: JikanPaginationDto,
+    val data: List<JikanEpisodesDataDto>,
+) {
+    @Serializable
+    class JikanPaginationDto(
+        @SerialName("has_next_page") val hasNextPage: Boolean,
+        @SerialName("last_visible_page") val lastPage: Int,
+    )
+
+    @Serializable
+    class JikanEpisodesDataDto(
+        @SerialName("mal_id") val number: Int,
+        val title: String? = null,
+        val aired: String? = null,
+        val filler: Boolean,
+    )
+}
+
+@Serializable
+class MALPicturesDto(
+    val data: List<MALCoverDto>,
+) {
+    @Serializable
+    class MALCoverDto(
+        val jpg: MALJpgDto,
+    ) {
+        @Serializable
+        class MALJpgDto(
+            @SerialName("image_url") val imageUrl: String? = null,
+            @SerialName("small_image_url") val smallImageUrl: String? = null,
+            @SerialName("large_image_url") val largeImageUrl: String? = null,
+        )
+    }
+}
+
+@Serializable
+class FanartDto(
+    val tvposter: List<ImageDto>? = null,
+) {
+    @Serializable
+    class ImageDto(
+        val url: String,
+    )
 }

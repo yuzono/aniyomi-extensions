@@ -100,6 +100,7 @@ query media(%id: Int, %type: MediaType) {
   Media(id: %id, type: %type) {
     idMal
     id
+    status
   }
 }
 """.toQuery()
