@@ -40,7 +40,7 @@ class Animenix : DooPlay(
         return players.flatMap { player ->
             runCatching {
                 val link = getPlayerUrl(player)
-                getPlayerVideos(link, player, setOf("filemoon", "streamwish", "swdyu"))
+                getPlayerVideos(link)
             }.getOrElse { emptyList() }
         }
     }
@@ -65,7 +65,7 @@ class Animenix : DooPlay(
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(headers = headers, client = client) }
 
-    private fun getPlayerVideos(link: String, element: Element, hosterSelection: Set<String>): List<Video> {
+    private fun getPlayerVideos(link: String): List<Video> {
         return when {
             link.contains("filemoon") -> filemoonExtractor.videosFromUrl(link)
             link.contains("swdyu") -> streamWishExtractor.videosFromUrl(link)

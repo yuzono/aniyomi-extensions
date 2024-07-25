@@ -199,7 +199,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
                 StreamWishExtractor(client, docHeaders).videosFromUrl(url, videoNameGen = { "StreamWish:$it" }).also(videoList::addAll)
             }
             if (embedUrl.contains("doodstream") || embedUrl.contains("dood.")) {
-                DoodExtractor(client).videoFromUrl(url, "DoodStream", false)?.let { videoList.add(it) }
+                DoodExtractor(client).videoFromUrl(url, "DoodStream")?.let { videoList.add(it) }
             }
             if (embedUrl.contains("streamlare")) {
                 StreamlareExtractor(client).videosFromUrl(url).let { videoList.addAll(it) }

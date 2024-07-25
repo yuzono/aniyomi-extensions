@@ -201,7 +201,7 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
                 }
                 embedUrl.contains("doodstream") || embedUrl.contains("dood.") || embedUrl.contains("ds2play") || embedUrl.contains("doods.") -> {
                     val url2 = url.replace("https://doodstream.com/e/", "https://dood.to/e/")
-                    listOf(DoodExtractor(client).videoFromUrl(url2, "DoodStream", false)!!)
+                    listOf(DoodExtractor(client).videoFromUrl(url2, "DoodStream")!!)
                 }
                 embedUrl.contains("streamlare") -> StreamlareExtractor(client).videosFromUrl(url)
                 embedUrl.contains("yourupload") || embedUrl.contains("upload") -> YourUploadExtractor(client).videoFromUrl(url, headers = headers)

@@ -114,7 +114,7 @@ class Vostfree : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             if (server.lowercase() == "doodstream") {
                 val playerId = it.attr("id")
                 val url = document.select("div#player-tabs div.tab-blocks div.tab-content div div#content_$playerId").text()
-                val video = DoodExtractor(client).videoFromUrl(url, "DoodStream", false)
+                val video = DoodExtractor(client).videoFromUrl(url, "DoodStream")
                 if (video != null) {
                     videoList.add(video)
                 }

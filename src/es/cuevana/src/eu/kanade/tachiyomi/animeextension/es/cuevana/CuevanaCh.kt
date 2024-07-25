@@ -203,7 +203,7 @@ class CuevanaCh(override val name: String, override val baseUrl: String) : Confi
             }
             if (embedUrl.contains("doodstream") || embedUrl.contains("dood.")) {
                 val url2 = url.replace("https://doodstream.com/e/", "https://dood.to/e/")
-                DoodExtractor(client).videoFromUrl(url2, "$prefix DoodStream", false)?.let { videoList.add(it) }
+                DoodExtractor(client).videoFromUrl(url2, "$prefix DoodStream")?.let { videoList.add(it) }
             }
             if (embedUrl.contains("streamlare")) {
                 StreamlareExtractor(client).videosFromUrl(url, prefix = prefix).let { videoList.addAll(it) }
@@ -243,8 +243,8 @@ class CuevanaCh(override val name: String, override val baseUrl: String) : Confi
                     val response = client.newCall(GET(urlRequest, headers = headers)).execute().asJsoup()
                     val bodyText = response.select("body").text()
                     val json = json.decodeFromString<JsonObject>(bodyText)
-                    val status = json["status"]!!.jsonPrimitive!!.content
-                    val file = json["file"]!!.jsonPrimitive!!.content
+                    val status = json["status"]!!.jsonPrimitive.content
+                    val file = json["file"]!!.jsonPrimitive.content
                     if (status == "200") { videoList.add(Video(file, "$prefix Tomatomatela", file, headers = null)) }
                 }
             }

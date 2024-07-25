@@ -203,7 +203,7 @@ class AsiaLiveAction : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
             if (embedUrl.contains("doodstream") || embedUrl.contains("dood.")) {
                 val url2 = url.replace("https://doodstream.com/e/", "https://dood.to/e/")
-                DoodExtractor(client).videoFromUrl(url2, "DoodStream", false)?.let { videoList.add(it) }
+                DoodExtractor(client).videoFromUrl(url2, "DoodStream")?.let { videoList.add(it) }
             }
             if (embedUrl.contains("streamlare")) {
                 StreamlareExtractor(client).videosFromUrl(url).let { videoList.addAll(it) }

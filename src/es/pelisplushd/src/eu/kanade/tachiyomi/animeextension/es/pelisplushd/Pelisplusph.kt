@@ -165,7 +165,7 @@ class Pelisplusph(override val name: String, override val baseUrl: String) : Pel
                 }
                 embedUrl.contains("doodstream") || embedUrl.contains("dood.") || embedUrl.contains("ds2play") || embedUrl.contains("doods.") -> {
                     val url2 = url.replace("https://doodstream.com/e/", "https://dood.to/e/")
-                    listOf(DoodExtractor(client).videoFromUrl(url2, "$prefix DoodStream", false)!!)
+                    listOf(DoodExtractor(client).videoFromUrl(url2, "$prefix DoodStream")!!)
                 }
                 embedUrl.contains("streamlare") -> StreamlareExtractor(client).videosFromUrl(url, prefix = prefix)
                 embedUrl.contains("yourupload") || embedUrl.contains("upload") -> YourUploadExtractor(client).videoFromUrl(url, headers = headers, prefix = prefix)

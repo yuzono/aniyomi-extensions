@@ -17,7 +17,6 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.api.get
 
 class AnimeOnlineNinja : DooPlay(
     "es",
@@ -124,7 +123,7 @@ class AnimeOnlineNinja : DooPlay(
             "filemoon" in url ->
                 filemoonExtractor.videosFromUrl(url, "$lang Filemoon - ", headers)
             "dood" in url ->
-                doodExtractor.videoFromUrl(url, "$lang DoodStream", false)
+                doodExtractor.videoFromUrl(url, "$lang DoodStream")
                     ?.let(::listOf)
             "streamtape" in url ->
                 streamTapeExtractor.videoFromUrl(url, "$lang StreamTape")
@@ -175,13 +174,10 @@ class AnimeOnlineNinja : DooPlay(
         val id = player.attr("data-post")
         val num = player.attr("data-nume")
         return client.newCall(GET("$baseUrl/wp-json/dooplayer/v1/post/$id?type=$type&source=$num"))
-            .execute()
-            .let { response ->
-                response.body.string()
-                    .substringAfter("\"embed_url\":\"")
-                    .substringBefore("\",")
-                    .replace("\\", "")
-            }
+            .execute().body.string()
+            .substringAfter("\"embed_url\":\"")
+            .substringBefore("\",")
+            .replace("\\", "")
     }
 
     // =========================== Anime Details ============================
