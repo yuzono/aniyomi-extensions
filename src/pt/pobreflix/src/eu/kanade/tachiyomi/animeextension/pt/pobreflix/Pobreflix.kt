@@ -17,7 +17,7 @@ import okhttp3.Response
 class Pobreflix : DooPlay(
     "pt-BR",
     "Pobreflix",
-    "https://pobreflix1.art",
+    "https://pobreflix4.art",
 ) {
     // ============================== Popular ===============================
     override fun popularAnimeSelector() = "div.featured div.poster"
