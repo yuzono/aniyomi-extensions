@@ -145,11 +145,12 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
                 var serverUrl = data?.substringAfter("video[$serverId] = '", "")?.substringBefore("';", "")
                 if (serverUrl != null && serverUrl.contains("api.mycdn.moe")) {
                     val urlId = serverUrl.substringAfter("id=")
+                    print("Server not found $urlId")
                     serverUrl = when (serverName) {
                         "sbfast" -> { "https://sbfull.com/e/$urlId" }
                         "plusto" -> { "https://owodeuwu.xyz/v/$urlId" }
                         "doodstream" -> { "https://dood.to/e/$urlId" }
-                        "upload", "uqload" -> { "https://uqload.com/embed-$urlId.html" }
+                        "upload", "uqload" -> { "https://uqload.ws/embed-$urlId.html" }
                         else -> ""
                     }
                 }
