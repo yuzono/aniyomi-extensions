@@ -38,14 +38,14 @@ class Cinecalidad : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val lang = "es"
 
-    override val supportsLatest = true
+    override val supportsLatest = false
 
     private val preferences: SharedPreferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
     // ============================== Popular ===============================
-    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/page/$page/")
+    override fun popularAnimeRequest(page: Int): Request = "$baseUrl/fecha-de-lanzamiento/2024/page/$page".let(::GET)
 
     override fun popularAnimeSelector(): String = "div.custom.animation-2.items.normal article"
 
