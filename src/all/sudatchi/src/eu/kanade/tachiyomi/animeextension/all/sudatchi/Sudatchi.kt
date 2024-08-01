@@ -59,7 +59,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     override fun popularAnimeRequest(page: Int) = GET(baseUrl, headers)
 
     private fun Int.parseStatus() = when (this) {
-        1 -> SAnime.UNKNOWN // Not Yet Released
+        1 -> SAnime.LICENSED // Not Yet Released
         2 -> SAnime.ONGOING
         3 -> SAnime.COMPLETED
         else -> SAnime.UNKNOWN
@@ -86,7 +86,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         val titleLang = preferences.title
         val document = response.asJsoup()
         val data = document.parseAs<HomePageDto>().animeSpotlight
-        return AnimesPage(data.map { it.toSAnime(titleLang) }, false)
+        return AnimesPage(data.map { it.toSAnime(titleLang) }.filterNot { it.status == SAnime.LICENSED }, false)
     }
 
     // =============================== Latest ===============================
@@ -96,7 +96,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         sudatchiFilters.fetchFilters()
         val titleLang = preferences.title
         return response.parseAs<DirectoryDto>().let {
-            AnimesPage(it.animes.map { it.toSAnime(titleLang) }, it.page != it.pages)
+            AnimesPage(it.animes.map { it.toSAnime(titleLang) }.filterNot { it.status == SAnime.LICENSED }, it.page != it.pages)
         }
     }
 
