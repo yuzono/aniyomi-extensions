@@ -24,7 +24,6 @@ import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -135,7 +134,7 @@ class Pelisplusto(override val name: String, override val baseUrl: String) : Pel
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
         val regIsUrl = "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)".toRegex()
-        return document.select(".bg-tabs ul li").parallelCatchingFlatMapBlocking {
+        return document.select(".bg-tabs ul li").flatMap {
             val decode = String(Base64.decode(it.attr("data-server"), Base64.DEFAULT))
 
             val url = if (!regIsUrl.containsMatchIn(decode)) {
