@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.animeextension.es.pelisplushd
 
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.animeextension.es.pelisplushd.extractors.StreamHideExtractor
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -14,6 +13,7 @@ import eu.kanade.tachiyomi.lib.fastreamextractor.FastreamExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
+import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamlareextractor.StreamlareExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -129,7 +130,7 @@ class Pelisplusph(override val name: String, override val baseUrl: String) : Pel
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        return document.select("[class*=server-item-]").flatMap { serverItem ->
+        return document.select("[class*=server-item-]").parallelCatchingFlatMapBlocking { serverItem ->
             val langIdx = getNumberFromString(serverItem.attr("class").substringAfter("server-item-"))
             val langItem = document.select("li[data-id=\"$langIdx\"] a").text()
             val lang = if (langItem.contains("Subtitulado")) "[SUB]" else if (langItem.contains("Latino")) "[LAT]" else "[CAST]"
@@ -173,7 +174,8 @@ class Pelisplusph(override val name: String, override val baseUrl: String) : Pel
                 embedUrl.contains("fastream") -> FastreamExtractor(client, headers).videosFromUrl(url, prefix = "$prefix Fastream:")
                 embedUrl.contains("upstream") -> UpstreamExtractor(client).videosFromUrl(url, prefix = prefix)
                 embedUrl.contains("streamtape") || embedUrl.contains("stp") || embedUrl.contains("stape") -> listOf(StreamTapeExtractor(client).videoFromUrl(url, quality = "$prefix StreamTape")!!)
-                embedUrl.contains("ahvsh") || embedUrl.contains("streamhide") || embedUrl.contains("guccihide") || embedUrl.contains("streamvid") -> StreamHideExtractor(client).videosFromUrl(url, "$prefix StreamHide")
+                embedUrl.contains("ahvsh") || embedUrl.contains("streamhide") || embedUrl.contains("guccihide") ||
+                    embedUrl.contains("streamvid") || embedUrl.contains("vidhide") -> StreamHideVidExtractor(client).videosFromUrl(url, "$prefix ")
                 else -> emptyList()
             }
         }.getOrNull() ?: emptyList()
