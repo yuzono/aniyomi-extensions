@@ -90,10 +90,12 @@ class HomeCine : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
         val genreFilter = filterList.find { it is GenreFilter } as GenreFilter
+        val typeFilter = filterList.find { it is Type } as Type
 
         return when {
             query.isNotBlank() -> GET("$baseUrl/page/$page/?s=$query", headers)
             genreFilter.state != 0 -> GET("$baseUrl/${genreFilter.toUriPart()}/page/$page", headers)
+            typeFilter.state != 0 -> GET("$baseUrl/${typeFilter.toUriPart()}/page/$page", headers)
             else -> popularAnimeRequest(page)
         }
     }
@@ -173,15 +175,57 @@ class HomeCine : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun getFilterList(): AnimeFilterList = AnimeFilterList(
         AnimeFilter.Header("La busqueda por texto ignora el filtro"),
+        Type(),
         GenreFilter(),
+
+    )
+
+    private class Type : UriPartFilter(
+        "Tipo",
+        arrayOf(
+            Pair("<Seleccionar>", ""),
+            Pair("Películas", "peliculas"),
+            Pair("Series", "series"),
+        ),
     )
 
     private class GenreFilter : UriPartFilter(
         "Género",
         arrayOf(
             Pair("<Seleccionar>", ""),
-            Pair("Películas", "peliculas"),
-            Pair("Series", "series"),
+            Pair("Acción", "genre/accion"),
+            Pair("Action & Adventure", "genre/action-adventure"),
+            Pair("Animación", "genre/animacion"),
+            Pair("Aventura", "genre/aventura"),
+            Pair("Bélica", "genre/belica"),
+            Pair("Ciencia Ficción", "genre/ciencia-ficcion"),
+            Pair("Comedia", "genre/comedia"),
+            Pair("Películas de Comedia", "genre/peliculas-de-comedia"),
+            Pair("Crimen", "genre/crimen"),
+            Pair("Documentales", "genre/documentales"),
+            Pair("Documental", "genre/documental"),
+            Pair("Drama", "genre/drama"),
+            Pair("Familia", "genre/familia"),
+            Pair("Fantasía", "genre/fantasia"),
+            Pair("Guerra", "genre/guerra"),
+            Pair("Historia", "genre/historia"),
+            Pair("Kids", "genre/kids"),
+            Pair("Misterio", "genre/misterio"),
+            Pair("Música", "genre/musica"),
+            Pair("News", "genre/news"),
+            Pair("Película de la Televisión", "genre/pelicula-de-la-television"),
+            Pair("Película de TV", "genre/pelicula-de-tv"),
+            Pair("Reality", "genre/reality"),
+            Pair("Romance", "genre/romance"),
+            Pair("Sci-Fi & Fantasy", "genre/sci-fi-fantasy"),
+            Pair("Soap", "genre/soap"),
+            Pair("Supervivencia", "genre/supervivencia"),
+            Pair("Suspense", "genre/suspense"),
+            Pair("Talk", "genre/talk"),
+            Pair("Terror", "genre/terror"),
+            Pair("Uncategorized", "genre/uncategorized"),
+            Pair("War & Politics", "genre/war-politics"),
+            Pair("Western", "genre/western"),
         ),
     )
 
