@@ -19,7 +19,6 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
-import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -28,7 +27,8 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 class OppaiStream : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
 
@@ -45,8 +45,6 @@ class OppaiStream : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
     private val preferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
-
-    private val json: Json by injectLazy()
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) = GET("$baseUrl/$SEARCH_PATH?order=views&page=$page&limit=$SEARCH_LIMIT")
@@ -124,8 +122,10 @@ class OppaiStream : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
     override fun searchAnimeFromElement(element: Element) = SAnime.create().apply {
         thumbnail_url = element.selectFirst("img.cover-img-in")?.attr("abs:src")
         title = element.selectFirst(".title-ep")!!.text().replace(TITLE_CLEANUP_REGEX, "")
+        val encodedUrl = element.attr("href").substringAfter("to=")
+        val decodedUrl = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.toString())
         setUrlWithoutDomain(
-            element.attr("href").replace(Regex("(?<=\\?e=)(.*?)(?=&f=)")) {
+            decodedUrl.replace(Regex("(?<=\\?e=)(.*?)(?=&f=)")) {
                 java.net.URLEncoder.encode(it.groupValues[1], "UTF-8")
             },
         )
@@ -157,40 +157,42 @@ class OppaiStream : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     // ============================== Episodes ==============================
-    override fun episodeListParse(response: Response): List<SEpisode> {
-        val doc = response.asJsoup()
-        return buildList {
-            doc.select(episodeListSelector())
-                .map(::episodeFromElement)
-                .let(::addAll)
-
-            add(
-                SEpisode.create().apply {
-                    setUrlWithoutDomain(
-                        doc.location().replace(Regex("(?<=\\?e=)(.*?)(?=&f=)")) {
-                            java.net.URLEncoder.encode(it.groupValues[1], "UTF-8")
-                        },
-                    )
-                    val num = doc.selectFirst("div.episode-info > h1")!!.text().substringAfter(" Ep ")
-                    name = "Episode $num"
-                    episode_number = num.toFloatOrNull() ?: 1F
-                    scanlator = doc.selectFirst("div.episode-info a.red")?.text()
-                },
-            )
-        }.sortedByDescending { it.episode_number }
-    }
+//    override fun episodeListParse(response: Response): List<SEpisode> {
+//        val doc = response.asJsoup()
+//        return buildList {
+//            doc.select(episodeListSelector())
+//                .map(::episodeFromElement)
+//                .let(::addAll)
+//
+//            add(
+//                SEpisode.create().apply {
+//                    setUrlWithoutDomain(
+//                        doc.location().replace(Regex("(?<=\\?e=)(.*?)(?=&f=)")) {
+//                            java.net.URLEncoder.encode(it.groupValues[1], "UTF-8")
+//                        },
+//                    )
+//                    val num = doc.selectFirst("div.episode-info > h1")!!.text().substringAfter(" Ep ")
+//                    name = "Episode $num"
+//                    episode_number = num.toFloatOrNull() ?: 1F
+//                    scanlator = doc.selectFirst("div.episode-info a.red")?.text()
+//                },
+//            )
+//        }.sortedByDescending { it.episode_number }
+//    }
 
     override fun episodeListSelector() = "div.more-same-eps > div > div > a"
 
     override fun episodeFromElement(element: Element) = SEpisode.create().apply {
+        val encodedUrl = element.attr("href").substringAfter("to=")
+        val decodedUrl = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.toString())
         setUrlWithoutDomain(
-            element.attr("href").replace(Regex("(?<=\\?e=)(.*?)(?=&f=)")) {
+            decodedUrl.replace(Regex("(?<=\\?e=)(.*?)(?=&f=)")) {
                 java.net.URLEncoder.encode(it.groupValues[1], "UTF-8")
             },
         )
         val num = element.selectFirst("font.ep")?.text() ?: "1"
         name = "Episode $num"
-        episode_number = num.toFloatOrNull() ?: 1F
+        episode_number = "0.$num".toFloat()
         scanlator = element.selectFirst("h6 > a")?.text()
     }
 
