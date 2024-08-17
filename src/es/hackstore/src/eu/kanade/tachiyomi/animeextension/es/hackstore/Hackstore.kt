@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
+import eu.kanade.tachiyomi.lib.goodstramextractor.GoodStreamExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.lib.vidhideextractor.VidHideExtractor
@@ -179,6 +180,7 @@ class Hackstore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }
+    private val goodStreamExtractor by lazy { GoodStreamExtractor(client, headers) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
@@ -206,6 +208,9 @@ class Hackstore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 }
                 server.contains("vidhide") || server.contains("vid.") -> {
                     vidHideExtractor.videosFromUrl(url) { "$prefix VidHide:$it" }
+                }
+                server.contains("goodstream") || server.contains("vidstream") -> {
+                    goodStreamExtractor.videosFromUrl(url, "$prefix GoodStream")
                 }
                 else -> emptyList()
             }
@@ -247,7 +252,7 @@ class Hackstore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_DEFAULT = "StreamWish"
-        private val SERVER_LIST = arrayOf("DoodStream", "StreamTape", "Voe", "Filemoon", "StreamWish")
+        private val SERVER_LIST = arrayOf("DoodStream", "StreamTape", "Voe", "Filemoon", "StreamWish", "VidHide", "GoodStream")
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
