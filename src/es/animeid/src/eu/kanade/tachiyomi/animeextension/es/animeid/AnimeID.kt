@@ -24,7 +24,6 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import org.jsoup.select.Elements
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
@@ -118,43 +117,47 @@ class AnimeID : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun episodeFromElement(element: Element) = throw UnsupportedOperationException()
 
-    override fun videoListParse(response: Response): List<Video> {
-        val document: Document = response.asJsoup()
-        val parts: Elements = document.select("#partes div.container li.subtab div.parte")
-        val videoList = mutableListOf<Video>()
+    // ============================ Video Links =============================
+    private val streamwishExtractor by lazy { StreamWishExtractor(client, headers) }
+    private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
 
-        for (part: Element in parts) {
-            val jsonString = part.attr("data")
-            val jsonUnescaped = unescapeJava(jsonString)
-            val url = jsonUnescaped.substringAfter("SRC=\"").substringBefore("\"")
-            val url2 = jsonUnescaped.substringAfter("src=\"").substringBefore("\"")
-            when {
-                url.contains("obeywish") -> {
-                    StreamWishExtractor(client, headers).videosFromUrl(url).forEach { videoList.add(it) }
-                }
-                url2.contains("streamtape") -> {
-                    StreamTapeExtractor(client).videosFromUrl(url2).forEach { videoList.add(it) }
-                }
+    override fun videoListParse(response: Response): List<Video> {
+        val document = response.asJsoup()
+        val videoList = mutableListOf<Video>()
+        document.select("#partes div.container li.subtab div.parte").forEach { script ->
+            val jsonString = script.attr("data")
+            val jsonUnescape = unescapeJava(jsonString)!!.replace("\\", "")
+            val url = fetchUrls(jsonUnescape).firstOrNull()?.replace("\\\\", "\\") ?: ""
+            if (url.contains("streamtape") || url.contains("tape") || url.contains("stp")) {
+                streamtapeExtractor.videosFromUrl(url).also(videoList::addAll)
+            }
+            if (url.contains("wish") || url.contains("fviplions") || url.contains("obeywish")) {
+                streamwishExtractor.videosFromUrl(url, videoNameGen = { "StreamWish:$it" }).also(videoList::addAll)
             }
         }
-
         return videoList
     }
 
     private fun unescapeJava(escaped: String): String {
         var escaped = escaped
         if (escaped.indexOf("\\u") == -1) return escaped
-        val processed = StringBuilder()
+        var processed = ""
         var position = escaped.indexOf("\\u")
         while (position != -1) {
-            if (position != 0) processed.append(escaped.substring(0, position))
+            if (position != 0) processed += escaped.substring(0, position)
             val token = escaped.substring(position + 2, position + 6)
             escaped = escaped.substring(position + 6)
-            processed.append(token.toInt(16).toChar())
+            processed += token.toInt(16).toChar()
             position = escaped.indexOf("\\u")
         }
-        processed.append(escaped)
-        return processed.toString()
+        processed += escaped
+        return processed
+    }
+
+    private fun fetchUrls(text: String?): List<String> {
+        if (text.isNullOrEmpty()) return listOf()
+        val linkRegex = "(http|ftp|https):\\/\\/([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:\\/~+#-]*[\\w@?^=%&\\/~+#-])".toRegex()
+        return linkRegex.findAll(text).map { it.value.trim().removeSurrounding("\"") }.toList()
     }
 
     override fun animeDetailsParse(document: Document): SAnime {
@@ -359,9 +362,9 @@ class AnimeID : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         ListPreference(screen.context).apply {
             key = "preferred_quality"
             title = "Preferred server"
-            entries = arrayOf("StreamTape", "StreamWish")
-            entryValues = arrayOf("StreamTape", "StreamWish")
-            setDefaultValue("StreamWish")
+            entries = arrayOf("StreamTape")
+            entryValues = arrayOf("StreamTape")
+            setDefaultValue("StreamTape")
             summary = "%s"
 
             setOnPreferenceChangeListener { _, newValue ->
