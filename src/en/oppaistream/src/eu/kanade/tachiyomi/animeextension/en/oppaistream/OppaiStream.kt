@@ -200,7 +200,7 @@ class OppaiStream : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
     override fun videoListParse(response: Response): List<Video> {
         val doc = response.asJsoup()
         val script = doc.selectFirst("script:containsData(var availableres)")!!.data()
-        val subtitles = doc.select("track[kind=captions]").map {
+        val subtitles = doc.select("track[kind=subtitles]").map {
             Track(it.attr("src"), it.attr("label"))
         }
 
