@@ -8,60 +8,44 @@ import okhttp3.OkHttpClient
 
 class DoodExtractor(private val client: OkHttpClient) {
 
-    fun videoFromUrl(url: String, quality: String? = null, externalSubs: List<Track> = emptyList(),): Video? {
-        return runCatching {
-            val urlRegex = Regex("https://(.*?)/[de]/([0-9a-zA-Z]+)").find(url)!!
-            var updatedHost = urlRegex.groupValues[1].let {
-                if (it.endsWith(".cx") || it.endsWith(".wf")) {
-                    "dood.so"
-                } else {
-                    it
-                }
-            }
-            val mediaId = urlRegex.groupValues[2]
-            var webUrl = getUrl(updatedHost, mediaId)
-            val headers = doodHeaders(updatedHost)
-            val response = client.newCall(GET(webUrl, headers)).execute()
-            if (response.request.url.toString() != webUrl) {
-                updatedHost = Regex("(?://|\\.)([^/]+)").find(response.request.url.toString())?.groupValues?.get(1) ?: updatedHost
-                webUrl = getUrl(updatedHost, mediaId)
-            }
-            val updatedHeaders = headers.newBuilder().set("referer", webUrl).build()
-            val iframeMatch = Regex("""<iframe\s*src="([^"]+)""").find(response.body.string())
-            webUrl = if (iframeMatch != null) {
-                getUrl(updatedHost, iframeMatch.groupValues[1])
-            } else {
-                webUrl.replace("/d/", "/e/")
-            }
-            val html = client.newCall(GET(webUrl, updatedHeaders)).execute().body.string()
-            val subMatches = Regex("""dsplayer\.addRemoteTextTrack\(\{src:'([^']+)',\s*label:'([^']*)',kind:'captions'""").findAll(html)
-            val subTitles = mutableListOf<Track>()
-            subMatches.forEach {
-                val src = it.groupValues[1]
-                if (it.groupValues[1].length > 1) {
-                    subTitles.add(Track(it.groupValues[1], if (src.startsWith("//")) "https:$src" else src))
-                }
-            }
+    fun videoFromUrl(
+        url: String,
+        quality: String? = null,
+        redirect: Boolean = true,
+        externalSubs: List<Track> = emptyList(),
+    ): Video? {
+        val newQuality = quality ?: ("Doodstream" + if (redirect) " mirror" else "")
 
-            val tokenMatch = Regex("""dsplayer\.hotkeys[^']+'([^']+).+?function\s*makePlay.+?return[^?]+([^"]+)""", RegexOption.DOT_MATCHES_ALL).find(html)
-            val token = tokenMatch!!.groupValues[2]
-            val videoUrl = "https://${updatedHost}${tokenMatch.groupValues[1]}"
-            val videoHtml = client.newCall(GET(videoUrl, updatedHeaders)).execute().body.string()
-            val vidSrc = if (videoHtml.contains("cloudflarestorage.")) {
-                videoHtml.trim()
-            } else {
-                videoHtml + getRandomString() + token + (System.currentTimeMillis() / 1000).toString()
-            }
-            Video(vidSrc, "Dood${ if (quality != null) ": $quality" else "" }", vidSrc, headers = updatedHeaders, subtitleTracks = externalSubs.ifEmpty { subTitles })
+        return runCatching {
+            val response = client.newCall(GET(url)).execute()
+            val newUrl = if (redirect) response.request.url.toString() else url
+
+            val doodHost = Regex("https://(.*?)/").find(newUrl)!!.groupValues[1]
+            val content = response.body.string()
+            if (!content.contains("'/pass_md5/")) return null
+            val md5 = content.substringAfter("'/pass_md5/").substringBefore("',")
+            val token = md5.substringAfterLast("/")
+            val randomString = getRandomString()
+            val expiry = System.currentTimeMillis()
+            val videoUrlStart = client.newCall(
+                GET(
+                    "https://$doodHost/pass_md5/$md5",
+                    Headers.headersOf("referer", newUrl),
+                ),
+            ).execute().body.string()
+            val videoUrl = "$videoUrlStart$randomString?token=$token&expiry=$expiry"
+            Video(videoUrl, newQuality, videoUrl, headers = doodHeaders(doodHost), subtitleTracks = externalSubs)
         }.getOrNull()
     }
 
-    fun videosFromUrl(url: String, quality: String? = null): List<Video> {
-        val video = videoFromUrl(url, quality)
-        return video?.let(::listOf) ?: emptyList()
+    fun videosFromUrl(
+        url: String,
+        quality: String? = null,
+        redirect: Boolean = true,
+    ): List<Video> {
+        val video = videoFromUrl(url, quality, redirect)
+        return video?.let(::listOf) ?: emptyList<Video>()
     }
-
-    private fun getUrl(host: String, mediaId: String) = "https://$host/d/$mediaId"
 
     private fun getRandomString(length: Int = 10): String {
         val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
