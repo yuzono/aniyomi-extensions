@@ -203,7 +203,7 @@ open class PelisForte : ConfigurableAnimeSource, AnimeHttpSource() {
                 StreamWishExtractor(client, docHeaders).videosFromUrl(url, videoNameGen = { "${prefix}StreamWish:$it" }).also(videoList::addAll)
             }
             if (embedUrl.contains("doodstream") || embedUrl.contains("dood.")) {
-                DoodExtractor(client).videoFromUrl(url, "${prefix}DoodStream")?.let { videoList.add(it) }
+                DoodExtractor(client).videoFromUrl(url, prefix)?.let { videoList.add(it) }
             }
             if (embedUrl.contains("streamlare")) {
                 StreamlareExtractor(client).videosFromUrl(url, prefix = prefix).let { videoList.addAll(it) }

@@ -123,7 +123,7 @@ class AnimeOnlineNinja : DooPlay(
             "filemoon" in url ->
                 filemoonExtractor.videosFromUrl(url, "$lang Filemoon - ", headers)
             "dood" in url ->
-                doodExtractor.videoFromUrl(url, "$lang DoodStream")
+                doodExtractor.videoFromUrl(url, lang)
                     ?.let(::listOf)
             "streamtape" in url ->
                 streamTapeExtractor.videoFromUrl(url, "$lang StreamTape")

@@ -161,7 +161,7 @@ class Hentaitk : ConfigurableAnimeSource, AnimeHttpSource() {
             embedUrl.contains("doodstream") || embedUrl.contains("dood.") ||
                 embedUrl.contains("d000d") || embedUrl.contains("d0000d") ||
                 embedUrl.contains("ds2play") || embedUrl.contains("doods")
-            -> doodExtractor.videosFromUrl(url, "DoodStream")
+            -> doodExtractor.videosFromUrl(url)
             embedUrl.contains("streamtape") || embedUrl.contains("stp") ||
                 embedUrl.contains("stape")
             -> streamTapeExtractor.videosFromUrl(url, quality = "StreamTape")

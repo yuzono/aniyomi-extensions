@@ -211,7 +211,7 @@ class AnimeLatinoHD : ConfigurableAnimeSource, AnimeHttpSource() {
                                 StreamTapeExtractor(client).videoFromUrl(url, "$language Streamtape")?.let { videoList.add(it) }
                             }
                             if (embedUrl.contains("dood")) {
-                                DoodExtractor(client).videoFromUrl(url, "$language DoodStream")?.let { videoList.add(it) }
+                                DoodExtractor(client).videoFromUrl(url, language)?.let { videoList.add(it) }
                             }
                             if (embedUrl.contains("okru") || embedUrl.contains("ok.ru")) {
                                 OkruExtractor(client).videosFromUrl(url, language).also(videoList::addAll)
