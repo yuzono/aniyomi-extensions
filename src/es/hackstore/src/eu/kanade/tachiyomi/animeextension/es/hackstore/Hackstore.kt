@@ -204,7 +204,7 @@ class Hackstore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     streamWishExtractor.videosFromUrl(url, videoNameGen = { "$prefix StreamWish:$it" })
                 }
                 server.contains("doodstream") || server.contains("dood.") || server.contains("ds2play") || server.contains("doods.") -> {
-                    doodExtractor.videosFromUrl(url, "$prefix DoodStream")
+                    doodExtractor.videosFromUrl(url, prefix)
                 }
                 server.contains("vidhide") || server.contains("vid.") -> {
                     vidHideExtractor.videosFromUrl(url) { "$prefix VidHide:$it" }
