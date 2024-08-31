@@ -25,13 +25,21 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
+import org.json.JSONObject
+import org.jsoup.Jsoup
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -60,91 +68,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             .add("query", query)
             .add("variables", variables)
             .build()
-
         return POST("https://graphql.anilist.co", body = requestBody)
-    }
-
-    // ============================== Anilist Meta List ======================
-    private fun anilistQuery(): String {
-        return """
-            query (${"$"}page: Int, ${"$"}perPage: Int, ${"$"}sort: [MediaSort], ${"$"}search: String) {
-                Page(page: ${"$"}page, perPage: ${"$"}perPage) {
-                    pageInfo{
-                        currentPage
-                        hasNextPage
-                    }
-                    media(type: ANIME, sort: ${"$"}sort, search: ${"$"}search, status_in:[RELEASING,FINISHED]) {
-                        id
-                        title {
-                            romaji
-                            english
-                            native
-                        }
-                        coverImage {
-                            extraLarge
-                            large
-                        }
-                        description
-                        status
-                        tags{
-                            name
-                        }
-                        genres
-                        studios {
-                            nodes {
-                                name
-                            }
-                        }
-                        countryOfOrigin
-                        isAdult
-                    }
-                }
-            }
-        """.trimIndent()
-    }
-
-    private fun anilistLatestQuery(): String {
-        return """
-            query (${"$"}page: Int, ${"$"}perPage: Int, ${"$"}sort: [AiringSort]) {
-              Page(page: ${"$"}page, perPage: ${"$"}perPage) {
-                pageInfo {
-                  currentPage
-                  hasNextPage
-                }
-                airingSchedules(
-                  airingAt_greater: 0
-                  airingAt_lesser: ${System.currentTimeMillis() / 1000 - 10000}
-                  sort: ${"$"}sort
-                ) {
-                  media{
-                    id
-                    title {
-                        romaji
-                        english
-                        native
-                    }
-                    coverImage {
-                       extraLarge
-                       large
-                    }
-                    description
-                    status
-                    tags{
-                        name
-                    }
-                    genres
-                    studios {
-                        nodes {
-                            name
-                        }
-                    }
-                    countryOfOrigin
-                    isAdult
-                  }
-                }
-              }
-            }
-        """.trimIndent()
     }
 
     private fun parseSearchJson(jsonLine: String?, isLatestQuery: Boolean = false): AnimesPage {
@@ -216,7 +140,8 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             {
                 "page": $page,
                 "perPage": 30,
-                "sort": "TRENDING_DESC"
+                "sort": "TRENDING_DESC",
+                "status": ["FINISHED", "RELEASING"]
             }
         """.trimIndent()
 
@@ -225,8 +150,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val jsonData = response.body.string()
-        return parseSearchJson(jsonData)
-    }
+        return parseSearchJson(jsonData) }
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int): Request {
@@ -259,67 +183,73 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun searchAnimeByIdParse(response: Response): AnimesPage {
-        val details = animeDetailsParse(response).apply {
-            setUrlWithoutDomain(response.request.url.toString())
-            initialized = true
-        }
-
+        val details = animeDetailsParse(response)
         return AnimesPage(listOf(details), false)
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val variables = """
-            {
-                "page": $page,
-                "perPage": 30,
-                "sort": "POPULARITY_DESC",
-                "search": "$query"
+        val params = AniListFilters.getSearchParameters(filters)
+        val variablesObject = buildJsonObject {
+            put("page", page)
+            put("perPage", 30)
+            put("sort", params.sort)
+            if (query.isNotBlank()) put("search", query)
+
+            if (params.genres.isNotEmpty()) {
+                putJsonArray("genres") {
+                    params.genres.forEach { add(it) }
+                }
             }
-        """.trimIndent()
+
+            if (params.format.isNotEmpty()) {
+                putJsonArray("format") {
+                    params.format.forEach { add(it) }
+                }
+            }
+
+            if (params.season.isBlank() && params.year.isNotBlank()) {
+                put("year", "${params.year}%")
+            }
+
+            if (params.season.isNotBlank() && params.year.isBlank()) {
+                throw Exception("Year cannot be blank if season is set")
+            }
+
+            if (params.season.isNotBlank() && params.year.isNotBlank()) {
+                put("season", params.season)
+                put("seasonYear", params.year)
+            }
+
+            if (params.status.isNotBlank()) {
+                putJsonArray("status") {
+                    params.status.forEach { add(it.toString()) }
+                }
+            }
+        }
+
+        val variables = json.encodeToString(variablesObject)
+
+        println(anilistQuery())
+        println(variables)
 
         return makeGraphQLRequest(anilistQuery(), variables)
     }
 
     override fun searchAnimeParse(response: Response) = popularAnimeParse(response)
+
+    // ============================== Filters ===============================
+
+    override fun getFilterList(): AnimeFilterList = AniListFilters.FILTER_LIST
+
     // =========================== Anime Details ============================
 
     override fun animeDetailsParse(response: Response): SAnime = throw UnsupportedOperationException()
 
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
-        val query = """
-        query(${"$"}id: Int){
-            Media(id: ${"$"}id){
-                id
-                title {
-                    romaji
-                    english
-                    native
-                }
-                coverImage {
-                   extraLarge
-                   large
-                }
-                description
-                status
-                tags{
-                    name
-                }
-                genres
-                studios {
-                    nodes {
-                        name
-                    }
-                }
-                countryOfOrigin
-                isAdult
-            }
-        }
-        """.trimIndent()
-
         val variables = """{"id": ${anime.url}}"""
 
         val metaData = runCatching {
-            json.decodeFromString<DetailsById>(client.newCall(makeGraphQLRequest(query, variables)).execute().body.string())
+            json.decodeFromString<DetailsById>(client.newCall(makeGraphQLRequest(getDetailsQuery(), variables)).execute().body.string())
         }.getOrNull()?.data?.media
 
         anime.title = metaData?.title?.let { title ->
@@ -332,10 +262,24 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
         } ?: ""
 
         anime.thumbnail_url = metaData?.coverImage?.extraLarge
-        anime.description = metaData?.description
-            ?.replace(Regex("<br><br>"), "\n")
-            ?.replace(Regex("<.*?>"), "")
-            ?: "No Description"
+
+        anime.description = buildString {
+            append(
+                metaData?.description?.let {
+                    Jsoup.parseBodyFragment(
+                        it.replace("<br>\n", "br2n")
+                            .replace("<br>", "br2n")
+                            .replace("\n", "br2n"),
+                    ).text().replace("br2n", "\n")
+                },
+            )
+            append("\n\n")
+            if (!(metaData?.season == null && metaData?.seasonYear == null)) {
+                append("Release: ${ metaData.season ?: ""} ${ metaData.seasonYear ?: ""}")
+            }
+            metaData?.format?.let { append("\nType: ${metaData.format}") }
+            metaData?.episodes?.let { append("\nTotal Episode Count: ${metaData.episodes}") }
+        }.trim()
 
         anime.status = when (metaData?.status) {
             "RELEASING" -> SAnime.ONGOING
@@ -358,7 +302,9 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================== Episodes ==============================
     override fun episodeListRequest(anime: SAnime): Request {
-        return GET("https://anime-kitsu.strem.fun/meta/series/anilist%3A${anime.url}.json")
+        val res = URL("https://api.ani.zip/mappings?anilist_id=${anime.url}").readText()
+        val kitsuId = JSONObject(res).getJSONObject("mappings").getInt("kitsu_id").toString()
+        return GET("https://anime-kitsu.strem.fun/meta/series/kitsu%3A$kitsuId.json")
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
@@ -484,9 +430,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
                 if (debridProvider == "none") {
                     val trackerList = animeTrackers.split(",").map { it.trim() }.filter { it.isNotBlank() }.joinToString("&tr=")
                     "magnet:?xt=urn:btih:${stream.infoHash}&dn=${stream.infoHash}&tr=$trackerList&index=${stream.fileIdx}"
-                } else {
-                    stream.url ?: ""
-                }
+                } else stream.url ?: ""
             Video(urlOrHash, ((stream.name?.replace("Torrentio\n", "") ?: "") + "\n" + stream.title), urlOrHash)
         }.orEmpty()
     }
