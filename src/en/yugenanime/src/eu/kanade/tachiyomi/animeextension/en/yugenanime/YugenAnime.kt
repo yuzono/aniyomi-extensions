@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.yugenanime
 
-import android.util.Log
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -20,6 +19,8 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.net.URI
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class YugenAnime : ParsedAnimeHttpSource() {
 
@@ -262,9 +263,9 @@ class YugenAnime : ParsedAnimeHttpSource() {
 
     // ============================== Episodes ==============================
     override fun episodeListSelector(): String = "ul.ep-grid li.ep-card"
-    override fun episodeListRequest(anime: SAnime): Request {
-        val url = "$baseUrl${anime.url}watch/"
-        Log.d("EpisodeListRequest", url)
+
+    private fun episodeListRequest(anime: SAnime, page: Int): Request {
+        val url = "$baseUrl${anime.url}watch/?page=$page"
         return GET(url, headers)
     }
 
@@ -272,21 +273,29 @@ class YugenAnime : ParsedAnimeHttpSource() {
         val episode = SEpisode.create()
         val title = element.select("a.ep-title").text()
         val link = fixUrl(element.select("a.ep-title").attr("href"))
+        val dateElement = element.selectFirst("time[datetime]")
+        val releaseDate = dateElement?.attr("datetime") ?: ""
+
+        val date = try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(releaseDate)
+        } catch (e: Exception) {
+            null
+        }
 
         val episodeNumber = title.substringBefore(":").filter { it.isDigit() }.toIntOrNull()
 
         episode.setUrlWithoutDomain(link)
         episode.name = title
         episode.episode_number = episodeNumber?.toFloat() ?: 0F
+        episode.date_upload = date?.time ?: 0
 
         return episode
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val document = response.asJsoup()
-        return document.select(episodeListSelector()).map { element ->
-            episodeFromElement(element)
-        }
+        val anime = SAnime.create()
+        anime.url = response.request.url.encodedPath
+        return fetchAllEpisodes(anime)
     }
 
     private fun fixUrl(url: String?): String {
@@ -299,11 +308,26 @@ class YugenAnime : ParsedAnimeHttpSource() {
         }
     }
 
+    private fun fetchAllEpisodes(anime: SAnime, page: Int = 1, episodes: MutableList<SEpisode> = mutableListOf()): List<SEpisode> {
+        val response = client.newCall(episodeListRequest(anime, page)).execute()
+        val document = response.asJsoup()
+        val newEpisodes = document.select(episodeListSelector()).map { element -> episodeFromElement(element) }
+        episodes.addAll(newEpisodes)
+
+        val hasNextPage = document.select("ul.pagination li a:contains(Next)").isNotEmpty()
+        return if (hasNextPage) {
+            fetchAllEpisodes(anime, page + 1, episodes)
+        } else {
+            episodes.sortedByDescending { it.episode_number }
+        }
+    }
+
     // ============================ Video Links =============================
     override fun videoListParse(response: Response): List<Video> {
         val data = response.request.url.toString()
         val episode = data.removeSuffix("/").split("/").last()
         val dubData = data.substringBeforeLast("/$episode").let { "$it-dub/$episode" }
+        val api = "$baseUrl/api/embed/"
 
         val videoList = mutableListOf<Video>()
 
@@ -311,22 +335,23 @@ class YugenAnime : ParsedAnimeHttpSource() {
             val doc = client.newCall(GET(url)).execute().asJsoup()
             val iframe = doc.select("iframe#main-embed").attr("src") ?: return@forEach
             val id = iframe.removeSuffix("/").split("/").lastOrNull() ?: return@forEach
-
             val sourceResponse = client.newCall(
                 POST(
-                    "$baseUrl/api/embed/",
+                    api,
                     body = FormBody.Builder()
                         .add("id", id)
                         .add("ac", "0")
                         .build(),
                     headers = headers.newBuilder()
-                        .add("Referer", iframe)
+                        .add("Miru-Url", api)
+                        .add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
                         .add("X-Requested-With", "XMLHttpRequest")
+                        .add("Referer", "$baseUrl/e/$id/")
                         .build(),
                 ),
-            ).execute().body?.string()
+            ).execute().body.string()
 
-            val source = sourceResponse?.parseAs<Sources>()?.hls?.distinct()?.firstOrNull() ?: return@forEach
+            val source = sourceResponse.parseAs<Sources>().hls?.distinct()?.firstOrNull() ?: return@forEach
             val isDub = if (url.contains("-dub")) "dub" else "sub"
             val sourceType = getSourceType(getBaseUrl(source))
 
@@ -353,6 +378,7 @@ class YugenAnime : ParsedAnimeHttpSource() {
         return when {
             url.contains("cache", true) -> "Cache"
             url.contains("allanime", true) -> "Crunchyroll-AL"
+
             else -> Regex("\\.(\\S+)\\.").find(url)?.groupValues?.getOrNull(1)?.let { fixTitle(it) } ?: this.name
         }
     }
