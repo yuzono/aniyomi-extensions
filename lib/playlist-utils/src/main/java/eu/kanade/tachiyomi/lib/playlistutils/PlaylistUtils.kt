@@ -8,6 +8,7 @@ import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.internal.commonEmptyHeaders
+import kotlin.math.abs
 
 class PlaylistUtils(private val client: OkHttpClient, private val headers: Headers = commonEmptyHeaders) {
 
@@ -134,7 +135,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             val resolution = it.substringAfter("RESOLUTION=")
                 .substringBefore("\n")
                 .substringAfter("x")
-                .substringBefore(",") + "p"
+                .substringBefore(",").let(::stnQuality)
 
             val videoUrl = it.substringAfter("\n").substringBefore("\n").let { url ->
                 getAbsoluteUrl(url, playlistUrl, masterUrlBasePath)?.trimEnd()
@@ -332,6 +333,13 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     }
 
     // ============================= Utilities ==============================
+
+    private fun stnQuality(quality: String): String {
+        val intQuality = quality.toInt()
+        val standardQualities = listOf(144, 240, 360, 480, 720, 1080)
+        val result =  standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
+        return "${result}p"
+    }
 
     companion object {
         private const val PLAYLIST_SEPARATOR = "#EXT-X-STREAM-INF:"

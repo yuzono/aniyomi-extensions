@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
@@ -109,18 +110,19 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val okruExtractor by lazy { OkruExtractor(client) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers.newBuilder().add("Referer", "$baseUrl/").build()) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
         val jsonString = document.selectFirst("script:containsData(var videos = {)")?.data() ?: return emptyList()
         val responseString = jsonString.substringAfter("var videos =").substringBefore(";").trim()
-        return json.decodeFromString<ServerModel>(responseString).sub.parallelCatchingFlatMapBlocking {
+        return json.decodeFromString<ServerModel>(responseString).sub.parallelCatchingFlatMapBlocking { it ->
             when (it.title) {
                 "Stape" -> listOf(streamTapeExtractor.videoFromUrl(it.url ?: it.code)!!)
                 "Okru" -> okruExtractor.videosFromUrl(it.url ?: it.code)
                 "YourUpload" -> yourUploadExtractor.videoFromUrl(it.url ?: it.code, headers = headers)
                 "SW" -> streamWishExtractor.videosFromUrl(it.url ?: it.code, videoNameGen = { "StreamWish:$it" })
-                else -> emptyList()
+                else -> universalExtractor.videosFromUrl(it.url ?: it.code, headers)
             }
         }
     }
