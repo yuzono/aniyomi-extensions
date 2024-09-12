@@ -21,6 +21,7 @@ import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamlareextractor.StreamlareExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.upstreamextractor.UpstreamExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
@@ -209,6 +210,10 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
                     UniversalExtractor(client).videosFromUrl(url, headers).also(videoList::addAll)
             }
         } catch (_: Exception) { }
+
+        if (videoList.isEmpty()) {
+            UniversalExtractor(client).videosFromUrl(url, headers).let { videoList.addAll(it) }
+        }
         return videoList
     }
 

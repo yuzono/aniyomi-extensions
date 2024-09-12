@@ -15,12 +15,14 @@ import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
 import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
 import eu.kanade.tachiyomi.lib.fastreamextractor.FastreamExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
+import eu.kanade.tachiyomi.lib.goodstramextractor.GoodStreamExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamlareextractor.StreamlareExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.upstreamextractor.UpstreamExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
@@ -176,7 +178,8 @@ class CineCalidad : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 embedUrl.contains("upstream") -> UpstreamExtractor(client).videosFromUrl(url)
                 embedUrl.contains("streamtape") || embedUrl.contains("stp") || embedUrl.contains("stape") -> listOf(StreamTapeExtractor(client).videoFromUrl(url, quality = "StreamTape")!!)
                 embedUrl.contains("ahvsh") || embedUrl.contains("streamhide") || embedUrl.contains("guccihide") || embedUrl.contains("streamvid") || embedUrl.contains("vidhide") -> StreamHideVidExtractor(client).videosFromUrl(url)
-                else -> emptyList()
+                embedUrl.contains("goodstream") -> GoodStreamExtractor(client, headers).videosFromUrl(url, name = "GoodStream: ")
+                else -> UniversalExtractor(client).videosFromUrl(url, headers)
             }
         }.getOrNull() ?: emptyList()
     }

@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.multisrc.animestream.AnimeStream
 import uy.kohesive.injekt.Injekt
@@ -48,6 +49,7 @@ class AnimeYTES : AnimeStream(
     private val youruploadExtractor by lazy { YourUploadExtractor(client) }
     private val burstcloudExtractor by lazy { BurstCloudExtractor(client) }
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun getVideoList(url: String, name: String): List<Video> {
         return when (name) {
@@ -57,7 +59,7 @@ class AnimeYTES : AnimeStream(
             "Your" -> youruploadExtractor.videoFromUrl(url, headers)
             "Alpha" -> burstcloudExtractor.videoFromUrl(url, headers)
             "Moon" -> filemoonExtractor.videosFromUrl(url)
-            else -> emptyList()
+            else -> universalExtractor.videosFromUrl(url, headers)
         }
     }
 

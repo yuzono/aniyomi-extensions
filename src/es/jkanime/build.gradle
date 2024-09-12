@@ -1,7 +1,7 @@
 ext {
     extName = 'Jkanime'
     extClass = '.Jkanime'
-    extVersionCode = 23
+    extVersionCode = 27
 }
 
 apply from: "$rootDir/common.gradle"
@@ -14,4 +14,5 @@ dependencies {
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:streamtape-extractor'))
     implementation(project(':lib:voe-extractor'))
+    implementation(project(':lib:universal-extractor'))
 }

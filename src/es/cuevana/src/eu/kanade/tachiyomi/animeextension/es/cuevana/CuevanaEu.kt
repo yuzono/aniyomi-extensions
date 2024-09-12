@@ -20,13 +20,12 @@ import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -150,28 +149,28 @@ class CuevanaEu(override val name: String, override val baseUrl: String) : Confi
 
     private fun serverIterator(videos: Videos?): MutableList<Video> {
         val videoList = mutableListOf<Video>()
-        videos?.latino?.map {
+        videos?.latino?.forEach {
             try {
                 val body = client.newCall(GET(it.result!!)).execute().asJsoup()
                 val url = body.selectFirst("script:containsData(var message)")?.data()?.substringAfter("var url = '")?.substringBefore("'") ?: ""
                 loadExtractor(url, "[LAT]").let { videoList.addAll(it) }
             } catch (_: Exception) { }
         }
-        videos?.spanish?.map {
+        videos?.spanish?.forEach {
             try {
                 val body = client.newCall(GET(it.result!!)).execute().asJsoup()
                 val url = body.selectFirst("script:containsData(var message)")?.data()?.substringAfter("var url = '")?.substringBefore("'") ?: ""
                 loadExtractor(url, "[CAST]").let { videoList.addAll(it) }
             } catch (_: Exception) { }
         }
-        videos?.english?.map {
+        videos?.english?.forEach {
             try {
                 val body = client.newCall(GET(it.result!!)).execute().asJsoup()
                 val url = body.selectFirst("script:containsData(var message)")?.data()?.substringAfter("var url = '")?.substringBefore("'") ?: ""
                 loadExtractor(url, "[ENG]").let { videoList.addAll(it) }
             } catch (_: Exception) { }
         }
-        videos?.japanese?.map {
+        videos?.japanese?.forEach {
             val body = client.newCall(GET(it.result!!)).execute().asJsoup()
             val url = body.selectFirst("script:containsData(var message)")?.data()?.substringAfter("var url = '")?.substringBefore("'") ?: ""
             loadExtractor(url, "[JAP]").let { videoList.addAll(it) }
@@ -182,59 +181,47 @@ class CuevanaEu(override val name: String, override val baseUrl: String) : Confi
     private fun loadExtractor(url: String, prefix: String = ""): List<Video> {
         val videoList = mutableListOf<Video>()
         val embedUrl = url.lowercase()
-        if (embedUrl.contains("tomatomatela")) {
-            try {
-                val mainUrl = url.substringBefore("/embed.html#").substringAfter("https://")
-                val headers = headers.newBuilder()
-                    .set("authority", mainUrl)
-                    .set("accept", "application/json, text/javascript, */*; q=0.01")
-                    .set("accept-language", "es-MX,es-419;q=0.9,es;q=0.8,en;q=0.7")
-                    .set("sec-ch-ua", "\"Chromium\";v=\"106\", \"Google Chrome\";v=\"106\", \"Not;A=Brand\";v=\"99\"")
-                    .set("sec-ch-ua-mobile", "?0")
-                    .set("sec-ch-ua-platform", "Windows")
-                    .set("sec-fetch-dest", "empty")
-                    .set("sec-fetch-mode", "cors")
-                    .set("sec-fetch-site", "same-origin")
-                    .set("x-requested-with", "XMLHttpRequest")
-                    .build()
-                val token = url.substringAfter("/embed.html#")
-                val urlRequest = "https://$mainUrl/details.php?v=$token"
-                val response = client.newCall(GET(urlRequest, headers = headers)).execute().asJsoup()
-                val bodyText = response.select("body").text()
-                val json = json.decodeFromString<JsonObject>(bodyText)
-                val status = json["status"]!!.jsonPrimitive.content
-                val file = json["file"]!!.jsonPrimitive.content
-                if (status == "200") { videoList.add(Video(file, "$prefix Tomatomatela", file, headers = null)) }
-            } catch (_: Exception) { }
+        return when {
+            embedUrl.contains("yourupload") -> {
+                val videos = YourUploadExtractor(client).videoFromUrl(url, headers = headers)
+                videoList.addAll(videos)
+                videoList
+            }
+            embedUrl.contains("doodstream") || embedUrl.contains("dood.") -> {
+                DoodExtractor(client).videoFromUrl(url, "$prefix DoodStream")
+                    ?.let { videoList.add(it) }
+                videoList
+            }
+            embedUrl.contains("okru") || embedUrl.contains("ok.ru") -> {
+                OkruExtractor(client).videosFromUrl(url, prefix, true).also(videoList::addAll)
+                videoList
+            }
+            embedUrl.contains("voe") -> {
+                VoeExtractor(client).videosFromUrl(url, prefix).also(videoList::addAll)
+                videoList
+            }
+            embedUrl.contains("streamtape") -> {
+                StreamTapeExtractor(client).videoFromUrl(url, "$prefix StreamTape")?.let { videoList.add(it) }
+                videoList
+            }
+            embedUrl.contains("wishembed") || embedUrl.contains("streamwish") || embedUrl.contains("wish") -> {
+                StreamWishExtractor(client, headers).videosFromUrl(url) { "$prefix StreamWish:$it" }
+                    .also(videoList::addAll)
+                videoList
+            }
+            embedUrl.contains("filemoon") || embedUrl.contains("moonplayer") -> {
+                FilemoonExtractor(client).videosFromUrl(url, "$prefix Filemoon:").also(videoList::addAll)
+                videoList
+            }
+            embedUrl.contains("filelions") || embedUrl.contains("lion") -> {
+                StreamWishExtractor(client, headers).videosFromUrl(url, videoNameGen = { "$prefix FileLions:$it" }).also(videoList::addAll)
+                videoList
+            }
+            else -> {
+                UniversalExtractor(client).videosFromUrl(url, headers, prefix = prefix).also(videoList::addAll)
+                videoList
+            }
         }
-        if (embedUrl.contains("yourupload")) {
-            val videos = YourUploadExtractor(client).videoFromUrl(url, headers = headers)
-            videoList.addAll(videos)
-        }
-        if (embedUrl.contains("doodstream") || embedUrl.contains("dood.")) {
-            DoodExtractor(client).videoFromUrl(url, "$prefix DoodStream")
-                ?.let { videoList.add(it) }
-        }
-        if (embedUrl.contains("okru") || embedUrl.contains("ok.ru")) {
-            OkruExtractor(client).videosFromUrl(url, prefix, true).also(videoList::addAll)
-        }
-        if (embedUrl.contains("voe")) {
-            VoeExtractor(client).videosFromUrl(url, prefix).also(videoList::addAll)
-        }
-        if (embedUrl.contains("streamtape")) {
-            StreamTapeExtractor(client).videoFromUrl(url, "$prefix StreamTape")?.let { videoList.add(it) }
-        }
-        if (embedUrl.contains("wishembed") || embedUrl.contains("streamwish") || embedUrl.contains("wish")) {
-            StreamWishExtractor(client, headers).videosFromUrl(url) { "$prefix StreamWish:$it" }
-                .also(videoList::addAll)
-        }
-        if (embedUrl.contains("filemoon") || embedUrl.contains("moonplayer")) {
-            FilemoonExtractor(client).videosFromUrl(url, "$prefix Filemoon:").also(videoList::addAll)
-        }
-        if (embedUrl.contains("filelions") || embedUrl.contains("lion")) {
-            StreamWishExtractor(client, headers).videosFromUrl(url, videoNameGen = { "$prefix FileLions:$it" }).also(videoList::addAll)
-        }
-        return videoList
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()

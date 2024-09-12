@@ -3,7 +3,7 @@ ext {
     extClass = '.AnimeOnlineNinja'
     themePkg = 'dooplay'
     baseUrl = 'https://ww3.animeonline.ninja'
-    overrideVersionCode = 44
+    overrideVersionCode = 45
 }
 
 apply from: "$rootDir/common.gradle"
@@ -14,4 +14,5 @@ dependencies {
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:mixdrop-extractor'))
     implementation(project(':lib:uqload-extractor'))
+    implementation(project(':lib:universal-extractor'))
 }

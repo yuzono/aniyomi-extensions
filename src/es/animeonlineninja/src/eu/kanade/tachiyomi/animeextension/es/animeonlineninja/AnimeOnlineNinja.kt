@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mixdropextractor.MixDropExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
 import eu.kanade.tachiyomi.multisrc.dooplay.DooPlay
 import eu.kanade.tachiyomi.network.GET
@@ -115,6 +116,7 @@ class AnimeOnlineNinja : DooPlay(
     private val streamTapeExtractor by lazy { StreamTapeExtractor(client) }
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
     private val uqloadExtractor by lazy { UqloadExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     private fun extractVideos(url: String, lang: String): List<Video> {
         return when {
@@ -142,8 +144,8 @@ class AnimeOnlineNinja : DooPlay(
                         listOf(Video(videoUrl, "$lang WolfStream", videoUrl, headers = headers))
                     }
             }
-            else -> null
-        } ?: emptyList<Video>()
+            else -> universalExtractor.videosFromUrl(url, headers, prefix = lang)
+        } ?: emptyList()
     }
 
     private fun extractFromMulti(url: String): List<Video> {

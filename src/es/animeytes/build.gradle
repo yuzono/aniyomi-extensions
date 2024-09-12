@@ -3,7 +3,7 @@ ext {
     extClass = '.AnimeYTES'
     themePkg = 'animestream'
     baseUrl = 'https://animeyt.pro'
-    overrideVersionCode = 5
+    overrideVersionCode = 6
 }
 
 apply from: "$rootDir/common.gradle"
@@ -15,4 +15,5 @@ dependencies {
     implementation(project(":lib:yourupload-extractor"))
     implementation(project(":lib:burstcloud-extractor"))
     implementation(project(":lib:filemoon-extractor"))
+    implementation(project(":lib:universal-extractor"))
 }

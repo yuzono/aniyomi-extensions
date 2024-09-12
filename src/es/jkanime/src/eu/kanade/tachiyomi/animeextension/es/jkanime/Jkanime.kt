@@ -20,6 +20,7 @@ import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
@@ -173,6 +174,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val jkanimeExtractor by lazy { JkanimeExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
@@ -189,7 +191,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 "stream/jkmedia" in url -> jkanimeExtractor.getDesukaFromUrl(url, "$lang ")
                 "um2.php" in url -> jkanimeExtractor.getNozomiFromUrl(url, "$lang ")
                 "um.php" in url -> jkanimeExtractor.getDesuFromUrl(url, "$lang ")
-                else -> emptyList()
+                else -> universalExtractor.videosFromUrl(url, headers, prefix = lang)
             }
         }
     }
