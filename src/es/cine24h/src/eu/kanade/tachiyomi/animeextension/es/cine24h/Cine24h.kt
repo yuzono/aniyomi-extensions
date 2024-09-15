@@ -15,6 +15,8 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
 import eu.kanade.tachiyomi.lib.fastreamextractor.FastreamExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
+import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
@@ -153,6 +155,8 @@ open class Cine24h : ConfigurableAnimeSource, AnimeHttpSource() {
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val voeExtractor by lazy { VoeExtractor(client) }
+    private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     private fun serverVideoResolver(url: String): List<Video> {
         val embedUrl = url.lowercase()
@@ -161,10 +165,11 @@ open class Cine24h : ConfigurableAnimeSource, AnimeHttpSource() {
                 val link = if (url.contains("emb.html")) "https://fastream.to/embed-${url.split("/").last()}.html" else url
                 FastreamExtractor(client, headers).videosFromUrl(link)
             }
-            embedUrl.contains("filemoon") || embedUrl.contains("moonplayer") -> filemoonExtractor.videosFromUrl(url, prefix = "Filemoon:")
-            embedUrl.contains("voe") -> voeExtractor.videosFromUrl(url)
-            embedUrl.contains("dood") -> doodExtractor.videosFromUrl(url)
-            else -> emptyList()
+            arrayOf("filemoon", "moonplayer").any(url) -> filemoonExtractor.videosFromUrl(url, prefix = "Filemoon:")
+            arrayOf("voe").any(url) -> voeExtractor.videosFromUrl(url)
+            arrayOf("doodstream", "dood.", "ds2play", "doods.").any(url) -> doodExtractor.videosFromUrl(url)
+            arrayOf("vembed", "guard", "listeamed", "bembed", "vgfplay").any(url) -> vidGuardExtractor.videosFromUrl(url)
+            else -> universalExtractor.videosFromUrl(url, headers)
         }
     }
 
@@ -235,6 +240,8 @@ open class Cine24h : ConfigurableAnimeSource, AnimeHttpSource() {
         if (!hasAttr(attrName)) return false
         return !attr(attrName).contains("data:image/")
     }
+
+    private fun Array<String>.any(url: String): Boolean = this.any { url.contains(it, ignoreCase = true) }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         ListPreference(screen.context).apply {
