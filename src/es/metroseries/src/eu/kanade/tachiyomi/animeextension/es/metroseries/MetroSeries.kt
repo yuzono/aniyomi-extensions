@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.lib.fastreamextractor.FastreamExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.upstreamextractor.UpstreamExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
@@ -240,6 +241,10 @@ class MetroSeries : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                     if (src.contains("filemoon") || src.contains("moonplayer")) {
                         FilemoonExtractor(client).videosFromUrl(src, headers = headers, prefix = "Filemoon:").let { videoList.addAll(it) }
+                    }
+                    // si los demas fallan intenta con universal
+                    if (videoList.isEmpty()) {
+                        UniversalExtractor(client).videosFromUrl(src, headers, prefix = prefix).let { videoList.addAll(it) }
                     }
                 } catch (_: Exception) {}
             }

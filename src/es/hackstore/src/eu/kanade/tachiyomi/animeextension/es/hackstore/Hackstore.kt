@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.goodstramextractor.GoodStreamExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.vidhideextractor.VidHideExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -202,6 +203,7 @@ class Hackstore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }
     private val goodStreamExtractor by lazy { GoodStreamExtractor(client, headers) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
@@ -233,7 +235,7 @@ class Hackstore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 server.contains("goodstream") || server.contains("vidstream") -> {
                     goodStreamExtractor.videosFromUrl(url, "$prefix GoodStream")
                 }
-                else -> emptyList()
+                else -> universalExtractor.videosFromUrl(url, headers, prefix = prefix)
             }
         }
     }

@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
@@ -165,6 +166,7 @@ class VerAnimes : ConfigurableAnimeSource, AnimeHttpSource() {
     private val voeExtractor by lazy { VoeExtractor(client) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     private fun serverVideoResolver(url: String): List<Video> {
         return when {
@@ -175,7 +177,7 @@ class VerAnimes : ConfigurableAnimeSource, AnimeHttpSource() {
             arrayOf("voe").any(url) -> voeExtractor.videosFromUrl(url)
             arrayOf("yourupload", "upload").any(url) -> yourUploadExtractor.videoFromUrl(url, headers = headers)
             arrayOf("vembed", "guard", "listeamed", "bembed", "vgfplay").any(url) -> vidGuardExtractor.videosFromUrl(url)
-            else -> emptyList()
+            else -> universalExtractor.videosFromUrl(url, headers)
         }
     }
 

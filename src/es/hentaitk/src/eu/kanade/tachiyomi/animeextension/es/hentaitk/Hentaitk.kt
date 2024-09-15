@@ -17,6 +17,7 @@ import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -141,6 +142,7 @@ class Hentaitk : ConfigurableAnimeSource, AnimeHttpSource() {
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val streamTapeExtractor by lazy { StreamTapeExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     private fun serverVideoResolver(url: String): List<Video> {
         val embedUrl = url.lowercase()
@@ -165,7 +167,7 @@ class Hentaitk : ConfigurableAnimeSource, AnimeHttpSource() {
             embedUrl.contains("streamtape") || embedUrl.contains("stp") ||
                 embedUrl.contains("stape")
             -> streamTapeExtractor.videosFromUrl(url, quality = "StreamTape")
-            else -> emptyList()
+            else -> universalExtractor.videosFromUrl(url, headers)
         }
     }
 

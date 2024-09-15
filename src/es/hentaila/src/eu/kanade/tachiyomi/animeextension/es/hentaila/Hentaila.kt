@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -206,6 +207,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
@@ -227,7 +229,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 "mp4upload" -> mp4uploadExtractor.videosFromUrl(urlServer, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(urlServer, headers = headers)
                 "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(urlServer)
-                else -> emptyList()
+                else -> universalExtractor.videosFromUrl(urlServer, headers)
             }
         }
     }
