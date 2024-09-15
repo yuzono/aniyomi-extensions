@@ -66,10 +66,39 @@ class UniversalExtractor(private val client: OkHttpClient) {
             webView?.destroy()
             webView = null
         }
+        // terabox special case start
+        if ("M3U8_AUTO_360" in resultUrl) {
+            val qualities = listOf("1080", "720", "480", "360")
+            val allVideos = mutableListOf<Video>()
+
+            for (quality in qualities) {
+                val modifiedUrl = resultUrl.replace("M3U8_AUTO_360", "M3U8_AUTO_$quality")
+                val videos = playlistUtils.extractFromHls(modifiedUrl, origRequestUrl, videoNameGen = { "$prefix - $host: $it $quality" + "p" })
+
+                if (videos.isNotEmpty()) {
+                    allVideos.addAll(videos)
+                }
+            }
+
+            if (allVideos.isNotEmpty()) {
+                return allVideos
+            }
+        }
+        // terabox special case end
+
         return when {
-            "m3u8" in resultUrl -> playlistUtils.extractFromHls(resultUrl, origRequestUrl, videoNameGen = { "$prefix - $host: $it" })
-            "mpd" in resultUrl -> playlistUtils.extractFromDash(resultUrl, { it -> "$prefix - $host: $it" }, referer = origRequestUrl)
-            "mp4" in resultUrl -> Video(resultUrl, "$prefix - $host: ${customQuality ?: "Mirror"}", resultUrl, origRequestHeader.newBuilder().add("referer", origRequestUrl).build()).let(::listOf)
+            "m3u8" in resultUrl -> {
+                Log.d("UniversalExtractor", "m3u8 URL: $resultUrl")
+                playlistUtils.extractFromHls(resultUrl, origRequestUrl, videoNameGen = { "$prefix - $host: $it" })
+            }
+            "mpd" in resultUrl -> {
+                Log.d("UniversalExtractor", "mpd URL: $resultUrl")
+                playlistUtils.extractFromDash(resultUrl, { it -> "$prefix - $host: $it" }, referer = origRequestUrl)
+            }
+            "mp4" in resultUrl -> {
+                Log.d("UniversalExtractor", "mp4 URL: $resultUrl")
+                Video(resultUrl, "$prefix - $host: ${customQuality ?: "Mirror"}", resultUrl, origRequestHeader.newBuilder().add("referer", origRequestUrl).build()).let(::listOf)
+            }
             else -> emptyList()
         }
     }
@@ -80,7 +109,7 @@ class UniversalExtractor(private val client: OkHttpClient) {
     }
 
     companion object {
-        const val TIMEOUT_SEC: Long = 20
-        private val VIDEO_REGEX by lazy { Regex("\\.(mp4|m3u8|mpd)") }
+        const val TIMEOUT_SEC: Long = 10
+        private val VIDEO_REGEX by lazy { Regex(".*\\.(mp4|m3u8|mpd)(\\?.*)?$") }
     }
 }

@@ -207,7 +207,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
                     StreamWishExtractor(client, headers).videosFromUrl(url, videoNameGen = { "FileLions:$it" }).also(videoList::addAll)
                 }
                 else ->
-                    UniversalExtractor(client).videosFromUrl(url, headers).also(videoList::addAll)
+                    UniversalExtractor(client).videosFromUrl(url, headers).let { videoList.addAll(it) }
             }
         } catch (_: Exception) { }
 
