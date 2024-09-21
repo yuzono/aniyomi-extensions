@@ -9,5 +9,5 @@ apply from: "$rootDir/common.gradle"
 dependencies {
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:vidhide-extractor'))
-    implementation(project(':lib:universal-extractor'))
+    implementation(project(':lib:chillx-extractor'))
 }
