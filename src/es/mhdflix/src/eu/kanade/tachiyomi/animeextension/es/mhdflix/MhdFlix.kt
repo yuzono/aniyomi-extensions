@@ -176,13 +176,16 @@ open class MhdFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                 val episodeElements = detailDocument.select("article.post.episodes")
 
                 episodeElements.forEach { element ->
+                    println(element) // Imprime el HTML del elemento
+
                     val episode = SEpisode.create().apply {
                         val url = element.selectFirst("a.lnk-blk")?.attr("href") ?: ""
-                        val title = element.selectFirst("header.entry-header h2.entry-title")?.text() ?: "Episodio Desconocido"
-                        val episodeNumber = element.selectFirst("span.num-epi")?.text()?.substringBefore("x")?.toFloatOrNull() ?: 0F
-
+                        val headerElement = element.selectFirst("header.entry-header")
+                        val title = headerElement?.selectFirst("h2.entry-title")?.text() ?: "Episodio Desconocido"
+                        val episodeNumber = headerElement?.selectFirst("span.num-epi")?.text()?.substringAfter("x")?.toFloatOrNull() ?: 0F
+                        Log.d("MhdFlix", "Número de episodio: $episodeNumber")
                         setUrlWithoutDomain(url)
-                        name = title
+                        name = "- $title"
                         episode_number = episodeNumber
                     }
                     allEpisodes.add(episode)
@@ -192,7 +195,7 @@ open class MhdFlix : AnimeHttpSource(), ConfigurableAnimeSource {
             }
         }
 
-        return allEpisodes.sortedByDescending { it.episode_number }
+        return allEpisodes.sortedByDescending { it.name }
     }
 
     private fun fetchUrls(text: String?): List<String> {
@@ -205,32 +208,26 @@ open class MhdFlix : AnimeHttpSource(), ConfigurableAnimeSource {
         val document = response.asJsoup()
         val videoList = mutableListOf<Video>()
 
-        // Extraer el título para obtener la temporada y el episodio
         val title = document.title()
         val seasonEpisodeRegex = Regex("""(\d+)x(\d+)""")
         val seasonEpisodeMatch = seasonEpisodeRegex.find(title)
 
-        // Extraer la temporada y el episodio si hay coincidencias
         val season = seasonEpisodeMatch?.groups?.get(1)?.value?.toIntOrNull()
         val episode = seasonEpisodeMatch?.groups?.get(2)?.value?.toIntOrNull()
 
-        // Seleccionar todos los iframes en la sección .video-player
         document.select(".video-player iframe").forEach { iframe ->
             try {
-                // Extraer el src o data-src y obtener el ID del video
                 val src = iframe.attr("src").ifEmpty { iframe.attr("data-src") }
                 val idRegex = Regex("""\/e\/(\d+)""")
                 val matchResult = idRegex.find(src)
                 val videoId = matchResult?.groupValues?.get(1) ?: return@forEach
 
-                // Crear la URL con el ID extraído
                 val videoUrl = if (season != null && episode != null) {
                     "$baseUrl/wp-json/enlace/v1/e?id=$videoId&season=$season&episode=$episode"
                 } else {
                     "$baseUrl/wp-json/enlace/v1/e?id=$videoId"
                 }
 
-                // Realizar la solicitud al enlace para obtener los videos
                 val videoResponse = client.newCall(GET(videoUrl)).execute()
                 val jsonResponse = videoResponse.body.string()
                 val jsonArray = JSONArray(jsonResponse)
@@ -241,10 +238,9 @@ open class MhdFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                         "Sub lat" -> "SUB"
                         "Castellano" -> "CAST"
                         "Latino" -> "LAT"
-                        else -> videoObj.getString("tipo") // Por si hay otros tipos
+                        else -> videoObj.getString("tipo")
                     }
 
-                    // Aquí puedes usar `season` y `episode` si los necesitas en tu lógica
                     serverVideoResolver(videoLink, type).forEach { videoList.add(it) }
                 }
             } catch (e: Exception) {
