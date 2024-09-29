@@ -92,7 +92,7 @@ class FrenchAnime : DataLifeEngine(
     private val upstreamExtractor by lazy { UpstreamExtractor(client) }
     private val vudeoExtractor by lazy { VudeoExtractor(client) }
     private val uqloadExtractor by lazy { UqloadExtractor(client) }
-    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
+    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val streamVidExtractor by lazy { StreamVidExtractor(client) }
     private val vidoExtractor by lazy { VidoExtractor(client) }
     private val sibnetExtractor by lazy { SibnetExtractor(client) }

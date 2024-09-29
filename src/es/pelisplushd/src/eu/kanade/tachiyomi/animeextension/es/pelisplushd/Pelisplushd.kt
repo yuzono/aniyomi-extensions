@@ -167,7 +167,7 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
     private val fastreamExtractor by lazy { FastreamExtractor(client, headers) }
     private val upstreamExtractor by lazy { UpstreamExtractor(client) }
     private val streamTapeExtractor by lazy { StreamTapeExtractor(client) }
-    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
+    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val streamSilkExtractor by lazy { StreamSilkExtractor(client) }
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
@@ -211,7 +211,7 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
                 arrayOf("upstream").any(url) -> upstreamExtractor.videosFromUrl(url, prefix = "$prefix ")
                 arrayOf("streamsilk").any(url) -> streamSilkExtractor.videosFromUrl(url, videoNameGen = { "$prefix StreamSilk:$it" })
                 arrayOf("streamtape", "stp", "stape").any(url) -> streamTapeExtractor.videosFromUrl(url, quality = "$prefix StreamTape")
-                arrayOf("ahvsh", "streamhide", "guccihide", "streamvid", "vidhide").any(url) -> streamHideVidExtractor.videosFromUrl(url, prefix = "$prefix ")
+                arrayOf("ahvsh", "streamhide", "guccihide", "streamvid", "vidhide").any(url) -> streamHideVidExtractor.videosFromUrl(url, videoNameGen = { "$prefix StreamHideVid:$it" })
                 arrayOf("vembed", "guard", "listeamed", "bembed", "vgfplay").any(url) -> vidGuardExtractor.videosFromUrl(url, prefix = "$prefix ")
                 else -> universalExtractor.videosFromUrl(url, headers, prefix = "$prefix ")
             }

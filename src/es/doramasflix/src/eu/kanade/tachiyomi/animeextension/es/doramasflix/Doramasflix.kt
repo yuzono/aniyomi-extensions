@@ -512,7 +512,7 @@ class Doramasflix : ConfigurableAnimeSource, AnimeHttpSource() {
             "fastream" in embedUrl -> FastreamExtractor(client, headers).videosFromUrl(url, prefix = "$prefix Fastream:")
             "upstream" in embedUrl -> UpstreamExtractor(client).videosFromUrl(url, prefix = "$prefix ")
             "streamtape" in embedUrl || "stp" in embedUrl || "stape" in embedUrl -> listOf(StreamTapeExtractor(client).videoFromUrl(url, quality = "$prefix StreamTape")!!)
-            "ahvsh" in embedUrl || "streamhide" in embedUrl -> StreamHideVidExtractor(client).videosFromUrl(url, "$prefix ")
+            "ahvsh" in embedUrl || "streamhide" in embedUrl -> StreamHideVidExtractor(client, headers).videosFromUrl(url, videoNameGen = { "$prefix StreamHide:$it" })
             "filelions" in embedUrl || "lion" in embedUrl -> StreamWishExtractor(client, headers).videosFromUrl(url, videoNameGen = { "$prefix FileLions:$it" })
             "vudeo" in embedUrl || "vudea" in embedUrl -> VudeoExtractor(client).videosFromUrl(url, "$prefix ")
             else -> emptyList()

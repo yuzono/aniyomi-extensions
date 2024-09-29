@@ -139,7 +139,7 @@ class Hentaitk : ConfigurableAnimeSource, AnimeHttpSource() {
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val voeExtractor by lazy { VoeExtractor(client) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
-    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
+    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val streamTapeExtractor by lazy { StreamTapeExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }

@@ -177,7 +177,7 @@ class CineCalidad : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 embedUrl.contains("fastream") -> FastreamExtractor(client, headers).videosFromUrl(url, prefix = "Fastream:")
                 embedUrl.contains("upstream") -> UpstreamExtractor(client).videosFromUrl(url)
                 embedUrl.contains("streamtape") || embedUrl.contains("stp") || embedUrl.contains("stape") -> listOf(StreamTapeExtractor(client).videoFromUrl(url, quality = "StreamTape")!!)
-                embedUrl.contains("ahvsh") || embedUrl.contains("streamhide") || embedUrl.contains("guccihide") || embedUrl.contains("streamvid") || embedUrl.contains("vidhide") -> StreamHideVidExtractor(client).videosFromUrl(url)
+                embedUrl.contains("ahvsh") || embedUrl.contains("streamhide") || embedUrl.contains("guccihide") || embedUrl.contains("streamvid") || embedUrl.contains("vidhide") -> StreamHideVidExtractor(client, headers).videosFromUrl(url)
                 embedUrl.contains("goodstream") -> GoodStreamExtractor(client, headers).videosFromUrl(url, name = "GoodStream: ")
                 else -> UniversalExtractor(client).videosFromUrl(url, headers)
             }

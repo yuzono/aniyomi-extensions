@@ -116,7 +116,7 @@ class Animejl : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
-    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
+    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val voeExtractor by lazy { VoeExtractor(client) }
     private val uqloadExtractor by lazy { UqloadExtractor(client) }
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }

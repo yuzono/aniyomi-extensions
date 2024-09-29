@@ -98,7 +98,7 @@ class LocoPelis : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     -> DoodExtractor(client).videosFromUrl(this, "DoodStream")
                     contains("ok.ru") || contains("okru") -> OkruExtractor(client).videosFromUrl(this)
                     contains("vidhide") || contains("streamhide") || contains("guccihide") || contains("streamvid")
-                    -> StreamHideVidExtractor(client).videosFromUrl(this)
+                    -> StreamHideVidExtractor(client, headers).videosFromUrl(this)
                     else -> emptyList()
                 }
             }

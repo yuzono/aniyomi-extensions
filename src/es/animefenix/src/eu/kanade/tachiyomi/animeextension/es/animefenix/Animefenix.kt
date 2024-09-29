@@ -195,7 +195,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
                     StreamTapeExtractor(client).videoFromUrl(url)?.let { videoList.add(it) }
                 }
                 embedUrl.contains("ahvsh") || embedUrl.contains("streamhide") -> {
-                    StreamHideVidExtractor(client).videosFromUrl(url).let { videoList.addAll(it) }
+                    StreamHideVidExtractor(client, headers).videosFromUrl(url).let { videoList.addAll(it) }
                 }
                 embedUrl.contains("/stream/fl.php") -> {
                     val video = url.substringAfter("/stream/fl.php?v=")
