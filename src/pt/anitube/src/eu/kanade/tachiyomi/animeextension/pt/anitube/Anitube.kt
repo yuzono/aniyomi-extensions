@@ -1,31 +1,29 @@
 package eu.kanade.tachiyomi.animeextension.pt.anitube
 
 import android.app.Application
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import androidx.preference.SwitchPreferenceCompat
+import eu.kanade.tachiyomi.animeextension.pt.anitube.extractors.AnitubeDownloadExtractor
 import eu.kanade.tachiyomi.animeextension.pt.anitube.extractors.AnitubeExtractor
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
-import okhttp3.FormBody
-import okhttp3.Headers
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
-import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -43,10 +41,8 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
-    private val json: Json by injectLazy()
-
     override fun headersBuilder() = super.headersBuilder()
-        .add("Referer", baseUrl)
+        .add("Referer", "$baseUrl/")
         .add("Accept-Language", ACCEPT_LANGUAGE)
 
     // ============================== Popular ===============================
@@ -86,6 +82,30 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
 
     // =============================== Search ===============================
+    override suspend fun getSearchAnime(
+        page: Int,
+        query: String,
+        filters: AnimeFilterList,
+    ): AnimesPage {
+        return if (query.startsWith(PREFIX_SEARCH)) {
+            val path = query.removePrefix(PREFIX_SEARCH)
+            client.newCall(GET("$baseUrl/$path"))
+                .awaitSuccess()
+                .use(::searchAnimeByIdParse)
+        } else {
+            super.getSearchAnime(page, query, filters)
+        }
+    }
+
+    private fun searchAnimeByIdParse(response: Response): AnimesPage {
+        val details = animeDetailsParse(response).apply {
+            setUrlWithoutDomain(response.request.url.toString())
+            initialized = true
+        }
+
+        return AnimesPage(listOf(details), false)
+    }
+
     override fun getFilterList(): AnimeFilterList = AnitubeFilters.FILTER_LIST
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -97,7 +117,14 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val char = params.initialChar
             when {
                 season.isNotBlank() -> "$baseUrl/temporada/$season/$year"
-                genre.isNotBlank() -> "$baseUrl/genero/$genre/page/$page/${char.replace("todos", "")}"
+                genre.isNotBlank() ->
+                    "$baseUrl/genero/$genre/page/$page/${
+                        char.replace(
+                            "todos",
+                            "",
+                        )
+                    }"
+
                 else -> "$baseUrl/anime/page/$page/letra/$char"
             }
         } else {
@@ -119,7 +146,7 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val infos = content.selectFirst("div.anime_infos")!!
 
         title = doc.selectFirst("div.anime_container_titulo")!!.text()
-        thumbnail_url = content.selectFirst("img")?.imgAttr()
+        thumbnail_url = content.selectFirst("img")?.attr("src")
         genre = infos.getInfo("Gêneros")
         author = infos.getInfo("Autor")
         artist = infos.getInfo("Estúdio")
@@ -133,14 +160,6 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 infos.getInfo(item)?.also { append("\n$item: $it") }
             }
         }
-    }
-
-    fun Element.imgAttr(): String = when {
-        hasAttr("data-cfsrc") -> absUrl("data-cfsrc")
-        hasAttr("data-lazy-src") -> absUrl("data-lazy-src")
-        hasAttr("data-src") -> absUrl("data-src").substringBefore(" ")
-        hasAttr("srcset") -> absUrl("srcset").substringBefore(" ")
-        else -> absUrl("src")
     }
 
     // ============================== Episodes ==============================
@@ -163,79 +182,39 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun episodeFromElement(element: Element) = SEpisode.create().apply {
         setUrlWithoutDomain(element.attr("href"))
         episode_number = element.selectFirst("div.animepag_episodios_item_views")!!
-            .text().trim()
+            .text()
             .substringAfter(" ")
             .toFloatOrNull() ?: 0F
-        name = element.selectFirst("div[class*='animepag_episodios_item_views']")!!.text()
+        name = element.selectFirst("div.animepag_episodios_item_nome")!!.text()
         date_upload = element.selectFirst("div.animepag_episodios_item_date")!!
             .text()
             .toDate()
     }
 
     // ============================ Video Links =============================
-    override fun videoListParse(response: Response) = AnitubeExtractor.getVideoList(response, headers).let {
-        val auth = getToken()
+    private val anitubeExtractor by lazy { AnitubeExtractor(headers, client, preferences) }
+    private val downloadExtractor by lazy { AnitubeDownloadExtractor(headers, client) }
 
-        it.map { video ->
-            Video(
-                url = video.url,
-                quality = video.quality,
-                videoUrl = "${video.videoUrl}${auth.value}",
-                headers = video.headers,
-                subtitleTracks = video.subtitleTracks,
-                audioTracks = video.audioTracks,
-            )
-        }
-    }
+    override fun videoListParse(response: Response): List<Video> {
+        val document = response.asJsoup()
 
-    private fun getToken(): AnitubeToken {
-        val headers = Headers.Builder()
-            .set("Accept", "*/*")
-            .set("Accept-Encoding", "br, zstd")
-            .set("Accept-Language", "pt-BR,en-US;q=0.7,en;q=0.3")
-            .set("Cache-Control", "no-cache")
-            .set("Connection", "keep-alive")
-            .set("Pragma", "no-cache")
-            .set("Referer", "$baseUrl/")
-            .set("Sec-Fetch-Dest", "empty")
-            .set("Sec-Fetch-Mode", "cors")
-            .set("Sec-Fetch-Site", "same-site")
-            .apply {
-                headers["User-Agent"]?.let {
-                    set("User-Agent", it)
-                }
+        val links = mutableListOf(document.location())
+
+        if (preferences.getBoolean(PREF_FILE4GO_KEY, PREF_FILE4GO_DEFAULT)!!) {
+            document.selectFirst("div.abaItemDown > a")?.attr("href")?.let {
+                links.add(it)
             }
-            .build()
+        }
 
-        val client = OkHttpClient()
+        val epName = document.selectFirst("meta[itemprop=name]")!!.attr("content")
 
-        val ads = client.newCall(GET("https://widgets.outbrain.com/outbrain.js", headers))
-            .execute()
-
-        val form = FormBody.Builder()
-            .add("category", "client")
-            .add("type", "premium")
-            .add("ad", ads.body.string())
-            .build()
-
-        val response = client
-            .newCall(POST(url = "https://ads.anitube.vip", headers = headers, body = form))
-            .execute()
-
-        val token = response.parseAs<List<AnitubeToken>>().first()
-
-        val tokenUrl = "https://ads.anitube.vip".toHttpUrl().newBuilder()
-            .addQueryParameter("token", token.value)
-            .build()
-
-        return client.newCall(GET(tokenUrl, headers))
-            .execute()
-            .parseAs<List<AnitubeToken>>()
-            .first()
-    }
-
-    private inline fun <reified T> Response.parseAs(): T = use {
-        json.decodeFromStream(it.body.byteStream())
+        return links.parallelCatchingFlatMapBlocking {
+            when {
+                it.contains("/download/") -> downloadExtractor.videosFromUrl(it, epName)
+                it.contains("file4go.net") -> downloadExtractor.videosFromUrl(it, epName)
+                else -> anitubeExtractor.getVideoList(document)
+            }
+        }
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()
@@ -257,7 +236,32 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val entry = entryValues[index] as String
                 preferences.edit().putString(key, entry).commit()
             }
-        }.let(screen::addPreference)
+        }.also(screen::addPreference)
+
+        SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_FILE4GO_KEY
+            title = "Usar File4Go como mirror"
+            setDefaultValue(PREF_FILE4GO_DEFAULT)
+            summary = PREF_FILE4GO_SUMMARY
+            setOnPreferenceChangeListener { _, newValue ->
+                preferences.edit().putBoolean(key, newValue as Boolean).commit()
+            }
+        }.also(screen::addPreference)
+
+        // Auth Code
+        EditTextPreference(screen.context).apply {
+            key = PREF_AUTHCODE_KEY
+            title = "Auth Code"
+            setDefaultValue(PREF_AUTHCODE_DEFAULT)
+            summary = PREF_AUTHCODE_SUMMARY
+
+            setOnPreferenceChangeListener { _, newValue ->
+                runCatching {
+                    val value = (newValue as String).trim().ifBlank { PREF_AUTHCODE_DEFAULT }
+                    preferences.edit().putString(key, value).commit()
+                }.getOrDefault(false)
+            }
+        }.also(screen::addPreference)
     }
 
     // ============================= Utilities ==============================
@@ -295,8 +299,11 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
         return sortedWith(
-            compareByDescending { it.quality.equals(quality) },
-        )
+            compareBy<Video>(
+                { it.quality.startsWith(quality) },
+                { PREF_QUALITY_ENTRIES.indexOf(it.quality.substringBefore(" ")) },
+            ).thenByDescending { it.quality },
+        ).reversed()
     }
 
     private fun String.toDate(): Long {
@@ -306,10 +313,17 @@ class Anitube : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     companion object {
+        const val PREFIX_SEARCH = "id:"
         private val DATE_FORMATTER by lazy { SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH) }
 
         private const val ACCEPT_LANGUAGE = "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
 
+        private const val PREF_AUTHCODE_KEY = "authcode"
+        private const val PREF_AUTHCODE_SUMMARY = "Código de Autenticação"
+        private const val PREF_AUTHCODE_DEFAULT = ""
+        private const val PREF_FILE4GO_KEY = "file4go"
+        private const val PREF_FILE4GO_SUMMARY = "Usar File4Go como mirror"
+        private const val PREF_FILE4GO_DEFAULT = false
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_TITLE = "Qualidade preferida"
         private const val PREF_QUALITY_DEFAULT = "HD"
