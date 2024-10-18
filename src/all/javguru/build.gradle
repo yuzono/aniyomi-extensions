@@ -1,7 +1,7 @@
 ext {
     extName = 'Jav Guru'
     extClass = '.JavGuru'
-    extVersionCode = 16
+    extVersionCode = 22
     isNsfw = true
 }
 
