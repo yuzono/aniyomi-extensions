@@ -43,7 +43,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "AnimeFenix"
 
-    override val baseUrl = "https://www.animefenix.tv"
+    override val baseUrl = "https://www3.animefenix.tv"
 
     override val lang = "es"
 
@@ -71,7 +71,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
-        val elements = document.select("main > div.container > div.grid > div.group")
+        val elements = document.select("div.container .grid.gap-4 a[href]")
         val nextPage = document.select("nav[aria-label=Pagination] span:containsOwn(Next)").any()
         val animeList = elements.map { element ->
             SAnime.create().apply {
