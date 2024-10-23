@@ -39,7 +39,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Hentaila"
 
-    override val baseUrl = "https://www4.hentaila.com"
+    override val baseUrl = "https://www5.hentaila.com"
 
     override val lang = "es"
 
@@ -73,25 +73,35 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/directorio?filter=popular&p=$page", headers)
+    override fun popularAnimeRequest(page: Int) = GET(baseUrl, headers)
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
-        val elements = document.select(".hentais .hentai")
-        val nextPage = document.select(".pagination .fa-arrow-right").any()
-        val animeList = elements.map { element ->
+        val elements = document.select("section.latest-hentais div.slider > div.item")
+        val animes = elements.map { element ->
             SAnime.create().apply {
-                setUrlWithoutDomain(element.select("a").attr("abs:href"))
-                title = element.selectFirst(".h-header .h-title")!!.text()
-                thumbnail_url = element.selectFirst(".h-thumb img")!!.attr("abs:src").replace("/fondos/", "/portadas/")
+                setUrlWithoutDomain(element.select("h2.h-title a").attr("abs:href"))
+                title = element.selectFirst("h2.h-title a")!!.text()
+                thumbnail_url = element.selectFirst("figure.bg img")!!.attr("abs:src").replace("/fondos/", "/portadas/")
             }
         }
-        return AnimesPage(animeList, nextPage)
+        return AnimesPage(animes, false)
     }
 
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/directorio?filter=recent&p=$page", headers)
+    override fun latestUpdatesRequest(page: Int) = GET(baseUrl, headers)
 
-    override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
+    override fun latestUpdatesParse(response: Response): AnimesPage {
+        val document = response.asJsoup()
+        val elements = document.select("section.episodes div.grid article.hentai")
+        val animes = elements.map { element ->
+            SAnime.create().apply {
+                setUrlWithoutDomain(element.select("a").attr("abs:href").replace("/ver/", "/hentai-").substringBeforeLast("-"))
+                title = element.selectFirst("h2.h-title")!!.text()
+                thumbnail_url = element.selectFirst("img")!!.attr("abs:src").replace("/thumbs/", "/portadas/")
+            }
+        }
+        return AnimesPage(animes.distinctBy { it.url }, false)
+    }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
