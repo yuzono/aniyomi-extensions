@@ -58,7 +58,7 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeSelector(): String = "div.Container ul.ListAnimes li article"
 
-    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/browse?order=rating&page=$page")
+    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/browse?order=rating&page=$page", headers)
 
     override fun popularAnimeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
@@ -167,13 +167,19 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
+    override fun latestUpdatesRequest(page: Int) = GET(baseUrl, headers)
 
-    override fun latestUpdatesFromElement(element: Element) = popularAnimeFromElement(element)
+    override fun latestUpdatesNextPageSelector() = null
 
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/browse?order=added&page=$page")
+    override fun latestUpdatesSelector() = "div.Container ul.ListEpisodios li a.fa-play"
 
-    override fun latestUpdatesSelector() = popularAnimeSelector()
+    override fun latestUpdatesFromElement(element: Element): SAnime {
+        val anime = SAnime.create()
+        anime.setUrlWithoutDomain(element.select("a").attr("abs:href").replace("/ver/", "/anime/").substringBeforeLast("-"))
+        anime.title = element.select("strong.Title").text()
+        anime.thumbnail_url = element.select("span.Image img").attr("abs:src").replace("thumbs", "covers")
+        return anime
+    }
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
