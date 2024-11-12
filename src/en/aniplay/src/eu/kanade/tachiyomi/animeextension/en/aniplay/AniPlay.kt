@@ -445,8 +445,8 @@ class AniPlay : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         private const val PREF_DOMAIN_DEFAULT = "aniplaynow.live"
 
         private const val PREF_SERVER_KEY = "server"
-        private val PREF_SERVER_ENTRIES = arrayOf("Kuro (Gogoanime)", "Yuki (HiAnime)", "Yuno (Yugenanime)")
-        private val PREF_SERVER_ENTRY_VALUES = arrayOf("kuro", "yuki", "yuno")
+        private val PREF_SERVER_ENTRIES = arrayOf("Kuro (Gogoanime)", "Yuki (HiAnime)", "Yuno (Yugenanime)", "Anya (AniMixPlay)")
+        private val PREF_SERVER_ENTRY_VALUES = arrayOf("kuro", "yuki", "yuno", "anya")
         private const val PREF_SERVER_DEFAULT = "kuro"
 
         private const val PREF_QUALITY_KEY = "quality"
