@@ -1,9 +1,10 @@
 ext {
+    extKmkVersionCode = 0
     extName = 'HiAnime'
     extClass = '.HiAnime'
     themePkg = 'zorotheme'
     baseUrl = 'https://hianime.to'
-    overrideVersionCode = 42
+    overrideVersionCode = 44
 }
 
 apply from: "$rootDir/common.gradle"
