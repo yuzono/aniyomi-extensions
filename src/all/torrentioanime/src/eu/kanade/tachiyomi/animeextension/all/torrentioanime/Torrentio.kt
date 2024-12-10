@@ -34,12 +34,10 @@ import kotlinx.serialization.json.putJsonArray
 import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
-import org.json.JSONObject
 import org.jsoup.Jsoup
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -302,9 +300,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================== Episodes ==============================
     override fun episodeListRequest(anime: SAnime): Request {
-        val res = URL("https://api.ani.zip/mappings?anilist_id=${anime.url}").readText()
-        val kitsuId = JSONObject(res).getJSONObject("mappings").getInt("kitsu_id").toString()
-        return GET("https://anime-kitsu.strem.fun/meta/series/kitsu%3A$kitsuId.json")
+        return GET("https://anime-kitsu.strem.fun/meta/series/anilist%3A${anime.url}.json")
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
@@ -317,7 +313,6 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
                     ?.let { videos ->
                         if (preferences.getBoolean(UPCOMING_EP_KEY, UPCOMING_EP_DEFAULT)) { videos } else { videos.filter { video -> (video.released?.let { parseDate(it) } ?: 0L) <= System.currentTimeMillis() } }
                     }
-                    ?.filter { it.thumbnail != null }
                     ?.map { video ->
                         SEpisode.create().apply {
                             episode_number = video.episode?.toFloat() ?: 0.0F
@@ -400,35 +395,21 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
         val debridProvider = preferences.getString(PREF_DEBRID_KEY, "none")
 
         val animeTrackers = """http://nyaa.tracker.wf:7777/announce,
-            http://anidex.moe:6969/announce,http://tracker.anirena.com:80/announce,
+            http://anidex.moe:6969/announce,
+            http://tracker.anirena.com:80/announce,
             udp://tracker.uw0.xyz:6969/announce,
             http://share.camoe.cn:8080/announce,
             http://t.nyaatracker.com:80/announce,
-            udp://47.ip-51-68-199.eu:6969/announce,
-            udp://9.rarbg.me:2940,
-            udp://9.rarbg.to:2820,
-            udp://exodus.desync.com:6969/announce,
-            udp://explodie.org:6969/announce,
-            udp://ipv4.tracker.harry.lu:80/announce,
-            udp://open.stealth.si:80/announce,
-            udp://opentor.org:2710/announce,
-            udp://opentracker.i2p.rocks:6969/announce,
-            udp://retracker.lanta-net.ru:2710/announce,
-            udp://tracker.cyberia.is:6969/announce,
-            udp://tracker.dler.org:6969/announce,
-            udp://tracker.ds.is:6969/announce,
-            udp://tracker.internetwarriors.net:1337,
-            udp://tracker.openbittorrent.com:6969/announce,
-            udp://tracker.opentrackr.org:1337/announce,
-            udp://tracker.tiny-vps.com:6969/announce,
-            udp://tracker.torrent.eu.org:451/announce,
-            udp://valakas.rollo.dnsabr.com:2710/announce,
-            udp://www.torrent.eu.org:451/announce
-        """.trimIndent()
+            udp://opentor.net:6969,
+            http://bt.t-ru.org/ann?magnet,
+            http://bt2.t-ru.org/ann?magnet,
+            http://bt3.t-ru.org/ann?magnet,
+            http://bt4.t-ru.org/ann?magnet,
+        """.trimIndent() + fetchTrackers().split("\n").joinToString(",")
 
         return streamList.streams?.map { stream ->
             val urlOrHash =
-                if (debridProvider == "none") {
+                if (debridProvider == "none" && stream.fileIdx != 0) {
                     val trackerList = animeTrackers.split(",").map { it.trim() }.filter { it.isNotBlank() }.joinToString("&tr=")
                     "magnet:?xt=urn:btih:${stream.infoHash}&dn=${stream.infoHash}&tr=$trackerList&index=${stream.fileIdx}"
                 } else stream.url ?: ""
@@ -447,6 +428,17 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
                 { isEfficient && !arrayOf("hevc", "265", "av1").any { q -> it.quality.contains(q, true) } },
             ),
         )
+    }
+
+    private fun fetchTrackers(): String {
+        val request = Request.Builder()
+            .url("https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw Exception("Unexpected code $response")
+            return response.body.string().trim()
+        }
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
@@ -654,7 +646,10 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             "🇫🇷 Torrent9",
             "🇪🇸 MejorTorrent",
             "🇲🇽 Cinecalidad",
+            "🇮🇹 ilCorsaroNero",
+            "🇪🇸 Wolfmax4k",
         )
+
         private val PREF_PROVIDERS_VALUE = arrayOf(
             "yts",
             "eztv",
@@ -675,6 +670,8 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             "torrent9",
             "mejortorrent",
             "cinecalidad",
+            "ilcorsaronero",
+            "wolfmax4k",
         )
 
         private val PREF_DEFAULT_PROVIDERS_VALUE = arrayOf(
@@ -699,6 +696,9 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             "BluRay REMUX",
             "HDR/HDR10+/Dolby Vision",
             "Dolby Vision",
+            "Dolby Vision + HDR",
+            "3D",
+            "Non 3D (DO NOT SELECT IF NOT SURE)",
             "4k",
             "1080p",
             "720p",
@@ -708,10 +708,14 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             "Cam",
             "Unknown",
         )
+
         private val PREF_QUALITY_VALUE = arrayOf(
             "brremux",
             "hdrall",
             "dolbyvision",
+            "dolbyvisionwithhdr",
+            "threed",
+            "nonthreed",
             "4k",
             "1080p",
             "720p",
