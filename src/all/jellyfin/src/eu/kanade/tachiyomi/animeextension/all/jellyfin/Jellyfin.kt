@@ -19,15 +19,14 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import okhttp3.Response
 import org.apache.commons.text.StringSubstitutor
+import rx.Single
+import rx.schedulers.Schedulers
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.security.MessageDigest
@@ -502,8 +501,6 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         get() = getBoolean(PREF_SPLIT_COLLECTIONS_KEY, PREF_SPLIT_COLLECTIONS_DEFAULT)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        fetchMediaLibraries()
-
         if (suffix == "1") {
             ListPreference(screen.context).apply {
                 key = EXTRA_SOURCES_COUNT_KEY
@@ -562,7 +559,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             title = "Select media library"
             summary = buildString {
                 if (mediaLibraries.isEmpty()) {
-                    append("Exit and enter the settings menu to load options.")
+                    append("Login failed. Enter in correct credentials and restart the app.")
                 } else {
                     append("Selected: %s")
                 }
@@ -570,6 +567,9 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             entries = mediaLibraries.map { it.first }.toTypedArray()
             entryValues = mediaLibraries.map { it.second }.toTypedArray()
             setDefaultValue("")
+            if (mediaLibraries.isEmpty()) {
+                setEnabled(false)
+            }
         }.also(screen::addPreference)
 
         screen.addEditTextPreference(
@@ -665,26 +665,9 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
     }
 
     private var mediaLibraries = emptyList<Pair<String, String>>()
-    private var fetchFilterStatus = FetchFilterStatus.NOT_FETCHED
-    private var fetchFiltersAttempts = 0
-    private val scope = CoroutineScope(Dispatchers.IO)
-
-    private enum class FetchFilterStatus {
-        NOT_FETCHED,
-        FETCHING,
-        FETCHED,
-    }
-
-    private fun fetchMediaLibraries() {
-        if (baseUrl.isBlank() || fetchFilterStatus != FetchFilterStatus.NOT_FETCHED || fetchFiltersAttempts > 3) {
-            return
-        }
-
-        fetchFilterStatus = FetchFilterStatus.FETCHING
-        fetchFiltersAttempts++
-
-        scope.launch {
-            try {
+    init {
+        if (baseUrl.isNotBlank()) {
+            Single.fromCallable {
                 mediaLibraries = client.newCall(
                     GET("$baseUrl/Users/$userId/Items"),
                 ).execute().parseAs<ItemListDto>().items.filter {
@@ -692,11 +675,10 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                 }.map {
                     Pair(it.name, it.id)
                 }
-                fetchFilterStatus = FetchFilterStatus.FETCHED
-            } catch (e: Exception) {
-                fetchFilterStatus = FetchFilterStatus.NOT_FETCHED
-                Log.e(LOG_TAG, "Failed to fetch media libraries", e)
             }
+                .subscribeOn(Schedulers.io())
+                .observeOn(Schedulers.io())
+                .subscribe({}, { Log.e(LOG_TAG, "Failed to fetch media libraries", it) })
         }
     }
 }
