@@ -101,7 +101,7 @@ class Hstream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val params = HstreamFilters.getSearchParameters(filters)
 
         val url = "$baseUrl/search".toHttpUrl().newBuilder().apply {
-            if (query.isNotBlank()) addQueryParameter("s", query)
+            if (query.isNotBlank()) addQueryParameter("search", query)
             addQueryParameter("page", page.toString())
             addQueryParameter("order", params.order)
             params.genres.forEachIndexed { index, genre -> addQueryParameter("tags[$index]", genre) }
