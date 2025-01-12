@@ -1,16 +1,17 @@
-| Install on aniyomi                                                                                                                                                                                                                                                   | Install on Animetail| Build | Support Server |
-|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|-------|----------------|
-| [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20this%20repo-blue&style=flat)](https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://raw.githubusercontent.com/Dark25/aniyomi-extensions/repo/index.min.json) | [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20repo-gray?style=flat&labelColor=red)](https://intradeus.github.io/http-protocol-redirector/?r=animetail://add-repo?url=https://raw.githubusercontent.com/Dark25/aniyomi-extensions/repo/index.min.json) | ![CI](https://github.com/dark25/aniyomi-extensions/workflows/CI/badge.svg?event=push) | [![Discord](https://img.shields.io/discord/841701076242530374?label=discord&labelColor=7289da&color=2c2f33&style=flat)](https://discord.gg/F32UjdJZrR) |
+| Install on Aniyomi                                                                                                                                                                                                                                               | Install on Animetail                                                                                                                                                                                                                                                        | Build                                                                                    | Support Server |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|----------------|
+| [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20this%20repo-blue&style=flat)](https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://raw.githubusercontent.com/anikku-app/extensions/repo/index.min.json) | [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20repo-gray?style=flat&labelColor=red)](https://intradeus.github.io/http-protocol-redirector/?r=anikku://add-repo?url=https://raw.githubusercontent.com/anikku-app/extensions/repo/index.min.json) | ![CI](https://github.com/anikku-app/anikku-extensions/workflows/CI/badge.svg?event=push) | [![Discord](https://img.shields.io/discord/841701076242530374?label=discord&labelColor=7289da&color=2c2f33&style=flat)](https://discord.gg/85jB7V5AJR) |
 
 
-# ![app icon](./.github/readme-images/app-icon.png)Aniyomi Extensions
-Aniyomi is a free and open source manga reader for Android 6.0 and above.
+# ![app icon](./.github/readme-images/app-icon.png)Anikku/Aniyomi Extensions
+Anikku/Aniyomi is a free and open source manga reader for Android 6.0 and above.
 
-This repository contains the available extension catalogues for the [Aniyomi](https://github.com/aniyomiorg/aniyomi) fork.
+This repository contains the available extension catalogues for the [Aniyomi](https://github.com/aniyomiorg/aniyomi) forks.
 
 # Manual install
+just paste this into your anime repo
 ```
-https://raw.githubusercontent.com/Dark25/aniyomi-extensions/repo/index.min.json
+https://raw.githubusercontent.com/anikku-app/extensions/main/index.min.json
 ```
 
 # Usage
@@ -19,38 +20,32 @@ Extension sources can be downloaded, installed, and uninstalled via the main Ani
 
 ## Downloads
 
-If you prefer to directly download the APK files, they are available via https://aniyomi.org/extensions/ or directly in this GitHub repository in the [`repo` branch](https://github.com/aniyomiorg/aniyomi-extensions/tree/repo/apk).
+If you prefer to directly download the APK files, they are available via https://aniyomi.org/extensions/ or directly in this GitHub repository in the [`repo` branch](https://github.com/anikku-app/extensions/tree/repo/apk).
 
 # Requests
 
 Source requests here are meant as up-for-grabs for any developer, thus it's impossible to provide a time estimation for any of them. Furthermore, some sites are impossible to do, usually because of various technical reasons.
 
-# Contributing
+## Support Server
+
+Join the [Discord](https://discord.gg/85jB7V5AJR) for updates and announcements
+
+and please check the discord BEFORE making an issue 
+
+## Contributing
 
 Contributions are welcome!
 
-Check out the repo's [issue backlog](https://github.com/aniyomiorg/aniyomi-extensions/issues) for source requests and bug reports.
+Check out the repo's [issue backlog](https://github.com/anikku-app/anikku-extensions/issues) for source requests and bug reports.
 
 To get started with development, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 It might also be good to read our [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-## License
-
-    Copyright 2015 Javier Tomás
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
 ## Disclaimer
 
-The developer of this application does not have any affiliation with the content providers available.
+This project does not have any affiliation with the content providers available.
+This project is not affiliated with Aniyomi.
+Don't ask for help about these extensions at the official support means of Aniyomi.
+
+All credits to the codebase goes to the original contributors.

@@ -2,7 +2,7 @@
 
 This guide have some instructions and tips on how to create a new Aniyomi extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledges.
 
-This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/aniyomiorg/aniyomi-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
+This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/anikku-app/anikku-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
 
 ## Table of Contents
 
@@ -163,7 +163,7 @@ and [negative refspecs](https://github.blog/2020-10-19-git-2-29-released/#user-c
 
 ## Getting help
 
-- Join [the Discord server](https://discord.gg/F32UjdJZrR) for online help and to ask questions while developing your extension. When doing so, please ask it in the `#dev` channel.
+- Join [the Discord server](https://discord.gg/85jB7V5AJR) for online help and to ask questions while developing your extension. When doing so, please ask it in the `#dev` channel.
 
 - There are some features and tricks that are not explored in this document. Refer to existing extension code for examples.
 
@@ -246,11 +246,11 @@ The extension's version name is generated automatically by concatenating `14` an
 
 #### Extension API
 
-Extensions rely on [extensions-lib](https://github.com/aniyomiorg/extensions-lib), which provides some interfaces and stubs from the [app](https://github.com/aniyomiorg/aniyomi) for compilation purposes. The actual implementations can be found [here](https://github.com/aniyomiorg/aniyomi/tree/master/app/src/main/java/eu/kanade/tachiyomi/animesource). Referencing the actual implementation will help with understanding extensions' call flow.
+Extensions rely on [extensions-lib](https://github.com/aniyomiorg/extensions-lib), which provides some interfaces and stubs from the [app](https://github.com/anikku-app/anikku) for compilation purposes. The actual implementations can be found [here](https://github.com/anikku-app/anikku/tree/master/app/src/main/java/eu/kanade/tachiyomi/animesource). Referencing the actual implementation will help with understanding extensions' call flow.
 
 #### CryptoAES library
 
-The [`cryptoaes`](https://github.com/aniyomiorg/aniyomi-extensions/tree/master/lib/cryptoaes) provides utilities for decrypting AES-encrypted data, like data encrypted with AES+EvpKDF (The key-derivation algorithm used by the [cryptojs](https://cryptojs.gitbook.io/docs/) library). It also includes some utilities to decrypt strings in the [jsfuck](https://jsfuck.com/) format.
+The [`cryptoaes`](https://github.com/anikku-app/anikku-extensions/tree/master/lib/cryptoaes) provides utilities for decrypting AES-encrypted data, like data encrypted with AES+EvpKDF (The key-derivation algorithm used by the [cryptojs](https://cryptojs.gitbook.io/docs/) library). It also includes some utilities to decrypt strings in the [jsfuck](https://jsfuck.com/) format.
 
 ```groovy
 dependencies {
@@ -260,7 +260,7 @@ dependencies {
 
 #### Unpacker library
 
-The [`unpacker`](https://github.com/aniyomiorg/aniyomi-extensions/tree/master/lib/unpacker) library provides a deobfuscator(unpacker) for javascript code obfuscated with the [jspacker](http://dean.edwards.name/packer/) algorithm.
+The [`unpacker`](https://github.com/anikku-app/anikku-extensions/tree/master/lib/unpacker) library provides a deobfuscator(unpacker) for javascript code obfuscated with the [jspacker](http://dean.edwards.name/packer/) algorithm.
 
 ```groovy
 dependencies {
@@ -270,7 +270,7 @@ dependencies {
 
 #### Synchrony library
 
-[`synchrony`](https://github.com/aniyomiorg/aniyomi-extensions/tree/master/lib/synchrony) is a library that bundles and runs the [synchrony](https://github.com/relative/synchrony) deobfuscator with your extension to help when deobfuscating obfuscated javascript. Useful to get data on highly obfuscated javascript code.
+[`synchrony`](https://github.com/anikku-app/anikku-extensions/tree/master/lib/synchrony) is a library that bundles and runs the [synchrony](https://github.com/relative/synchrony) deobfuscator with your extension to help when deobfuscating obfuscated javascript. Useful to get data on highly obfuscated javascript code.
 
 ```groovy
 dependencies {
@@ -281,14 +281,14 @@ dependencies {
 #### Additional dependencies
 
 If you find yourself needing additional functionality, you can add more dependencies to your `build.gradle` file.
-Many of [the dependencies](https://github.com/aniyomiorg/aniyomi/blob/master/app/build.gradle.kts) from the main Aniyomi app are exposed to extensions by default.
+Many of [the dependencies](https://github.com/anikku-app/anikku/blob/master/app/build.gradle.kts) from the main Aniyomi app are exposed to extensions by default.
 
 > Note that several dependencies are already exposed to all extensions via Gradle version catalog.
 > To view which are available view `libs.versions.toml` under the `gradle` folder
 
 Notice that we're using `compileOnly` instead of `implementation` if the app already contains it. You could use `implementation` instead for a new dependency, or you prefer not to rely on whatever the main app has at the expense of app size.
 
-Note that using `compileOnly` restricts you to versions that must be compatible with those used in [the latest stable version of Aniyomi](https://github.com/aniyomiorg/aniyomi/releases/latest).
+Note that using `compileOnly` restricts you to versions that must be compatible with those used in [the latest stable version of Anikku](https://github.com/anikku-app/anikku/releases/latest).
 
 ### Extension main class
 
@@ -335,7 +335,7 @@ a.k.a. the Latest source entry point in the app (invoked by tapping on the "Late
 
 ##### Filters
 
-The search flow have support to filters that can be added to a `AnimeFilterList` inside the `getFilterList` method. When the user changes the filter's state, they will be passed to the `searchAnimeRequest`, and they can be iterated to create the request (by getting the `filter.state` value, where the type varies depending on the `AnimeFilter` used). You can check the filter types available [here](https://github.com/aniyomiorg/aniyomi/blob/master/source-api/src/main/java/eu/kanade/tachiyomi/animesource/model/AnimeFilter.kt) and in the table below.
+The search flow have support to filters that can be added to a `AnimeFilterList` inside the `getFilterList` method. When the user changes the filter's state, they will be passed to the `searchAnimeRequest`, and they can be iterated to create the request (by getting the `filter.state` value, where the type varies depending on the `AnimeFilter` used). You can check the filter types available [here](https://github.com/anikku-app/anikku/blob/master/source-api/src/main/java/eu/kanade/tachiyomi/animesource/model/AnimeFilter.kt) and in the table below.
 
 | Filter | State type | Description |
 | ------ | ---------- | ----------- |
@@ -417,7 +417,7 @@ open class UriPartFilter(displayName: String, private val vals: Array<Pair<Strin
 #### URL intent filter
 
 Extensions can define URL intent filters by defining it inside a custom `AndroidManifest.xml` file.
-For an example, refer to [the AniWatch module's `AndroidManifest.xml` file](https://github.com/aniyomiorg/aniyomi-extensions/blob/master/src/en/aniwatch/AndroidManifest.xml) and [its corresponding `AniWatchUrlActivity` handler](https://github.com/aniyomiorg/aniyomi-extensions/blob/master/src/en/aniwatch/src/eu/kanade/tachiyomi/animeextension/en/zoro/AniWatchUrlActivity.kt).
+For an example, refer to [the AniWatch module's `AndroidManifest.xml` file](https://github.com/anikku-app/anikku-extensions/blob/master/src/en/aniwatch/AndroidManifest.xml) and [its corresponding `AniWatchUrlActivity` handler](https://github.com/anikku-app/anikku-extensions/blob/master/src/en/aniwatch/src/eu/kanade/tachiyomi/animeextension/en/zoro/AniWatchUrlActivity.kt).
 
 To test if the URL intent filter is working as expected, you can try opening the website in a browser and navigating to the endpoint that was added as a filter or clicking a hyperlink. Alternatively, you can use the `adb` command below.
 
@@ -429,7 +429,7 @@ $ adb shell am start -d "<your-link>" -a android.intent.action.VIEW
 
 There is some cases where existing sources changes their name on the website. To correctly reflect these changes in the extension, you need to explicity set the `id` to the same old value, otherwise it will get changed by the new `name` value and users will be forced to migrate back to the source.
 
-To get the current `id` value before the name change, you can search the source name in the [repository JSON file](https://github.com/aniyomiorg/aniyomi-extensions/blob/repo/index.json) by looking into the `sources` attribute of the extension. When you have the `id` copied, you can override it in the source:
+To get the current `id` value before the name change, you can search the source name in the [repository JSON file](https://github.com/anikku-app/extensions/blob/repo/index.json) by looking into the `sources` attribute of the extension. When you have the `id` copied, you can override it in the source:
 
 ```kotlin
 override val id: Long = <the-id>
@@ -579,13 +579,13 @@ To make local development more convenient, you can use the following run configu
 If you're running a Preview or debug build of Aniyomi:
 
 ```
--W -S -n xyz.jmir.tachiyomi.mi.debug/eu.kanade.tachiyomi.ui.main.MainActivity -a eu.kanade.tachiyomi.SHOW_CATALOGUES
+-W -S -n app.anikku.debug/eu.kanade.tachiyomi.ui.main.MainActivity -a eu.kanade.tachiyomi.SHOW_CATALOGUES
 ```
 
 And for a release build of Aniyomi:
 
 ```
--W -S -n xyz.jmir.tachiyomi.mi/eu.kanade.tachiyomi.ui.main.MainActivity -a eu.kanade.tachiyomi.SHOW_CATALOGUES
+-W -S -n app.anikku/eu.kanade.tachiyomi.ui.main.MainActivity -a eu.kanade.tachiyomi.SHOW_CATALOGUES
 ```
 
 If you're deploying to Android 11 or higher, enable the "Always install with package manager" option in the run configurations.
