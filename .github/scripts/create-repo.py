@@ -10,10 +10,8 @@ VERSION_CODE_REGEX = re.compile(r"versionCode='([^']+)'")
 VERSION_NAME_REGEX = re.compile(r"versionName='([^']+)'")
 IS_NSFW_REGEX = re.compile(r"'tachiyomi.animeextension.nsfw' value='([^']+)'")
 APPLICATION_LABEL_REGEX = re.compile(r"^application-label:'([^']+)'", re.MULTILINE)
-APPLICATION_ICON_320_REGEX = re.compile(
-    r"^application-icon-320:'([^']+)'", re.MULTILINE
-)
-LANGUAGE_REGEX = re.compile(r"aniyomi-([^\.]+)")
+APPLICATION_ICON_320_REGEX = re.compile(r"^application-icon-320:'([^']+)'", re.MULTILINE)
+LANGUAGE_REGEX = re.compile(r"aniyomi-([^.]+)")
 
 *_, ANDROID_BUILD_TOOLS = (Path(os.environ["ANDROID_HOME"]) / "build-tools").iterdir()
 REPO_DIR = Path("repo")
@@ -25,7 +23,6 @@ REPO_ICON_DIR.mkdir(parents=True, exist_ok=True)
 with open("output.json", encoding="utf-8") as f:
     inspector_data = json.load(f)
 
-index_data = []
 index_min_data = []
 
 for apk in REPO_APK_DIR.iterdir():
@@ -86,23 +83,6 @@ for apk in REPO_APK_DIR.iterdir():
         )
 
     index_min_data.append(min_data)
-    index_data.append(
-        {
-            **common_data,
-            "hasReadme": 0,
-            "hasChangelog": 0,
-            "sources": sources,
-        }
-    )
 
-index_data.sort(key=lambda x: x["pkg"])
-index_min_data.sort(key=lambda x: x["pkg"])
-
-with (REPO_DIR / "index.json").open("w", encoding="utf-8") as f:
-    index_data_str = json.dumps(index_data, ensure_ascii=False, indent=2)
-
-    print(index_data_str)
-    f.write(index_data_str)
-
-with (REPO_DIR / "index.min.json").open("w", encoding="utf-8") as f:
-    json.dump(index_min_data, f, ensure_ascii=False, separators=(",", ":"))
+with REPO_DIR.joinpath("index.min.json").open("w", encoding="utf-8") as index_file:
+    json.dump(index_min_data, index_file, ensure_ascii=False, separators=(",", ":"))

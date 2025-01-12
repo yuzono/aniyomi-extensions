@@ -1,4 +1,4 @@
-name: PR build check
+name: PR check
 
 on:
   pull_request:
@@ -14,17 +14,19 @@ concurrency:
 
 env:
   CI_CHUNK_SIZE: 65
+  IS_PR_CHECK: true
 
 jobs:
   prepare:
     name: Prepare job
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-24.04'
     outputs:
-      individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
       latestCommitMessage: ${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}
+      matrix: ${{ steps.generate-matrices.outputs.matrix }}
+      delete: ${{ steps.generate-matrices.outputs.delete }}
     steps:
-      - name: Clone repo
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Checkout PR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set env
         run: |
@@ -56,78 +58,76 @@ jobs:
           ./.github/scripts/bump-versions.py $isKmk "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
           echo "!!! This PR will bumping extensions version that uses a modified lib"
 
-      - name: Get number of modules
-        run: |
-          set -x
-          projects=(src/*/*)
-
-          echo "NUM_INDIVIDUAL_MODULES=${#projects[@]}" >> $GITHUB_ENV
-
-      - id: generate-matrices
-        name: Create output matrices
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
-        with:
-          script: |
-            const numIndividualModules = process.env.NUM_INDIVIDUAL_MODULES;
-            const chunkSize = process.env.CI_CHUNK_SIZE;
-
-            const numIndividualChunks = Math.ceil(numIndividualModules / chunkSize);
-
-            console.log(`Individual modules: ${numIndividualModules} (${numIndividualChunks} chunks of ${chunkSize})`);
-
-            core.setOutput('individualMatrix', { 'chunk': [...Array(numIndividualChunks).keys()] });
-
-  build_individual:
-    name: Build individual modules
-    needs: prepare
-    runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.individualMatrix) }}
-    steps:
-      - name: Checkout PR
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+      - name: Set up Java
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
           java-version: 17
           distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@94baf225fe0a508e581a564467443d0e2379123b # v4.3.0
+        with:
+          cache-read-only: true
+
+      - id: generate-matrices
+        name: Generate build matrices
+        run: |
+          git fetch origin master
+          python ./.github/scripts/generate-build-matrices.py origin/master Release
+
+  build:
+    name: Build extensions (${{ matrix.chunk.number }})
+    needs: prepare
+    runs-on: 'ubuntu-24.04'
+    if: ${{ toJson(fromJson(needs.prepare.outputs.matrix).chunk) != '[]' }}
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
+        with:
+          cache-read-only: true
 
       - name: Prepare signing key
         run: |
           echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
           chmod 600 signingkey.jks
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4
-        with:
-          cache-read-only: ${{ matrix.chunk != 0 }}
-
-      - name: Build extensions (chunk ${{ matrix.chunk }})
+      - name: Build extensions (${{ matrix.chunk.number }})
         env:
-          CI_CHUNK_NUM: ${{ matrix.chunk }}
           ALIAS: ${{ secrets.ALIAS }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew -p src assembleRelease
+        run: |
+          ./gradlew $(echo '${{ toJson(matrix.chunk.modules) }}' | jq -r 'join(" ")')
 
-      - name: Upload APKs (chunk ${{ matrix.chunk }})
+      - name: Upload APKs (${{ matrix.chunk.number }})
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: github.repository == 'yuzono/aniyomi-extensions'
         with:
-          name: "individual-apks-${{ matrix.chunk }}"
+          name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
           retention-days: 1
 
       - name: Clean up CI files
         run: rm signingkey.jks
 
-  publish_repo:
-    name: Check Publish repo
+  publish:
+    name: Check extension repo
     needs:
-      - build_individual
+      - prepare
+      - build
     if: github.repository == 'yuzono/aniyomi-extensions'
-    runs-on: ubuntu-latest
+    runs-on: 'ubuntu-24.04'
     steps:
       - name: Download APK artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -148,7 +148,7 @@ jobs:
       - name: Create repo artifacts
         run: |
           cd PR
-          python ./.github/scripts/move-apks.py
+          python ./.github/scripts/move-built-apks.py
           INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/komikku-app/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
           curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
           java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
@@ -161,9 +161,10 @@ jobs:
           ref: repo
           path: repo
 
-      - name: Sync repo
+      - name: Merge repo
         run: |
-          rsync -a --delete --exclude .git --exclude .gitignore --exclude README.md --exclude repo.json PR/repo/ repo
+          cd repo
+          python ../${{ github.ref_name }}/.github/scripts/merge-repo.py ${{ needs.prepare.outputs.delete }}
 
       # Showing which extensions are to be updated with this PR
       - name: Check Deploy repo

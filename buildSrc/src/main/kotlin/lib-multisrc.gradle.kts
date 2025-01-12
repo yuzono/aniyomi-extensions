@@ -53,3 +53,9 @@ tasks {
         }
     }
 }
+
+tasks.register("printDependentExtensions") {
+    doLast {
+        project.printDependentExtensions()
+    }
+}
