@@ -136,7 +136,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             url += if (orderByFilter.state != 0) "?filtro=${orderByFilter.toUriPart()}" else "?filtro=nombre"
             url += if (typeFilter.state != 0) "&tipo=${ types.first {t -> t.lowercase() == typeFilter.toUriPart()} }" else "&tipo=none"
             url += if (stateFilter.state != 0) "&estado=${ if (stateFilter.toUriPart() == "emision") "1" else "2" }" else "&estado=none"
-            url += if (sortModifiers.state != 0) "&orden=${sortModifiers.toUriPart()}" else "&orden=none"
+            url += if (sortModifiers.state != 0) "&orden=${sortModifiers.toUriPart()}" else "&orden=desc"
         } else {
             url += "/directorio/$page/${orderByFilter.toUriPart()}"
             url += if (genreFilter.state != 0) "/${genreFilter.toUriPart()}" else ""
