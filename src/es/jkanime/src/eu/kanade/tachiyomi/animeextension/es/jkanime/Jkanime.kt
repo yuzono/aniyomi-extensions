@@ -27,6 +27,7 @@ import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.Serializable
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -43,6 +44,44 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val lang = "es"
 
     override val supportsLatest = true
+
+    private val noRedirectClient = network.client.newBuilder()
+        .followRedirects(false)
+        .addInterceptor { chain ->
+            val request = chain.request()
+            val response = chain.proceed(request)
+            if (response.isRedirect) {
+                val location = response.header("Location")
+                    ?: return@addInterceptor response
+
+                val originalParams = request.url.queryParameterNames
+                    .associateWith { request.url.queryParameter(it) }
+
+                val redirectUrl = location.toHttpUrl().newBuilder().apply {
+                    originalParams.forEach { (key, value) ->
+                        if (value != null) addQueryParameter(key, value)
+                    }
+                }.build()
+
+                val newRequest = request.newBuilder()
+                    .url(redirectUrl)
+                    .build()
+
+                response.close()
+
+                return@addInterceptor chain.proceed(newRequest)
+            }
+            response
+        }.build()
+
+    override val client = network.client.newBuilder()
+        .addInterceptor { chain ->
+            val request = chain.request()
+            if (request.url.pathSegments.first() == "buscar") {
+                return@addInterceptor noRedirectClient.newCall(request).execute()
+            }
+            chain.proceed(request)
+        }.build()
 
     private val preferences: SharedPreferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
@@ -112,6 +151,14 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
     override fun latestUpdatesNextPageSelector(): String? = null
 
+    override suspend fun getSearchAnime(
+        page: Int,
+        query: String,
+        filters: AnimeFilterList,
+    ): AnimesPage {
+        return super.getSearchAnime(page, query, filters)
+    }
+
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
         val genreFilter = filterList.find { it is GenreFilter } as GenreFilter
@@ -131,8 +178,9 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
 
         if (query.isNotBlank()) {
+            val parseQuery = query.replace(" ", "_")
             val types = listOf("TV", "Movie", "Special", "OVA", "ONA")
-            url += "/buscar/$query/$page/"
+            url += "/buscar/$parseQuery/$page/"
             url += if (orderByFilter.state != 0) "?filtro=${orderByFilter.toUriPart()}" else "?filtro=nombre"
             url += if (typeFilter.state != 0) "&tipo=${ types.first {t -> t.lowercase() == typeFilter.toUriPart()} }" else "&tipo=none"
             url += if (stateFilter.state != 0) "&estado=${ if (stateFilter.toUriPart() == "emision") "1" else "2" }" else "&estado=none"
