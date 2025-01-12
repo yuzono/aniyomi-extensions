@@ -123,9 +123,7 @@ jobs:
 
   publish:
     name: Check extension repo
-    needs:
-      - prepare
-      - build
+    needs: [prepare, build]
     if: github.repository == 'yuzono/aniyomi-extensions'
     runs-on: 'ubuntu-24.04'
     steps:
