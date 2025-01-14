@@ -6,7 +6,7 @@ on:
       - '**'
       - '!**.md'
       - '!.github/**'
-      - '.github/workflows/build_pull_request.yml'
+      - '.github/workflows/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
