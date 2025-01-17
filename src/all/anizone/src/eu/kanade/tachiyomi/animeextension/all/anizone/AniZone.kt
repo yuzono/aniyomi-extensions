@@ -23,6 +23,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -280,7 +281,6 @@ class AniZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
         return SEpisode.create().apply {
             setUrlWithoutDomain(url)
-            episode_number = url.substringAfterLast("/").toFloat()
             name = element.selectFirst("h3")!!.text()
             date_upload = element.select("div.flex-row > span").getOrNull(1)
                 ?.text()
@@ -299,7 +299,10 @@ class AniZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        val serverSelects = document.select("select > option[value]")
+        val serverSelects = document.select("button[wire:click]")
+            .filter { video ->
+                video.attr("wire:click").contains("setVideo")
+            }
 
         val subtitles = document.select("track[kind=subtitles]").map {
             Track(it.attr("src"), it.attr("label"))
@@ -308,20 +311,35 @@ class AniZone : AnimeHttpSource(), ConfigurableAnimeSource {
         val m3u8List = mutableListOf(
             VideoData(
                 url = document.selectFirst("media-player")!!.attr("src"),
-                name = serverSelects.first()!!.text(),
+                name = serverSelects.first().text(),
                 subtitles = subtitles,
             ),
         )
         snapShots[VIDEO_SNAPSHOT_KEY] = document.getSnapshot()
 
         serverSelects.drop(1).forEach { video ->
-            val updates = buildJsonObject {
-                put("videoKey", video.attr("value"))
+            val regex = "setVideo\\('(\\d+)'\\)".toRegex()
+            val matchResult = regex.find(video.attr("wire:click"))
+            val videoId = if (matchResult != null && matchResult.groupValues.size == 1) {
+                matchResult.groupValues[1]
+            } else {
+                "0"
             }
-            val calls = buildJsonArray { }
+            val updates = buildJsonObject { }
+            val calls = buildJsonArray {
+                add(
+                    buildJsonObject {
+                        put("path", "")
+                        put("method", "setVideo")
+                        putJsonArray("params") {
+                            add(videoId.toInt())
+                        }
+                    },
+                )
+            }
 
             val doc = client.newCall(
-                createLivewireReq(VIDEO_SNAPSHOT_KEY, updates, calls, response.request.url.toString()),
+                createLivewireReq(VIDEO_SNAPSHOT_KEY, updates, calls, response.request.url.encodedPath),
             ).execute().parseAs<LivewireDto>().getHtml(VIDEO_SNAPSHOT_KEY)
 
             val subs = doc.select("track[kind=subtitles]").map {
