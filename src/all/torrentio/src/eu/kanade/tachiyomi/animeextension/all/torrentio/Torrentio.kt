@@ -139,7 +139,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
                 val content = node.content ?: return@mapNotNull null
 
                 SAnime.create().apply {
-                    url = "${content.externalIds?.imdbId ?: ""},${node.objectType ?: ""},${content.fullPath ?: ""}"
+                    url = "${content.externalIds?.imdbId ?: ""},${if (node.objectType == "SHOW") "series" else node.objectType ?: ""},${content.fullPath ?: ""}"
                     title = content.title ?: ""
                     thumbnail_url = "https://images.justwatch.com${content.posterUrl?.replace("{profile}", "s276")?.replace("{format}", "webp")}"
                     description = content.shortDescription ?: ""
@@ -312,18 +312,18 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
         val responseString = response.body.string()
         val episodeList = json.decodeFromString<EpisodeList>(responseString)
         return when (episodeList.meta?.type) {
-            "show" -> {
+            "series" -> {
                 episodeList.meta.videos
                     ?.let { videos ->
-                        if (preferences.getBoolean(UPCOMING_EP_KEY, UPCOMING_EP_DEFAULT)) { videos } else { videos.filter { video -> (video.firstAired?.let { parseDate(it) } ?: 0L) <= System.currentTimeMillis() } }
+                        if (preferences.getBoolean(UPCOMING_EP_KEY, UPCOMING_EP_DEFAULT)) { videos } else { videos.filter { video -> (video.released?.let { parseDate(it) } ?: 0L) <= System.currentTimeMillis() } }
                     }
                     ?.map { video ->
                         SEpisode.create().apply {
                             episode_number = "${video.season}.${video.number}".toFloat()
                             url = "/stream/series/${video.id}.json"
-                            date_upload = video.firstAired?.let { parseDate(it) } ?: 0L
-                            name = "S${video.season.toString().trim()}:E${video.number} - ${video.name}"
-                            scanlator = (video.firstAired?.let { parseDate(it) } ?: 0L)
+                            date_upload = video.released?.let { parseDate(it) } ?: 0L
+                            name = "S${video.season.toString().trim()}:E${video.number} - ${video.title}"
+                            scanlator = (video.released?.let { parseDate(it) } ?: 0L)
                                 .takeIf { it > System.currentTimeMillis() }
                                 ?.let { "Upcoming" }
                                 ?: ""

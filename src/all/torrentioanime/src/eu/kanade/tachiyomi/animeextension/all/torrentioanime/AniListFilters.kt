@@ -113,7 +113,7 @@ object AniListFilters {
 
         val YEAR_LIST: Array<Pair<String, String>> = arrayOf(
             Pair("Any", ""),
-        ) + (1940..2024).reversed().map { Pair(it.toString(), it.toString()) }.toTypedArray()
+        ) + (1940..2025).reversed().map { Pair(it.toString(), it.toString()) }.toTypedArray()
 
         val SEASON_LIST = arrayOf(
             Pair("Any", ""),
