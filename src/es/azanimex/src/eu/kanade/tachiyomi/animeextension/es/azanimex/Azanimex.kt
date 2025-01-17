@@ -80,20 +80,6 @@ class Azanimex : ParsedAnimeHttpSource() {
             GET(apiUrl, headers = headers),
         ).execute()
 
-        if (mainUrl.contains("peliculas.az")) {
-            if (mainUrl.contains("peliculas.az")) {
-                return listOf(
-                    SEpisode.create().apply {
-                        val urlpeli = mainUrl.replace("https://peliculas.az-animex.com", "https://peliculas.az-animex.com/api/raw?path=")
-                        name = "Película"
-                        episode_number = 1f
-                        url = urlpeli
-                    },
-                )
-            }
-            return listOf(SEpisode.create())
-        }
-
         return try {
             val json = Json { ignoreUnknownKeys = true }
             val responseBody = apiResponse.body.string()
