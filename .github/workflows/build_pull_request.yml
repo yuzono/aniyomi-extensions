@@ -23,7 +23,7 @@ jobs:
       individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
     steps:
       - name: Clone repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Get number of modules
         run: |
@@ -54,7 +54,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.individualMatrix) }}
     steps:
       - name: Checkout PR
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Set up JDK
         uses: actions/setup-java@387ac29b308b003ca37ba93a6cab5eb57c8f5f93 # v4
