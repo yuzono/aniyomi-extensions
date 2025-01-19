@@ -99,7 +99,7 @@ jobs:
           echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@d9c87d481d55275bb5441eef3fe0e46805f9ef70 # v3
+        uses: gradle/actions/setup-gradle@0bdd871935719febd78681f197cd39af5b6e16a6 # v4
 
       - name: Build extensions (chunk ${{ matrix.chunk }})
         env:
