@@ -33,7 +33,7 @@ jobs:
 
       - name: Find lib changes
         id: modified-libs
-        uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959 #v42
+        uses: tj-actions/changed-files@aa08304bd477b800d468db44fe10f6c61f7f7b11 # v42
         with:
           files: lib/
           files_ignore: lib/**.md
