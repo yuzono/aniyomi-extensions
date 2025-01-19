@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Oppai Stream'
     extClass = '.OppaiStream'
     extVersionCode = 8

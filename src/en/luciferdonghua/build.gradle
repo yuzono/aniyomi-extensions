@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'LuciferDonghua'
     extClass = '.LuciferDonghua'
     themePkg = 'animestream'

@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Serienstream'
     extClass = '.Serienstream'
     extVersionCode = 23

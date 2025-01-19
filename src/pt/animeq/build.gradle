@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'AnimeQ'
     extClass = '.AnimeQ'
     extVersionCode = 2

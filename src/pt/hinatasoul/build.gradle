@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Hinata Soul'
     extClass = '.HinataSoul'
     extVersionCode = 7

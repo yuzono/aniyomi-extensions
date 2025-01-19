@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Ask4Movie'
     extClass = '.Ask4Movie'
     extVersionCode = 14

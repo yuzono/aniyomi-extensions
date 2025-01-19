@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'hanime.tv'
     extClass = '.Hanime'
     extVersionCode = 18

@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Donghua no Sekai'
     extClass = '.DonghuaNoSekai'
     extVersionCode = 3

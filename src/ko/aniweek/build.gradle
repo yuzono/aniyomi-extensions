@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Aniweek'
     extClass = '.Aniweek'
     extVersionCode = 10

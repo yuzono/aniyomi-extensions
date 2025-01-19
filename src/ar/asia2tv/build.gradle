@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'asia2tv'
     extClass = '.Asia2TV'
     extVersionCode = 25

@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'Moflix-Stream'
     extClass = '.MoflixStream'
     extVersionCode = 16

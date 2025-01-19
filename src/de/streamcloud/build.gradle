@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'StreamCloud'
     extClass = '.StreamCloud'
     extVersionCode = 12

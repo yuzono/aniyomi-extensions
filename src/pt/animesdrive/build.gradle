@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'AnimesDrive'
     extClass = '.AnimesDrive'
     themePkg = 'dooplay'

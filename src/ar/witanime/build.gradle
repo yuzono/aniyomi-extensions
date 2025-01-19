@@ -1,5 +1,5 @@
 ext {
-    kmkVersionCode = 0
+    extKmkVersionCode = 0
     extName = 'WIT ANIME'
     extClass = '.WitAnime'
     extVersionCode = 53

@@ -34,9 +34,9 @@ android {
         minSdkVersion AndroidConfig.minSdk
         targetSdkVersion AndroidConfig.targetSdk
         applicationIdSuffix project.parent.name + "." + project.name
-        Integer kmkVersionCode = project.ext.find("kmkVersionCode") ?: 0
-        Integer kmkBaseVersionCode = theme == null ? 0 : theme.ext.find("kmkBaseVersionCode") ?: 0
-        versionCode theme == null ? extVersionCode + kmkVersionCode : theme.baseVersionCode + overrideVersionCode + kmkBaseVersionCode + kmkVersionCode
+        Integer extKmkVersionCode = project.ext.find("extKmkVersionCode") ?: 0
+        Integer baseKmkVersionCode = theme == null ? 0 : theme.ext.find("baseKmkVersionCode") ?: 0
+        versionCode theme == null ? extVersionCode + extKmkVersionCode : theme.baseVersionCode + overrideVersionCode + baseKmkVersionCode + extKmkVersionCode
         versionName "14.$versionCode"
         base {
             archivesName = "aniyomi-$applicationIdSuffix-v$versionName"
