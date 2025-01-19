@@ -8,4 +8,4 @@ Or both the related issue link and short description to why
 
 ---
 
-Don't find the question you are look for go check out our general FAQs and Guides over at [Extension FAQ](https://aniyomi.org/help/faq/#extensions) or [Getting Started](https://aniyomi.org/help/guides/getting-started/#installation)
+Don't find the question you are look for go check out our general FAQs and Guides over at [Extension FAQ](https://anikku-app.github.io/help/faq/#extensions) or [Getting Started](https://anikku-app.github.io/help/guides/getting-started/#installation)

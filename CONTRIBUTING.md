@@ -1,36 +1,58 @@
 # Contributing
 
-This guide have some instructions and tips on how to create a new Aniyomi extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledges.
+This guide have some instructions and tips on how to create a new Anikku extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledge.
 
 This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/anikku-app/anikku-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-   1. [Tools](#tools)
-   2. [Cloning the repository](#cloning-the-repository)
-2. [Getting help](#getting-help)
-3. [Writing an extension](#writing-an-extension)
-   1. [Setting up a new Gradle module](#setting-up-a-new-gradle-module)
-   2. [Core dependencies](#core-dependencies)
-   3. [Extension main class](#extension-main-class)
-   4. [Extension call flow](#extension-call-flow)
-   5. [Misc notes](#misc-notes)
-   6. [Advanced extension features](#advanced-extension-features)
-4. [Multi-source themes](#multi-source-themes)
-   1. [The directory structure](#the-directory-structure)
-   2. [Development workflow](#development-workflow)
-   3. [Scaffolding overrides](#scaffolding-overrides)
-   4. [Additional Notes](#additional-notes)
-5. [Running](#running)
-6. [Debugging](#debugging)
-   1. [Android Debugger](#android-debugger)
-   2. [Logs](#logs)
-   3. [Inspecting network calls](#inspecting-network-calls)
-   4. [Using external network inspecting tools](#using-external-network-inspecting-tools)
-7. [Building](#building)
-8. [Submitting the changes](#submitting-the-changes)
-   1. [Pull Request checklist](#pull-request-checklist)
+- [Contributing](#contributing)
+  - [Table of Contents](#table-of-contents)
+  - [Prerequisites](#prerequisites)
+    - [Tools](#tools)
+    - [Cloning the repository](#cloning-the-repository)
+  - [Getting help](#getting-help)
+  - [Writing an extension](#writing-an-extension)
+    - [Setting up a new Gradle module](#setting-up-a-new-gradle-module)
+      - [Extension file structure](#extension-file-structure)
+      - [AndroidManifest.xml (optional)](#androidmanifestxml-optional)
+      - [build.gradle](#buildgradle)
+    - [Core dependencies](#core-dependencies)
+      - [Extension API](#extension-api)
+      - [CryptoAES library](#cryptoaes-library)
+      - [Unpacker library](#unpacker-library)
+      - [Synchrony library](#synchrony-library)
+      - [Additional dependencies](#additional-dependencies)
+    - [Extension main class](#extension-main-class)
+      - [Main class key variables](#main-class-key-variables)
+    - [Extension call flow](#extension-call-flow)
+      - [Popular Anime](#popular-anime)
+      - [Latest Anime](#latest-anime)
+      - [Anime Search](#anime-search)
+        - [Filters](#filters)
+      - [Anime Details](#anime-details)
+      - [Episode](#episode)
+      - [Episode Videos](#episode-videos)
+    - [Misc notes](#misc-notes)
+    - [Advanced Extension features](#advanced-extension-features)
+      - [URL intent filter](#url-intent-filter)
+      - [Renaming existing sources](#renaming-existing-sources)
+  - [Multi-source themes](#multi-source-themes)
+    - [The directory structure](#the-directory-structure)
+    - [Development workflow](#development-workflow)
+    - [Scaffolding overrides](#scaffolding-overrides)
+    - [Additional Notes](#additional-notes)
+  - [Running](#running)
+  - [Debugging](#debugging)
+    - [Android Debugger](#android-debugger)
+    - [Logs](#logs)
+    - [Inspecting network calls](#inspecting-network-calls)
+    - [Using external network inspecting tools](#using-external-network-inspecting-tools)
+      - [Setup your proxy server](#setup-your-proxy-server)
+      - [OkHttp proxy setup](#okhttp-proxy-setup)
+  - [Building](#building)
+  - [Submitting the changes](#submitting-the-changes)
+    - [Pull Request checklist](#pull-request-checklist)
 
 ## Prerequisites
 
@@ -47,7 +69,7 @@ Before you start, please note that the ability to use following technologies is 
 ### Tools
 
 - [Android Studio](https://developer.android.com/studio)
-- Emulator or phone with developer options enabled and a recent version of Aniyomi installed
+- Emulator or phone with developer options enabled and a recent version of Anikku installed
 - [Icon Generator](https://as280093.github.io/AndroidAssetStudio/icons-launcher.html)
 
 ### Cloning the repository
@@ -63,7 +85,7 @@ Some alternative steps can be followed to ignore "repo" branch and skip unrelate
 2. Do a partial clone.
     ```bash
     git clone --filter=blob:none --sparse <fork-repo-url>
-    cd aniyomi-extensions/
+    cd anikku-extensions/
     ```
 3. Configure sparse checkout.
 
@@ -124,7 +146,7 @@ Some alternative steps can be followed to ignore "repo" branch and skip unrelate
 4. Configure remotes.
     ```bash
     # add upstream
-    git remote add upstream <aniyomiorg-repo-url>
+    git remote add upstream <anikku-repo-url>
     # optionally disable push to upstream
     git remote set-url --push upstream no_pushing
     # ignore 'repo' branch of upstream
@@ -246,7 +268,7 @@ The extension's version name is generated automatically by concatenating `14` an
 
 #### Extension API
 
-Extensions rely on [extensions-lib](https://github.com/aniyomiorg/extensions-lib), which provides some interfaces and stubs from the [app](https://github.com/anikku-app/anikku) for compilation purposes. The actual implementations can be found [here](https://github.com/anikku-app/anikku/tree/master/app/src/main/java/eu/kanade/tachiyomi/animesource). Referencing the actual implementation will help with understanding extensions' call flow.
+Extensions rely on [extensions-lib](https://github.com/anikku-app/extensions-lib), which provides some interfaces and stubs from the [app](https://github.com/anikku-app/anikku) for compilation purposes. The actual implementations can be found [here](https://github.com/anikku-app/anikku/tree/master/app/src/main/java/eu/kanade/tachiyomi/animesource). Referencing the actual implementation will help with understanding extensions' call flow.
 
 #### CryptoAES library
 
@@ -281,7 +303,7 @@ dependencies {
 #### Additional dependencies
 
 If you find yourself needing additional functionality, you can add more dependencies to your `build.gradle` file.
-Many of [the dependencies](https://github.com/anikku-app/anikku/blob/master/app/build.gradle.kts) from the main Aniyomi app are exposed to extensions by default.
+Many of [the dependencies](https://github.com/anikku-app/anikku/blob/master/app/build.gradle.kts) from the main Anikku app are exposed to extensions by default.
 
 > Note that several dependencies are already exposed to all extensions via Gradle version catalog.
 > To view which are available view `libs.versions.toml` under the `gradle` folder
@@ -304,7 +326,7 @@ The class which is referenced and defined by `extClass` in `build.gradle`. This 
 
 | Field | Description |
 | ----- | ----------- |
-| `name` | Name displayed in the "Sources" tab in Aniyomi. |
+| `name` | Name displayed in the "Sources" tab in Anikku. |
 | `baseUrl` | Base URL of the source without any trailing slashes. |
 | `lang` | An ISO 639-1 compliant language code (two letters in lower case in most cases, but can also include the country/dialect part by using a simple dash character). |
 | `id` | Identifier of your source, automatically set in `AnimeHttpSource`. It should only be manually overriden if you need to copy an existing autogenerated ID. |
@@ -366,7 +388,7 @@ open class UriPartFilter(displayName: String, private val vals: Array<Pair<Strin
 - `fetchAnimeDetails` is called to update an anime's details from when it was initialized earlier.
     - `SAnime.initialized` tells the app if it should call `fetchAnimeDetails`. If you are overriding `fetchAnimeDetails`, make sure to pass it as `true`.
     - `SAnime.genre` is a string containing list of all genres separated with `", "`.
-    - `SAnime.status` is an "enum" value. Refer to [the values in the `SAnime` companion object](https://github.com/aniyomiorg/extensions-lib/blob/main/library/src/main/java/eu/kanade/tachiyomi/animesource/model/SAnime.kt#L26-L32).
+    - `SAnime.status` is an "enum" value. Refer to [the values in the `SAnime` companion object](https://github.com/anikku-app/extensions-lib/blob/main/library/src/main/java/eu/kanade/tachiyomi/animesource/model/SAnime.kt#L26-L32).
     - During a backup, only `url` and `title` are stored. To restore the rest of the anime data, the app calls `fetchAnimeDetails`, so all fields should be (re)filled in if possible.
     - If a `SAnime` is cached `fetchAnimeDetails` will be only called when the user does a manual update(Swipe-to-Refresh).
 - `fetchEpisodeList` is called to display the episode list.
@@ -572,17 +594,17 @@ with open(f"{package}/src/{source}.kt", "w") as f:
 
 ## Running
 
-To make local development more convenient, you can use the following run configuration to launch Aniyomi directly at the Browse panel:
+To make local development more convenient, you can use the following run configuration to launch Anikku directly at the Browse panel:
 
 ![](https://i.imgur.com/STy0UFY.png)
 
-If you're running a Preview or debug build of Aniyomi:
+If you're running a Preview or debug build of Anikku:
 
 ```
 -W -S -n app.anikku.debug/eu.kanade.tachiyomi.ui.main.MainActivity -a eu.kanade.tachiyomi.SHOW_CATALOGUES
 ```
 
-And for a release build of Aniyomi:
+And for a release build of Anikku:
 
 ```
 -W -S -n app.anikku/eu.kanade.tachiyomi.ui.main.MainActivity -a eu.kanade.tachiyomi.SHOW_CATALOGUES
@@ -598,7 +620,7 @@ You can leverage the Android Debugger to step through your extension while debug
 
 You *cannot* simply use Android Studio's `Debug 'module.name'` -> this will most likely result in an error while launching.
 
-Instead, once you've built and installed your extension on the target device, use `Attach Debugger to Android Process` to start debugging Aniyomi.
+Instead, once you've built and installed your extension on the target device, use `Attach Debugger to Android Process` to start debugging Anikku.
 
 ![](https://i.imgur.com/muhXyfu.png)
 
@@ -611,7 +633,7 @@ show up in the [`Logcat`](https://developer.android.com/studio/debug/am-logcat) 
 ### Inspecting network calls
 One of the easiest way to inspect network issues (such as HTTP errors 404, 429, no chapter found etc.) is to use the [`Logcat`](https://developer.android.com/studio/debug/am-logcat) panel of Android Studio and filtering by the `OkHttpClient` tag.
 
-To be able to check the calls done by OkHttp, you need to enable verbose logging in the app, that is not enabled by default and is only included in the Preview versions of Aniyomi. To enable it, go to More -> Settings -> Advanced -> Verbose logging. After enabling it, don't forget to restart the app.
+To be able to check the calls done by OkHttp, you need to enable verbose logging in the app, that is not enabled by default and is only included in the Preview versions of Anikku. To enable it, go to More -> Settings -> Advanced -> Verbose logging. After enabling it, don't forget to restart the app.
 
 Inspecting the Logcat allows you to get a good look at the call flow and it's more than enough in most cases where issues occurs. However, alternatively, you can also use an external tool like `mitm-proxy`. For that, refer to the next section.
 
@@ -686,7 +708,7 @@ class AnimeSource : AnimeTheme(
 }
 ```
 
-Note: `10.0.2.2` is usually the address of your loopback interface in the android emulator. If Aniyomi tells you that it's unable to connect to 10.0.2.2:8080 you will likely need to change it (the same if you are using hardware device).
+Note: `10.0.2.2` is usually the address of your loopback interface in the android emulator. If Anikku tells you that it's unable to connect to 10.0.2.2:8080 you will likely need to change it (the same if you are using hardware device).
 
 If all went well, you should see all requests and responses made by the source in the web interface of `mitmweb`.
 

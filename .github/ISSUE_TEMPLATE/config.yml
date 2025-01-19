@@ -1,14 +1,14 @@
 blank_issues_enabled: false
 contact_links:
   - name: ⚠️ Application issue
-    url: https://github.com/aniyomiorg/aniyomi/issues/new/choose
+    url: https://github.com/anikku-app/anikku/issues/new/choose
     about: Issues and requests about the app itself should be opened in the tachiyomi repository instead
-  - name: 📦 Aniyomi extensions
-    url: https://aniyomi.org/extensions
+  - name: 📦 Anikku extensions
+    url: https://anikku-app.github.io/extensions
     about: List of all available extensions with download links
-  - name: 🖥️ Aniyomi website
-    url: https://aniyomi.org/help/
+  - name: 🖥️ Anikku website
+    url: https://anikku-app.github.io/help/
     about: Guides, troubleshooting, and answers to common questions
-  - name: Aniyomi app GitHub repository
-    url: https://github.com/aniyomiorg/aniyomi
+  - name: Anikku app GitHub repository
+    url: https://github.com/anikku-app/anikku
     about: Issues about the app itself should be opened here instead.
