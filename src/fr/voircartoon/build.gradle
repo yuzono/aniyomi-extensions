@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'VoirCartoon'
     extClass = '.VoirCartoon'
     themePkg = 'dooplay'

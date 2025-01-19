@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'DeTodoPeliculas'
     extClass = '.DeTodoPeliculas'
     themePkg = 'dooplay'

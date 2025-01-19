@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'LocoPelis'
     extClass = '.LocoPelis'
     extVersionCode = 28

@@ -246,6 +246,7 @@ Make sure that your new extension's `build.gradle` file follows the following st
 
 ```groovy
 ext {
+    kmkVersionCode = 0
     extName = '<My source name>'
     extClass = '.<MySourceName>'
     extVersionCode = 1

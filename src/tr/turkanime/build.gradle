@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Türk Anime TV'
     extClass = '.TurkAnime'
     extVersionCode = 32

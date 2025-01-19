@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Jkanime'
     extClass = '.Jkanime'
     extVersionCode = 34

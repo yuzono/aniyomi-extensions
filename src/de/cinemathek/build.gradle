@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Cinemathek'
     extClass = '.Cinemathek'
     themePkg = 'dooplay'

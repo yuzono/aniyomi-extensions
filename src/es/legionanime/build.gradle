@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'LegionAnime'
     extClass = '.LegionAnime'
     extVersionCode = 38

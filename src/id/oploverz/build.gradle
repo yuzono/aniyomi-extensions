@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Oploverz'
     extClass = '.Oploverz'
     extVersionCode = 26

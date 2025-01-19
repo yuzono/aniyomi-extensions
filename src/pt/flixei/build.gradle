@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Flixei'
     extClass = '.Flixei'
     extVersionCode = 8

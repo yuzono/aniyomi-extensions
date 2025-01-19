@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Pobreflix'
     extClass = '.Pobreflix'
     themePkg = 'dooplay'

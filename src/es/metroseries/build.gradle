@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'MetroSeries'
     extClass = '.MetroSeries'
     extVersionCode = 17

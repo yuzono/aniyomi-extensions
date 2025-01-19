@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Doramasflix'
     extClass = '.Doramasflix'
     extVersionCode = 32

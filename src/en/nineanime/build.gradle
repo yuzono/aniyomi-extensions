@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Aniwave'
     extClass = '.Aniwave'
     extVersionCode = 74

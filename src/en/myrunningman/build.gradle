@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'My Running Man'
     extClass = '.MyRunningMan'
     extVersionCode = 8

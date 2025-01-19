@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Tokuzilla'
     extClass = '.Tokuzilla'
     extVersionCode = 19

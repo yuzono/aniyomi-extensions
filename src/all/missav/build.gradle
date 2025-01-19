@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'MissAV'
     extClass = '.MissAV'
     extVersionCode = 14

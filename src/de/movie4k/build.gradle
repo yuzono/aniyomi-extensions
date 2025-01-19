@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Movie4k'
     extClass = '.Movie4k'
     extVersionCode = 12

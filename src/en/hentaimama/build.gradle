@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'HentaiMama'
     extClass = '.HentaiMama'
     extVersionCode = 7

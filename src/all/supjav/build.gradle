@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'SupJav'
     extClass = '.SupJavFactory'
     extVersionCode = 16

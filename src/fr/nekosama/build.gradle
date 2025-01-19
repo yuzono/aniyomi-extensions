@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'NekoSama'
     extClass = '.NekoSama'
     extVersionCode = 11

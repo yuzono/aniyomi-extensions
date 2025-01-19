@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Google Drive'
     extClass = '.GoogleDrive'
     extVersionCode = 16

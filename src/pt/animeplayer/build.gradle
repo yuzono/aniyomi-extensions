@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'AnimePlayer'
     extClass = '.AnimePlayer'
     themePkg = 'dooplay'

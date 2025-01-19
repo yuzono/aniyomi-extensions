@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'NollyVerse'
     extClass = '.NollyVerse'
     extVersionCode = 3

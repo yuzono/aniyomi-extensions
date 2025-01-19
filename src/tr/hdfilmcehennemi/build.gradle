@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'HDFilmCehennemi'
     extClass = '.HDFilmCehennemi'
     extVersionCode = 19

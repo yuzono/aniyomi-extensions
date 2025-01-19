@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'MyKdrama'
     extClass = '.MyKdrama'
     themePkg = 'animestream'

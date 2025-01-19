@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Megaflix'
     extClass = '.Megaflix'
     extVersionCode = 24

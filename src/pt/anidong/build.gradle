@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'AniDong'
     extClass = '.AniDong'
     extVersionCode = 2

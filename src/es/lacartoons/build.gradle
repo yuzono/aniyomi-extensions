@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'LACartoons'
     extClass = '.Lacartoons'
     extVersionCode = 10

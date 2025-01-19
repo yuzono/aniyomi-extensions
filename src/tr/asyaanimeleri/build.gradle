@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'AsyaAnimeleri'
     extClass = '.AsyaAnimeleri'
     themePkg = 'animestream'

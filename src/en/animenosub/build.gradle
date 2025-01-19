@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Animenosub'
     extClass = '.Animenosub'
     themePkg = 'animestream'

@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Anitube'
     extClass = '.Anitube'
     extVersionCode = 22

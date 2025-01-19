@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Gogoanime'
     extClass = '.GogoAnime'
     extVersionCode = 89

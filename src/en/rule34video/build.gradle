@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Rule34Video'
     extClass = '.Rule34Video'
     extVersionCode = 9

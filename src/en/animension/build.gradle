@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'Animension'
     extClass = '.Animension'
     extVersionCode = 23

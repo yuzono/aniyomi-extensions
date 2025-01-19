@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'NimeGami'
     extClass = '.NimeGami'
     extVersionCode = 3

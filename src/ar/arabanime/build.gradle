@@ -1,4 +1,5 @@
 ext {
+    kmkVersionCode = 0
     extName = 'ArabAnime'
     extClass = '.ArabAnime'
     extVersionCode = 2
