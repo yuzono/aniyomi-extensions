@@ -1,7 +1,7 @@
 ext {
     extName = 'OtakuFR'
     extClass = '.OtakuFR'
-    extVersionCode = 22
+    extVersionCode = 23
 }
 
 apply from: "$rootDir/common.gradle"
@@ -15,5 +15,5 @@ dependencies {
     implementation(project(':lib:okru-extractor'))
     implementation(project(":lib:playlist-utils"))
     implementation(project(":lib:upstream-extractor"))
-    implementation libs.jsunpacker
+    implementation(libs.jsunpacker)
 }

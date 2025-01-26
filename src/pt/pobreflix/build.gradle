@@ -3,7 +3,7 @@ ext {
     extClass = '.Pobreflix'
     themePkg = 'dooplay'
     baseUrl = 'https://pobreflix.global'
-    overrideVersionCode = 15
+    overrideVersionCode = 16
     isNsfw = true
 }
 
@@ -15,5 +15,5 @@ dependencies {
     implementation(project(":lib:streamwish-extractor"))
     implementation(project(":lib:streamtape-extractor"))
     implementation(project(":lib:playlist-utils"))
-    implementation libs.jsunpacker
+    implementation(libs.jsunpacker)
 }
