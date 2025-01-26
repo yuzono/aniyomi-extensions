@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.all.rouvideo
 
+import eu.kanade.tachiyomi.animeextension.all.rouvideo.RouVideoFilter.SORT_LIKE_KEY
+import eu.kanade.tachiyomi.animeextension.all.rouvideo.RouVideoFilter.SORT_VIEW_KEY
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
@@ -60,7 +62,7 @@ internal object RouVideoDto {
                 val hotSelfie: List<Video>,
                 val hot91: List<Video>,
             ) {
-                fun toAnimePage(): AnimesPage {
+                fun toAnimePage(sort: String?): AnimesPage {
                     return AnimesPage(
                         listOf(
                             latestVideos,
@@ -73,7 +75,31 @@ internal object RouVideoDto {
                             hotSelfie,
                             hot91,
                         ).flatten()
-                            .sortedByDescending { it.viewCount }
+                            .sortedWith { vid1, vid2 ->
+                                when (sort) {
+                                    SORT_VIEW_KEY -> {
+                                        if (vid1.viewCount > vid2.viewCount) {
+                                            -1
+                                        } else {
+                                            vid2.createdAt.compareTo(vid1.createdAt)
+                                        }
+                                    }
+
+                                    SORT_LIKE_KEY -> {
+                                        if (vid1.likeCount == null && vid2.likeCount != null) {
+                                            1
+                                        } else if (vid1.likeCount != null && vid2.likeCount == null) {
+                                            -1
+                                        } else if (vid1.likeCount != null && vid2.likeCount != null && vid1.likeCount > vid2.likeCount) {
+                                            -1
+                                        } else {
+                                            vid2.createdAt.compareTo(vid1.createdAt)
+                                        }
+                                    }
+
+                                    else -> vid2.createdAt.compareTo(vid1.createdAt)
+                                }
+                            }
                             .associateBy { it.id }
                             .map { (_, video) -> video.toSAnime() },
                         false,
