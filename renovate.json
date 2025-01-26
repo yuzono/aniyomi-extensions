@@ -1,7 +1,36 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "labels": ["Dependencies"],
+  "rebaseWhen": "conflicted",
   "extends": [
-    "config:base",
-    ":dependencyDashboard"
+    ":semanticCommits",
+    "config:best-practices"
+  ],
+  "includePaths": [
+    "buildSrc/gradle/**",
+    "gradle/**",
+    ".github/**"
+  ],
+  "ignoreDeps": [
+    "aniyomiorg/issue-moderator-action",
+    "com.github.mihonapp:injekt"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "{{manager}} dependencies"
+    },
+    {
+      "matchManagers": ["gradle"],
+      "enabled": false
+    },
+    {
+      "matchPackageNames": [
+        "com.android.tools.build:gradle",
+        "gradle"
+      ],
+      "draftPR": true,
+      "enabled": true
+    }
   ]
 }
