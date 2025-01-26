@@ -25,6 +25,10 @@ jobs:
     outputs:
       individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
     steps:
+      - name: Set env
+        run: |
+          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/dark25'" >> $GITHUB_ENV
+
       - name: Clone repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
@@ -50,7 +54,7 @@ jobs:
 
         # This step is going to commit, but this will not trigger another workflow.
       - name: Bump extensions that uses a modified lib
-        if: steps.modified-libs.outputs.any_changed == 'true'
+        if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
         run: |
           chmod +x ./.github/scripts/bump-versions.py
           ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }}

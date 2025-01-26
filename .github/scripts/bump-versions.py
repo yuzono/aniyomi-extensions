@@ -7,11 +7,11 @@ import re
 import subprocess
 import sys
 
-VERSION_STR = "VersionCode ="
+VERSION_STR = "KmkVersionCode ="
 VERSION_REGEX = re.compile(f"{VERSION_STR} (\\d+)")
 BUMPED_FILES: list[Path] = []
 
-BOT_EMAIL = "Anikku-Bot@users.noreply.github.com""
+BOT_EMAIL = "Anikku-Bot@users.noreply.github.com"
 BOT_NAME = "Anikku-Bot[bot]"
 
 def has_match(query: str, file: Path) -> tuple[Path, bool]:
