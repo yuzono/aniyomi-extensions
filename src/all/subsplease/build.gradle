@@ -1,8 +1,8 @@
 ext {
-    extKmkVersionCode = 0
+    extKmkVersionCode = 1
     extName = 'Subsplease'
     extClass = '.Subsplease'
-    extVersionCode = 2
+    extVersionCode = 1
     containsNsfw = false
 }
 
