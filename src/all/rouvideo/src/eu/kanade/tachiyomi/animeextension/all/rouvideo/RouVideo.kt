@@ -164,7 +164,7 @@ class RouVideo(
                             document.selectFirst("script#__NEXT_DATA__")?.data()
                                 ?.let {
                                     json.decodeFromString<RouVideoDto.HotVideoList>(it)
-                                        .props.pageProps.toAnimePage()
+                                        .props.pageProps.toAnimePage(sortFilter?.toUriPart())
                                 }
                                 ?: AnimesPage(emptyList(), false)
                         }
