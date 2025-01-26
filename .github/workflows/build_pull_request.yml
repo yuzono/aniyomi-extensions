@@ -22,8 +22,27 @@ jobs:
     outputs:
       individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
     steps:
+      - name: Set env
+        run: |
+          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/dark25'" >> $GITHUB_ENV
+
       - name: Clone repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Find lib changes
+        id: modified-libs
+        uses: tj-actions/changed-files@d6e91a2266cdb9d62096cebf1e8546899c6aa18f # v45
+        with:
+          files: lib/
+          files_ignore: lib/**.md
+          files_separator: " "
+          safe_output: false
+
+      # This step is going to commit, but this will not trigger another workflow.
+      - name: Bump extensions that uses a modified lib
+        if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
+        run: |
+          echo "!!! Bumping extensions that uses a modified lib"
 
       - name: Get number of modules
         run: |
@@ -71,3 +90,61 @@ jobs:
         env:
           CI_CHUNK_NUM: ${{ matrix.chunk }}
         run: ./gradlew -p src assembleDebug
+
+      - name: Upload APKs (chunk ${{ matrix.chunk }})
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        if: github.repository == 'anikku-app/anikku-extensions'
+        with:
+          name: "individual-apks-${{ matrix.chunk }}"
+          path: "**/*.apk"
+          retention-days: 1
+
+  publish_repo:
+    name: Check Publish repo
+    needs:
+      - build_individual
+    if: github.repository == 'anikku-app/anikku-extensions'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: ~/apk-artifacts
+
+      - name: Set up JDK
+        uses: actions/setup-java@7a6d8a8234af8eb26422e24e3006232cccaa061b # v4.6.0
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Checkout ${{ github.ref_name }} branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.ref_name }}
+          path: ${{ github.ref_name }}
+
+      - name: Create repo artifacts
+        run: |
+          cd ${{ github.ref_name }}
+          python ./.github/scripts/move-apks.py
+          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/aniyomiorg/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+          curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
+          java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
+          python ./.github/scripts/create-repo.py
+
+      - name: Checkout repo branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: anikku-app/extensions
+          token: ${{ secrets.BOT_PAT }}
+          ref: repo
+          path: repo
+
+      - name: Sync repo
+        run: |
+          rsync -a --delete --exclude .git --exclude .gitignore --exclude README.md --exclude repo.json ${{ github.ref_name }}/repo/ repo
+
+      - name: Check Deploy repo
+        run: |
+          cd repo
+          git status
