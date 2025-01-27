@@ -80,6 +80,8 @@ internal object RouVideoDto {
                                     SORT_VIEW_KEY -> {
                                         if (vid1.viewCount > vid2.viewCount) {
                                             -1
+                                        } else if (vid1.viewCount < vid2.viewCount) {
+                                            1
                                         } else {
                                             vid2.createdAt.compareTo(vid1.createdAt)
                                         }
@@ -90,8 +92,12 @@ internal object RouVideoDto {
                                             1
                                         } else if (vid1.likeCount != null && vid2.likeCount == null) {
                                             -1
-                                        } else if (vid1.likeCount != null && vid2.likeCount != null && vid1.likeCount > vid2.likeCount) {
-                                            -1
+                                        } else if (vid1.likeCount != null && vid2.likeCount != null) {
+                                            if (vid1.likeCount > vid2.likeCount) {
+                                                -1
+                                            } else {
+                                                1
+                                            }
                                         } else {
                                             vid2.createdAt.compareTo(vid1.createdAt)
                                         }
