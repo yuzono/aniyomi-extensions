@@ -44,7 +44,7 @@ jobs:
           safe_output: false
 
       - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v6  # v6.1.0
+        uses: crazy-max/ghaction-import-gpg@cb9bde2e2525e640591a934b1fd28eef1dcaf5e5  # v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
