@@ -56,8 +56,13 @@ jobs:
         if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
         run: |
           latest_commit_message=$(git log -1 --pretty=%B)
+          latest_commit_author=$(git log -1 --pretty=%an)
+          isKmk=false
+          if [[ "$latest_commit_author" == *"Cuong"* || "$latest_commit_author" == *"cuong"* ]]; then
+            isKmk=true
+          fi
           chmod +x ./.github/scripts/bump-versions.py
-          ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }} "$latest_commit_message"
+          ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }} "$latest_commit_message" "$isKmk"
 
       - name: Get number of modules
         run: |

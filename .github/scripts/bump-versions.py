@@ -7,8 +7,9 @@ import re
 import subprocess
 import sys
 
-VERSION_STR = "KmkVersionCode ="
-VERSION_REGEX = re.compile(f"{VERSION_STR} (\\d+)")
+VERSION_STR = "VersionCode ="
+VERSION_REGEX_KMK = re.compile(f"(?<=Kmk){VERSION_STR} (\\d+)")
+VERSION_REGEX_UPSTREAM = re.compile(f"(?<!Kmk){VERSION_STR} (\\d+)")
 BUMPED_FILES: list[Path] = []
 
 BOT_EMAIL = "Anikku-Bot@users.noreply.github.com"
@@ -40,7 +41,8 @@ def bump_version(file: Path):
     BUMPED_FILES.append(file)
     with file.open("r+") as f:
         print(f"\n{file}: ", end="")
-        text = VERSION_REGEX.sub(replace_version, f.read())
+        regex = VERSION_REGEX_KMK if len(sys.argv) > 3 and sys.argv[3].lower() == 'true' else VERSION_REGEX_UPSTREAM
+        text = regex.sub(replace_version, f.read())
         # Move the cursor to the start again, to prevent writing at the end
         f.seek(0)
         f.write(text)
