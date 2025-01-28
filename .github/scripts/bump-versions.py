@@ -54,7 +54,10 @@ def commit_changes():
     subprocess.check_call(["git", "config", "--local", "user.email", BOT_EMAIL])
     subprocess.check_call(["git", "config", "--local", "user.name", BOT_NAME])
     subprocess.check_call(["git", "add"] + paths)
-    subprocess.check_call(["git", "commit", "-S", "-m", "[skip ci] chore: Mass-bump on extensions"])
+    commit_message = "[skip ci] chore: Mass-bump on extensions"
+    if len(sys.argv) > 2:
+        commit_message += f"\n\nCaused by:\n{sys.argv[2]}"
+    subprocess.check_call(["git", "commit", "-S", "-m", commit_message])
     subprocess.check_call(["git", "push"])
 
 if __name__ == "__main__":
