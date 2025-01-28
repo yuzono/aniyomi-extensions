@@ -340,11 +340,9 @@ class RouVideo(
     private fun animeUrl(id: String) = "$videoUrl/$VIDEO_SLUG/$id"
     override fun getAnimeUrl(anime: SAnime) = animeUrl(anime.url)
 
-    private val resolutionRegex by lazy { "(Resolution: \\d+p)".toRegex() }
-
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
         val resolution = anime.description?.let { resolutionRegex.find(it) }
-            ?.groupValues?.first()
+            ?.groupValues?.get(1)
         return client.newCall(animeDetailsRequest(anime))
             .execute()
             .let { response ->
@@ -368,7 +366,7 @@ class RouVideo(
                 // Search & RelatedVideos doesn't have likeCount while AnimeDetails doesn't have resolution
                 val resolutionSet = description?.matches(resolutionRegex) ?: false
                 if (!resolutionSet && !resolution.isNullOrBlank()) {
-                    description = "$resolution\n$description"
+                    description = "${resolutionDesc(resolution)}\n$description"
                 }
             }
     }
@@ -403,9 +401,17 @@ class RouVideo(
         )
     }
 
+    // Sorts by quality
+    override fun List<Video>.sort(): List<Video> {
+        return sortedByDescending { it.quality }
+    }
+
     // ============================= Utilities ==============================
 
+    private val resolutionRegex = Regex("""Resolution: (\d+)p""")
     companion object {
+        internal fun resolutionDesc(resolution: String) = "Resolution: ${resolution}p"
+
         private const val VIDEO_SLUG = "v"
         private const val CATEGORY_SLUG = "t"
 
