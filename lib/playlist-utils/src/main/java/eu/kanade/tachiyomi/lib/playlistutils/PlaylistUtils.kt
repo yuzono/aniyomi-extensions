@@ -72,9 +72,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     fun extractFromHls(
         playlistUrl: String,
         referer: String = "",
-        masterHeadersGen: (Headers, String) -> Headers = { baseHeaders, referer ->
-            generateMasterHeaders(baseHeaders, referer)
-        },
+        masterHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
         },
@@ -126,25 +124,59 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             )
         }.toList()
 
-        return masterPlaylist.substringAfter(PLAYLIST_SEPARATOR).split(PLAYLIST_SEPARATOR).mapNotNull {
-            val codec = it.substringAfter("CODECS=\"", "").substringBefore("\"", "")
-            if (codec.isNotEmpty()) {
+        /**
+         * Stream might have multiple sub-streams separated by [PLAYLIST_SEPARATOR]. Template:
+         *
+         * #EXTM3U
+         * #EXT-X-STREAM-INF:BANDWIDTH=150000,RESOLUTION=416x234,CODECS="avc1.42e00a,mp4a.40.2"
+         * http://example.com/low/index.m3u8
+         * #EXT-X-STREAM-INF:BANDWIDTH=240000,RESOLUTION=416x234,CODECS="avc1.42e00a,mp4a.40.2"
+         * http://example.com/lo_mid/index.m3u8
+         * #EXT-X-STREAM-INF:BANDWIDTH=440000,RESOLUTION=416x234,CODECS="avc1.42e00a,mp4a.40.2"
+         * http://example.com/hi_mid/index.m3u8
+         * #EXT-X-STREAM-INF:BANDWIDTH=640000,RESOLUTION=640x360,CODECS="avc1.42e00a,mp4a.40.2"
+         * http://example.com/high/index.m3u8
+         * #EXT-X-STREAM-INF:BANDWIDTH=64000,CODECS="mp4a.40.5"
+         * http://example.com/audio/index.m3u8
+         */
+        return masterPlaylist.substringAfter(PLAYLIST_SEPARATOR).split(PLAYLIST_SEPARATOR).mapNotNull { stream ->
+            val codec = Regex("""CODECS="([^"]+)"""").find(stream)?.groupValues?.get(1)
+            if (!codec.isNullOrBlank()) {
+                // FIXME: Why skip mp4a?
                 if (codec.startsWith("mp4a")) return@mapNotNull null
             }
 
 
-            val resolution = it.substringAfter("RESOLUTION=")
-                .substringBefore("\n")
-                .substringAfter("x")
-                .substringBefore(",").let(::stnQuality)
+            val resolution = Regex("""RESOLUTION=([xX\d]+)""").find(stream)
+                ?.groupValues?.get(1)
+                ?.let { resolution ->
+                    val standardQuality = Regex("""[xX](\d+)""").find(resolution)
+                        ?.groupValues?.get(1)
+                        ?.let(::stnQuality)
 
-            val videoUrl = it.substringAfter("\n").substringBefore("\n").let { url ->
+                    if (!standardQuality.isNullOrBlank()) {
+                        "$standardQuality ($resolution)"
+                    } else {
+                        resolution
+                    }
+                }
+            val bandwidth = Regex("""BANDWIDTH=(\d+)""").find(stream)
+                    ?.groupValues?.get(1)
+                    ?.toLongOrNull()
+                    ?.let { bandwidth ->
+                        formatBytes(bandwidth)
+                    }
+            val streamName = listOfNotNull(resolution, bandwidth).joinToString(" - ")
+                .takeIf { it.isNotBlank() }
+                ?: "Video"
+
+            val videoUrl = stream.substringAfter("\n").substringBefore("\n").let { url ->
                 getAbsoluteUrl(url, playlistUrl, masterUrlBasePath)?.trimEnd()
             } ?: return@mapNotNull null
 
             Video(
                 videoUrl,
-                videoNameGen(resolution),
+                videoNameGen(streamName),
                 videoUrl,
                 headers = videoHeadersGen(headers, referer, videoUrl),
                 subtitleTracks = subtitleTracks,
@@ -190,6 +222,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
      * @param audioList a list of audio tracks associated with the DASH file, will append to audio tracks present in the dash file (default: empty list)
      * @return a list of Video objects
      */
+    @Suppress("unused")
     fun extractFromDash(
         mpdUrl: String,
         videoNameGen: (String) -> String,
@@ -237,9 +270,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         mpdUrl: String,
         videoNameGen: (String) -> String,
         referer: String = "",
-        mpdHeadersGen: (Headers, String) -> Headers = { baseHeaders, referer ->
-            generateMasterHeaders(baseHeaders, referer)
-        },
+        mpdHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
         },
@@ -281,13 +312,12 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
      * @param audioList a list of audio tracks associated with the DASH file, will append to audio tracks present in the dash file (default: empty list)
      * @return a list of Video objects
      */
+    @Suppress("MemberVisibilityCanBePrivate")
     fun extractFromDash(
         mpdUrl: String,
         videoNameGen: (String, String) -> String,
         referer: String = "",
-        mpdHeadersGen: (Headers, String) -> Headers = { baseHeaders, referer ->
-            generateMasterHeaders(baseHeaders, referer)
-        },
+        mpdHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
         },
