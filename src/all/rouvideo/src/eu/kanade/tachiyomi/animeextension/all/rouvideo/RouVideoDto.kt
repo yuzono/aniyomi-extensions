@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.all.rouvideo
 
+import eu.kanade.tachiyomi.animeextension.all.rouvideo.RouVideo.Companion.resolutionDesc
 import eu.kanade.tachiyomi.animeextension.all.rouvideo.RouVideoFilter.SORT_LIKE_KEY
 import eu.kanade.tachiyomi.animeextension.all.rouvideo.RouVideoFilter.SORT_VIEW_KEY
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -157,7 +158,7 @@ internal object RouVideoDto {
         val sources: List<Source>?, // not available in details
     ) {
         private val desc = StringBuilder().apply {
-            sources?.first()?.let { append("Resolution: ${it.resolution}p\n") }
+            sources?.first()?.let { append("${resolutionDesc(it.resolution.toString())}\n") }
             append("Duration: ${formatDuration(duration.toInt())}\n")
             append("View: $viewCount")
             likeCount?.let { append(" - Like: $likeCount") }
