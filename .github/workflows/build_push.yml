@@ -24,15 +24,20 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
+      latestCommitMessage: ${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}
     steps:
-      - name: Set env
-        run: |
-          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/dark25'" >> $GITHUB_ENV
-
       - name: Clone repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           token: ${{ secrets.BOT_PAT }}
+
+      - name: Set env
+        id: set-env
+        run: |
+          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/dark25'" >> $GITHUB_ENV
+          echo "LATEST_COMMIT_MESSAGE<<{delimiter}
+          $(git log -1 --pretty=%B)
+          {delimiter}" >> $GITHUB_OUTPUT
 
       - name: Find lib changes
         id: modified-libs
@@ -55,14 +60,13 @@ jobs:
       - name: Bump extensions that uses a modified lib
         if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
         run: |
-          latest_commit_message=$(git log -1 --pretty=%B)
           latest_commit_author=$(git log -1 --pretty=%an)
           isKmk=false
           if [[ "$latest_commit_author" == *"Cuong"* || "$latest_commit_author" == *"cuong"* ]]; then
             isKmk=true
           fi
           chmod +x ./.github/scripts/bump-versions.py
-          ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }} "$latest_commit_message" "$isKmk"
+          ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }} "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" $isKmk
 
       - name: Get number of modules
         run: |
@@ -134,6 +138,7 @@ jobs:
   publish_repo:
     name: Publish repo
     needs:
+      - prepare
       - build_individual
     if: github.repository == 'anikku-app/anikku-extensions'
     runs-on: ubuntu-latest
@@ -196,7 +201,7 @@ jobs:
       - name: Deploy repo
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
         with:
-          message: "Update extensions repo"
+          message: "${{ needs.prepare.outputs.latestCommitMessage }}"
           cwd: "./repo"
           committer_name: ${{ steps.import-gpg.outputs.name }}
           committer_email: ${{ steps.import-gpg.outputs.email }}
