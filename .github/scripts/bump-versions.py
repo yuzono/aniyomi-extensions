@@ -59,7 +59,7 @@ def commit_changes():
     commit_message = "[skip ci] chore: Mass-bump on extensions"
     if len(sys.argv) > 2:
         commit_message += f"\n\nCaused by:\n{sys.argv[2]}"
-    subprocess.check_call(["git", "commit", "-S", "-m", commit_message])
+    subprocess.check_call(["git", "commit", "-m", commit_message])
     subprocess.check_call(["git", "push"])
 
 if __name__ == "__main__":
