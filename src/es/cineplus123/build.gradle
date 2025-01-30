@@ -1,5 +1,5 @@
 ext {
-    extKmkVersionCode = 0
+    extKmkVersionCode = 1
     extName = 'Cineplus123'
     extClass = '.Cineplus123'
     themePkg = 'dooplay'
