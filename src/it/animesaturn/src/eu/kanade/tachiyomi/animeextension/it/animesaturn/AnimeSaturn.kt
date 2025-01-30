@@ -39,7 +39,8 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeSelector(): String = "div.sebox"
 
-    override fun popularAnimeRequest(page: Int): Request = GET(if (isNewDomain()) "$baseUrl/ongoing?page=$page" else "$baseUrl/animeincorso?page=$page")
+    override fun popularAnimeRequest(page: Int): Request =
+        GET(if (isNewDomain()) "$baseUrl/ongoing?page=$page" else "$baseUrl/animeincorso?page=$page")
 
     private fun formatTitle(titlestring: String): String = titlestring.replace("(ITA) ITA", "Dub ITA").replace("(ITA)", "Dub ITA").replace("Sub ITA", "")
 
@@ -49,8 +50,9 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         anime.title = formatTitle(element.selectFirst("div.msebox div.headsebox div.tisebox h2 a")!!.text())
         if (isNewDomain()) {
             anime.thumbnail_url = element.selectFirst("div.msebox div.bigsebox div.l a img.image-animation")!!.attr("src")
-        } else
+        } else {
             anime.thumbnail_url = element.selectFirst("div.msebox div.bigsebox div.l img.attachment-post-thumbnail.size-post-thumbnail.wp-post-image")!!.attr("src")
+        }
         return anime
     }
 
@@ -219,9 +221,11 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
             description2 == null -> {
                 anime.description = description1
-            } description1.length > description2.length -> {
+            }
+            description1.length > description2.length -> {
                 anime.description = description1
-            } else -> {
+            }
+            else -> {
                 anime.description = description2
             }
         }
