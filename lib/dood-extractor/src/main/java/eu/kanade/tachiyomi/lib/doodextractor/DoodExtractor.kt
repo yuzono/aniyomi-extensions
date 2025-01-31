@@ -30,12 +30,15 @@ class DoodExtractor(private val client: OkHttpClient) {
                 ?.getOrNull(0)
 
             // Determinar la calidad a usar
-            val newQuality = extractedQuality ?: ( if (redirect) " mirror" else "")
+            val newQuality = listOfNotNull(
+                prefix,
+                "Doodstream " + (extractedQuality ?: ( if (redirect) "mirror" else "")),
+            ).joinToString(" - ")
 
             // Obtener el hash MD5
             val md5 = doodHost + (Regex("/pass_md5/[^']*").find(content)?.value ?: return null)
             val token = md5.substringAfterLast("/")
-            val randomString = createHashTable()
+            val randomString = getRandomString()
             val expiry = System.currentTimeMillis()
 
             // Obtener la URL del video
@@ -45,10 +48,8 @@ class DoodExtractor(private val client: OkHttpClient) {
                     Headers.headersOf("referer", newUrl),
                 ),
             ).execute().body.string()
-
-            val trueUrl = "$videoUrlStart$randomString?token=$token&expiry=$expiry"
-
-            Video(trueUrl, prefix + "Doodstream " + newQuality , trueUrl, headers = doodHeaders(doodHost), subtitleTracks = externalSubs)
+            val videoUrl = "$videoUrlStart$randomString?token=$token&expiry=$expiry"
+            Video(videoUrl, newQuality, videoUrl, headers = doodHeaders(doodHost), subtitleTracks = externalSubs)
         }.getOrNull()
     }
 
@@ -62,10 +63,10 @@ class DoodExtractor(private val client: OkHttpClient) {
     }
 
     // Método para generar una cadena aleatoria
-    private fun createHashTable(): String {
+    private fun getRandomString(length: Int = 10): String {
         val alphabet = ('A'..'Z') + ('a'..'z') + ('0'..'9')
         return buildString {
-            repeat(10) {
+            repeat(length) {
                 append(alphabet.random())
             }
         }
