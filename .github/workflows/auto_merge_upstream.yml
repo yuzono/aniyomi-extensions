@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{env.LOCAL_BRANCH}}
-          token: ${{ secrets.BOT_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add remote repository
         run: git remote add upstream ${{env.UPSTREAM_URL}}
@@ -34,36 +34,28 @@ jobs:
         run: git fetch upstream
 
       - name: Merge upstream changes
-        run: git merge upstream/${{env.UPSTREAM_BRANCH}}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          git merge upstream/${{env.UPSTREAM_BRANCH}}
 
       - name: Push changes to repository
         run: git push origin ${{env.LOCAL_BRANCH}}
-
-      # - name: Import GPG key
-      #   id: import-gpg
-      #   uses: crazy-max/ghaction-import-gpg@cb9bde2e2525e640591a934b1fd28eef1dcaf5e5  # v6
-      #   with:
-      #     gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-      #     passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      #     git_user_signingkey: true
-      #     git_commit_gpgsign: true
-
-      # - name: GPG user IDs
-      #   run: |
-      #     echo "fingerprint: ${{ steps.import-gpg.outputs.fingerprint }}"
-      #     echo "keyid:       ${{ steps.import-gpg.outputs.keyid }}"
-      #     echo "name:        ${{ steps.import-gpg.outputs.name }}"
-      #     echo "email:       ${{ steps.import-gpg.outputs.email }}"
 
       # - name: Checkout repository
       #   uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       #   with:
       #     fetch-depth: 0
       #     ref: ${{env.MERGE_BRANCH}}
-      #     token: ${{ secrets.BOT_PAT }}
+      #     token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Merge ${{env.LOCAL_BRANCH}}
-      #   run: git merge origin/${{env.LOCAL_BRANCH}}
+      #   run: |
+      #     git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      #     git config --global user.name "github-actions[bot]"
+
+      #     git merge origin/${{env.LOCAL_BRANCH}}
 
       # - name: Push to repository
       #   run: git push origin ${{env.MERGE_BRANCH}}
@@ -84,7 +76,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{env.LOCAL_BRANCH}}
-          token: ${{ secrets.BOT_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add remote repository
         run: git remote add upstream ${{env.UPSTREAM_URL}}
@@ -93,36 +85,28 @@ jobs:
         run: git fetch upstream
 
       - name: Merge upstream changes
-        run: git merge upstream/${{env.UPSTREAM_BRANCH}}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          git merge upstream/${{env.UPSTREAM_BRANCH}}
 
       - name: Push changes to repository
         run: git push origin ${{env.LOCAL_BRANCH}}
-
-      # - name: Import GPG key
-      #   id: import-gpg
-      #   uses: crazy-max/ghaction-import-gpg@cb9bde2e2525e640591a934b1fd28eef1dcaf5e5  # v6
-      #   with:
-      #     gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-      #     passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      #     git_user_signingkey: true
-      #     git_commit_gpgsign: true
-
-      # - name: GPG user IDs
-      #   run: |
-      #     echo "fingerprint: ${{ steps.import-gpg.outputs.fingerprint }}"
-      #     echo "keyid:       ${{ steps.import-gpg.outputs.keyid }}"
-      #     echo "name:        ${{ steps.import-gpg.outputs.name }}"
-      #     echo "email:       ${{ steps.import-gpg.outputs.email }}"
 
       # - name: Checkout repository
       #   uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       #   with:
       #     fetch-depth: 0
       #     ref: ${{env.MERGE_BRANCH}}
-      #     token: ${{ secrets.BOT_PAT }}
+      #     token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Merge ${{env.LOCAL_BRANCH}}
-      #   run: git merge origin/${{env.LOCAL_BRANCH}}
+      #   run: |
+      #     git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      #     git config --global user.name "github-actions[bot]"
+
+      #     git merge origin/${{env.LOCAL_BRANCH}}
 
       # - name: Push to repository
       #   run: git push origin ${{env.MERGE_BRANCH}}

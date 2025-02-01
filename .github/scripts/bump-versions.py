@@ -12,8 +12,8 @@ VERSION_REGEX_KMK = re.compile(f"(?<=Kmk){VERSION_STR} (\\d+)")
 VERSION_REGEX_UPSTREAM = re.compile(f"(?<!Kmk){VERSION_STR} (\\d+)")
 BUMPED_FILES: list[Path] = []
 
-BOT_EMAIL = "Anikku-Bot@users.noreply.github.com"
-BOT_NAME = "Anikku-Bot[bot]"
+BOT_EMAIL = "github-actions[bot]@users.noreply.github.com"
+BOT_NAME = "github-actions[bot]"
 
 def has_match(query: str, file: Path) -> tuple[Path, bool]:
     return (file, query in file.read_text())
@@ -53,8 +53,8 @@ def bump_lib_multisrc(theme: str):
 
 def commit_changes():
     paths = [str(path.resolve()) for path in BUMPED_FILES]
-    subprocess.check_call(["git", "config", "--local", "user.email", BOT_EMAIL])
-    subprocess.check_call(["git", "config", "--local", "user.name", BOT_NAME])
+    subprocess.check_call(["git", "config", "--global", "user.email", BOT_EMAIL])
+    subprocess.check_call(["git", "config", "--global", "user.name", BOT_NAME])
     subprocess.check_call(["git", "add"] + paths)
     commit_message = "[skip ci] chore: Mass-bump on extensions"
     if len(sys.argv) > 2:
