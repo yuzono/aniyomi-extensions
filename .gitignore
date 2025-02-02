@@ -10,4 +10,5 @@ repo/
 apk/
 gen
 generated-src/
+.kotlin
 .history
