@@ -1,0 +1,8 @@
+ext {
+    extKmkVersionCode = 0
+    extName = 'Nivod'
+    extClass = '.Nivod'
+    extVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
