@@ -25,7 +25,12 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "AnimeSaturn"
 
-    override val baseUrl by lazy { preferences.getString("preferred_domain", "https://anisaturn.com")!! }
+    override val baseUrl by lazy {
+        preferences.getString(
+            "preferred_domain",
+            "https://anisaturn.com",
+        )!!
+    }
 
     private fun isNewDomain(): Boolean = baseUrl == "https://anisaturn.com"
 
@@ -49,9 +54,13 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         anime.setUrlWithoutDomain(element.selectFirst("div.msebox div.headsebox div.tisebox h2 a")!!.attr("href"))
         anime.title = formatTitle(element.selectFirst("div.msebox div.headsebox div.tisebox h2 a")!!.text())
         if (isNewDomain()) {
-            anime.thumbnail_url = element.selectFirst("div.msebox div.bigsebox div.l a img.image-animation")!!.attr("src")
+            anime.thumbnail_url =
+                element.selectFirst("div.msebox div.bigsebox div.l a img.image-animation")!!
+                    .attr("src")
         } else {
-            anime.thumbnail_url = element.selectFirst("div.msebox div.bigsebox div.l img.attachment-post-thumbnail.size-post-thumbnail.wp-post-image")!!.attr("src")
+            anime.thumbnail_url =
+                element.selectFirst("div.msebox div.bigsebox div.l img.attachment-post-thumbnail.size-post-thumbnail.wp-post-image")!!
+                    .attr("src")
         }
         return anime
     }
@@ -160,11 +169,23 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         } else {
             // word search
             if (isNewDomain()) {
-                anime.setUrlWithoutDomain(element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.text-left.badge-purple")!!.attr("href"))
-                anime.title = formatTitle(element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.text-left.badge-purple")!!.text())
+                anime.setUrlWithoutDomain(
+                    element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.text-left.badge-purple")!!
+                        .attr("href"),
+                )
+                anime.title = formatTitle(
+                    element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.text-left.badge-purple")!!
+                        .text(),
+                )
             } else {
-                anime.setUrlWithoutDomain(element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.badge-light")!!.attr("href"))
-                anime.title = formatTitle(element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.badge-light")!!.text())
+                anime.setUrlWithoutDomain(
+                    element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.badge-light")!!
+                        .attr("href"),
+                )
+                anime.title = formatTitle(
+                    element.selectFirst("li.list-group-item.bg-dark-as-box-shadow div.item-archivio div.info-archivio h3 a.badge.badge-archivio.badge-light")!!
+                        .text(),
+                )
             }
             anime.thumbnail_url = element.select("li.list-group-item.bg-dark-as-box-shadow div.item-archivio a.thumb.image-wrapper img.rounded.locandina-archivio").attr("src")
         }

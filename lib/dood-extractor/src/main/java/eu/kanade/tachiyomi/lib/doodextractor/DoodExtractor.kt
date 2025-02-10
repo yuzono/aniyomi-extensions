@@ -38,7 +38,7 @@ class DoodExtractor(private val client: OkHttpClient) {
             // Obtener el hash MD5
             val md5 = doodHost + (Regex("/pass_md5/[^']*").find(content)?.value ?: return null)
             val token = md5.substringAfterLast("/")
-            val randomString = getRandomString()
+            val randomString = createHashTable()
             val expiry = System.currentTimeMillis()
 
             // Obtener la URL del video
@@ -63,7 +63,7 @@ class DoodExtractor(private val client: OkHttpClient) {
     }
 
     // Método para generar una cadena aleatoria
-    private fun getRandomString(length: Int = 10): String {
+    private fun createHashTable(length: Int = 10): String {
         val alphabet = ('A'..'Z') + ('a'..'z') + ('0'..'9')
         return buildString {
             repeat(length) {
