@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'MissAV'
     extClass = '.MissAV'
-    extVersionCode = 13
+    extVersionCode = 14
     isNsfw = true
 }
 
