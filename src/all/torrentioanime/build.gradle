@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 0
     extName = 'Torrentio Anime (Torrent / Debrid)'
     extClass = '.Torrentio'
-    extVersionCode = 14
+    extVersionCode = 15
     containsNsfw = false
 }
 
