@@ -1,8 +1,0 @@
-ext {
-    extKmkVersionCode = 0
-    extName = 'Hinata Soul'
-    extClass = '.HinataSoul'
-    extVersionCode = 9
-}
-
-apply from: "$rootDir/common.gradle"
