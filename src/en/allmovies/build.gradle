@@ -1,8 +1,0 @@
-ext {
-    extKmkVersionCode = 0
-    extName = 'AllMovies'
-    extClass = '.AllMovies'
-    extVersionCode = 12
-}
-
-apply from: "$rootDir/common.gradle"
