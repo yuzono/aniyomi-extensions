@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 0
     extName = 'Xfani'
     extClass = '.Xfani'
-    extVersionCode = 4
+    extVersionCode = 5
 }
 
 apply from: "$rootDir/common.gradle"
