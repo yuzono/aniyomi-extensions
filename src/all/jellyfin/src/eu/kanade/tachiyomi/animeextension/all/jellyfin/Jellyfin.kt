@@ -203,7 +203,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                     addPathSegment("Episodes")
                     addQueryParameter("seasonId", httpUrl.pathSegments.last())
                     addQueryParameter("userId", userId)
-                    addQueryParameter("Fields", "Overview,MediaSources,DateCreated")
+                    addQueryParameter("Fields", "Overview,MediaSources,DateCreated,OriginalTitle,SortName")
                 }.build()
             }
             fragment.startsWith("boxSet") -> {
@@ -214,7 +214,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                     addQueryParameter("SortOrder", "Ascending")
                     addQueryParameter("IncludeItemTypes", "Movie,Season,BoxSet,Series")
                     addQueryParameter("ParentId", itemId)
-                    addQueryParameter("Fields", "DateCreated")
+                    addQueryParameter("Fields", "DateCreated,OriginalTitle,SortName")
                 }.build()
             }
             fragment.startsWith("series") -> {
@@ -223,12 +223,12 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                     addPathSegment("Shows")
                     addPathSegment(itemId)
                     addPathSegment("Episodes")
-                    addQueryParameter("Fields", "DateCreated")
+                    addQueryParameter("Fields", "DateCreated,OriginalTitle,SortName")
                 }.build()
             }
             else -> {
                 httpUrl.newBuilder().apply {
-                    addQueryParameter("Fields", "DateCreated")
+                    addQueryParameter("Fields", "DateCreated,OriginalTitle,SortName")
                 }.build()
             }
         }
@@ -449,6 +449,8 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
 
         private val SUBSTITUTE_VALUES = hashMapOf(
             "title" to "",
+            "originalTitle" to "",
+            "sortTitle" to "",
             "type" to "",
             "typeShort" to "",
             "seriesTitle" to "",
@@ -581,6 +583,8 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             dialogMessage = """
             |Supported placeholders:
             |- {title}: Episode name
+            |- {originalTitle}: Original title
+            |- {sortTitle}: Sort title
             |- {type}: Type, 'Episode' for episodes and 'Movie' for movies
             |- {typeShort}: Type, 'Ep.' for episodes and 'Movie' for movies
             |- {seriesTitle}: Series name
@@ -599,7 +603,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                 try {
                     STRING_SUBSTITUTOR.replace(it)
                     true
-                } catch (e: IllegalArgumentException) {
+                } catch (_: IllegalArgumentException) {
                     false
                 }
             },
