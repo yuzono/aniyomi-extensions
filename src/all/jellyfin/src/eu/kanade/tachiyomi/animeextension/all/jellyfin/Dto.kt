@@ -51,6 +51,8 @@ class ItemDto(
     val studios: List<StudioDto>? = null,
 
     // Episode
+    val originalTitle: String? = null,
+    val sortName: String? = null,
     val indexNumber: Int? = null,
     val premiereDate: String? = null,
     val runTimeTicks: Long? = null,
@@ -142,6 +144,8 @@ class ItemDto(
 
         val values = mapOf(
             "title" to title,
+            "originalTitle" to (originalTitle ?: ""),
+            "sortTitle" to (sortName ?: ""),
             "type" to type,
             "typeShort" to type.replace("Episode", "Ep."),
             "seriesTitle" to (seriesName ?: ""),
