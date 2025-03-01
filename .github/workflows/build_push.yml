@@ -34,7 +34,7 @@ jobs:
       - name: Set env
         id: set-env
         run: |
-          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/dark25'" >> $GITHUB_ENV
+          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
           echo "LATEST_COMMIT_MESSAGE<<{delimiter}
           $(git log -1 --pretty=%B)
           {delimiter}" >> $GITHUB_OUTPUT
