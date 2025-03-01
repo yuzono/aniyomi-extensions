@@ -22,12 +22,12 @@ jobs:
     outputs:
       individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
     steps:
+      - name: Clone repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
       - name: Set env
         run: |
           echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
-
-      - name: Clone repo
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Find lib changes
         id: modified-libs
@@ -38,7 +38,7 @@ jobs:
           files_separator: " "
           safe_output: false
 
-      # This step is going to commit, but this will not trigger another workflow.
+      # This step is to alert whether a bumping version might occur.
       - name: Bump extensions that uses a modified lib
         if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
         run: |
@@ -142,6 +142,7 @@ jobs:
         run: |
           rsync -a --delete --exclude .git --exclude .gitignore --exclude README.md --exclude repo.json PR/repo/ repo
 
+      # Showing which extensions are to be updated with this PR
       - name: Check Deploy repo
         run: |
           cd repo

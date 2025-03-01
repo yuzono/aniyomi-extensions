@@ -49,6 +49,9 @@ jobs:
           safe_output: false
 
         # This step is going to commit, but this will not trigger another workflow.
+        # If any changes to lib/ caused on master branch, bump the extensions that uses the modified lib.
+        # If any changes caused by the merge commit, skip this step because versions should already pumped with that merge.
+        # But that should be avoided because our own extensions may not be bumped.
       - name: Bump extensions that uses a modified lib
         if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
         run: |
