@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Set env
         run: |
-          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/dark25'" >> $GITHUB_ENV
+          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
 
       - name: Clone repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4

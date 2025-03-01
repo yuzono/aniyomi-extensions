@@ -9,57 +9,6 @@ on:
     inputs:
 
 jobs:
-  update-dark25:
-    name: Update Dark25
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Set env
-        run: |
-          echo "UPSTREAM_URL=https://github.com/Dark25/aniyomi-extensions.git" >> $GITHUB_ENV
-          echo "UPSTREAM_BRANCH=master" >> $GITHUB_ENV
-          echo "LOCAL_BRANCH=dark25" >> $GITHUB_ENV
-          echo "MERGE_BRANCH=master" >> $GITHUB_ENV
-
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-        with:
-          ref: ${{env.LOCAL_BRANCH}}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Add remote repository
-        run: git remote add upstream ${{env.UPSTREAM_URL}}
-
-      - name: Fetch upstream changes
-        run: git fetch upstream
-
-      - name: Merge upstream changes
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-
-          git merge upstream/${{env.UPSTREAM_BRANCH}}
-
-      - name: Push changes to repository
-        run: git push origin ${{env.LOCAL_BRANCH}}
-
-      # - name: Checkout repository
-      #   uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      #   with:
-      #     fetch-depth: 0
-      #     ref: ${{env.MERGE_BRANCH}}
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Merge ${{env.LOCAL_BRANCH}}
-      #   run: |
-      #     git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      #     git config --global user.name "github-actions[bot]"
-
-      #     git merge origin/${{env.LOCAL_BRANCH}}
-
-      # - name: Push to repository
-      #   run: git push origin ${{env.MERGE_BRANCH}}
-
   update-kohi-den:
     name: Update Kohi-den
     runs-on: ubuntu-latest
