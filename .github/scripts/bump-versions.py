@@ -41,7 +41,7 @@ def bump_version(file: Path):
     BUMPED_FILES.append(file)
     with file.open("r+") as f:
         print(f"\n{file}: ", end="")
-        regex = VERSION_REGEX_KMK if len(sys.argv) > 3 and sys.argv[3].lower() == 'true' else VERSION_REGEX_UPSTREAM
+        regex = VERSION_REGEX_KMK if len(sys.argv) > 1 and sys.argv[1].lower() == 'true' else VERSION_REGEX_UPSTREAM
         text = regex.sub(replace_version, f.read())
         # Move the cursor to the start again, to prevent writing at the end
         f.seek(0)
@@ -60,14 +60,15 @@ def commit_changes():
     if len(sys.argv) > 2:
         commit_message += f"\n\nCaused by:\n{sys.argv[2]}"
     subprocess.check_call(["git", "commit", "-m", commit_message])
-    subprocess.check_call(["git", "push"])
+    # 'git push' will be doing outside of this script so we can decide per workflow if we want to push or not.
+    # subprocess.check_call(["git", "push"])
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 3:
         # Regex to match the lib name in the path, like "unpacker" or "dood-extractor".
         lib_regex = re.compile(r"lib/([a-z0-9-]+)/")
         # Find matches and remove None results.
-        matches = filter(None, map(lib_regex.search, sys.argv[1:]))
+        matches = filter(None, map(lib_regex.search, sys.argv[3:]))
         for match in matches:
             project_path = ":lib:" + match.group(1)
             for file in find_files_with_match(project_path):
