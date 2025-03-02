@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'Moflix-Stream'
     extClass = '.MoflixStream'
-    extVersionCode = 14
+    extVersionCode = 15
 }
 
 apply from: "$rootDir/common.gradle"

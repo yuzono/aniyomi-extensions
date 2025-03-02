@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'Sudatchi'
     extClass = '.Sudatchi'
-    extVersionCode = 11
+    extVersionCode = 12
     isNsfw = true
 }
 
