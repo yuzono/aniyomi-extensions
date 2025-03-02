@@ -58,7 +58,7 @@ def commit_changes():
     subprocess.check_call(["git", "add"] + paths)
     commit_message = "[skip ci] chore: Mass-bump on extensions"
     if len(sys.argv) > 2:
-        commit_message += f"\n\nCaused by:\n{sys.argv[2]}"
+        commit_message += f"\n\nCaused by: {sys.argv[2]}"
     subprocess.check_call(["git", "commit", "-m", commit_message])
     # 'git push' will be doing outside of this script so we can decide per workflow if we want to push or not.
     # subprocess.check_call(["git", "push"])
