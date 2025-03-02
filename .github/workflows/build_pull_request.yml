@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       individualMatrix: ${{ steps.generate-matrices.outputs.individualMatrix }}
+      latestCommitMessage: ${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}
     steps:
       - name: Clone repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -28,6 +29,9 @@ jobs:
       - name: Set env
         run: |
           echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
+          echo "LATEST_COMMIT_MESSAGE<<{delimiter}
+          $(git log -1 --pretty=%B)
+          {delimiter}" >> $GITHUB_OUTPUT
 
       - name: Find lib changes
         id: modified-libs
@@ -42,7 +46,14 @@ jobs:
       - name: Bump extensions that uses a modified lib
         if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
         run: |
-          echo "!!! Bumping extensions that uses a modified lib"
+          latest_commit_author=$(git log -1 --pretty=%an)
+          isKmk=false
+          if [[ "$latest_commit_author" == *"Cuong"* || "$latest_commit_author" == *"cuong"* ]]; then
+            isKmk=true
+          fi
+          chmod +x ./.github/scripts/bump-versions.py
+          ./.github/scripts/bump-versions.py $isKmk "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
+          echo "!!! This PR will bumping extensions version that uses a modified lib"
 
       - name: Get number of modules
         run: |

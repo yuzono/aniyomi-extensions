@@ -61,7 +61,8 @@ jobs:
             isKmk=true
           fi
           chmod +x ./.github/scripts/bump-versions.py
-          ./.github/scripts/bump-versions.py ${{ steps.modified-libs.outputs.all_changed_files }} "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" $isKmk
+          ./.github/scripts/bump-versions.py $isKmk "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
+          git push
 
       - name: Get number of modules
         run: |
