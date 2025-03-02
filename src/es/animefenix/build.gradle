@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 2
     extName = 'Animefenix'
     extClass = '.Animefenix'
-    extVersionCode = 55
+    extVersionCode = 56
 }
 
 apply from: "$rootDir/common.gradle"
@@ -18,9 +18,9 @@ dependencies {
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:voe-extractor'))
     implementation(project(':lib:streamlare-extractor'))
-    implementation(project(':lib:fastream-extractor'))
     implementation(project(':lib:dood-extractor'))
     implementation(project(':lib:upstream-extractor'))
     implementation(project(':lib:streamhidevid-extractor'))
     implementation(project(':lib:universal-extractor'))
+    implementation(project(':lib:amazon-extractor'))
 }
