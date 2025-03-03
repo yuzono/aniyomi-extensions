@@ -158,7 +158,7 @@ internal object RouVideoDto {
         val sources: List<Source>?, // not available in details
     ) {
         private val desc = StringBuilder().apply {
-            sources?.first()?.let { append("${resolutionDesc(it.resolution.toString())}\n") }
+            sources?.firstOrNull()?.let { append("${resolutionDesc(it.resolution.toString())}\n") }
             append("Duration: ${formatDuration(duration.toInt())}\n")
             append("View: $viewCount")
             likeCount?.let { append(" - Like: $likeCount") }
@@ -166,7 +166,7 @@ internal object RouVideoDto {
             description?.let { append("\n\n$description") }
         }.toString()
 
-        private val majorCategory = tags.first()
+        private val majorCategory = tags.firstOrNull()
 
         fun toSAnime(): SAnime = SAnime.create().apply {
             url = id
