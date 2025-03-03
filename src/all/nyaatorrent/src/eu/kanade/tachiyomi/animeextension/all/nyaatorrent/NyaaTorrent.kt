@@ -44,22 +44,17 @@ class NyaaTorrent(extName: String, private val extURL: String, private val extId
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
-    override val supportsLatest = false
+    override val supportsLatest = true
 
     override fun headersBuilder(): Headers.Builder {
         return super.headersBuilder()
             .add("Referer", baseUrl)
     }
 
-    // ============================== Popular ===============================
-    override fun popularAnimeRequest(page: Int): Request {
-        val categoryParam = if (extId == 1) "1_0" else "1_1"
-        return GET("$baseUrl/?f=0&c=$categoryParam&q=&p=$page")
-    }
-
-    override fun popularAnimeSelector(): String = "table.torrent-list tbody tr"
-
-    override fun popularAnimeFromElement(element: Element): SAnime {
+    // ============================== Shared ===============================
+    private val animeSelector = "table.torrent-list tbody tr"
+    private val animeNextPageSelector = "ul.pagination a[rel='next']"
+    private fun animeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
         anime.setUrlWithoutDomain(element.select("td:nth-child(2) a").attr("href"))
         anime.title = element.select("td:nth-child(2) a:not(.comments)").attr("title")
@@ -67,24 +62,25 @@ class NyaaTorrent(extName: String, private val extURL: String, private val extId
         return anime
     }
 
-    override fun popularAnimeNextPageSelector(): String = "ul.pagination a[rel='next']"
+    // ============================== Popular ===============================
+    override fun popularAnimeRequest(page: Int): Request {
+        val categoryParam = if (extId == 1) "1_0" else "1_1"
+        return GET("$baseUrl/?f=0&c=$categoryParam&p=$page&s=seeders&o=desc")
+    }
+
+    override fun popularAnimeSelector(): String = animeSelector
+    override fun popularAnimeFromElement(element: Element): SAnime = animeFromElement(element)
+    override fun popularAnimeNextPageSelector(): String = animeNextPageSelector
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int): Request {
-        throw UnsupportedOperationException()
+        val categoryParam = if (extId == 1) "1_0" else "1_1"
+        return GET("$baseUrl/?f=0&c=$categoryParam&p=$page")
     }
 
-    override fun latestUpdatesSelector(): String {
-        throw UnsupportedOperationException()
-    }
-
-    override fun latestUpdatesFromElement(element: Element): SAnime {
-        throw UnsupportedOperationException()
-    }
-
-    override fun latestUpdatesNextPageSelector(): String? {
-        throw UnsupportedOperationException()
-    }
+    override fun latestUpdatesSelector(): String = animeSelector
+    override fun latestUpdatesFromElement(element: Element): SAnime = animeFromElement(element)
+    override fun latestUpdatesNextPageSelector(): String = animeNextPageSelector
 
     // =============================== Search ===============================
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
@@ -123,11 +119,9 @@ class NyaaTorrent(extName: String, private val extURL: String, private val extId
         return GET("$baseUrl/?f=$filterParam&c=$categoryParam&s=$sortParam&o=$sortDirection&q=$encodedQuery&p=$page")
     }
 
-    override fun searchAnimeSelector() = popularAnimeSelector()
-
-    override fun searchAnimeFromElement(element: Element) = popularAnimeFromElement(element)
-
-    override fun searchAnimeNextPageSelector() = popularAnimeNextPageSelector()
+    override fun searchAnimeSelector() = animeSelector
+    override fun searchAnimeFromElement(element: Element) = animeFromElement(element)
+    override fun searchAnimeNextPageSelector() = animeNextPageSelector
 
     // =========================== Anime Details ============================
     override fun animeDetailsParse(document: Document): SAnime {
