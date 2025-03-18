@@ -1,0 +1,11 @@
+ext {
+    extKmkVersionCode = 0
+    extName = 'Hentai Torrent (Torrent)'
+    extClass = '.HentaiTorrent'
+    extVersionCode = 3
+    isTorrent = true
+    isNsfw = true
+}
+
+apply from: "$rootDir/common.gradle"
+
