@@ -63,7 +63,7 @@ class Stremio : ConfigurableAnimeSource, AnimeHttpSource() {
     override suspend fun getPopularAnime(page: Int): AnimesPage {
         val popularCatalog = addonManager.addons.firstNotNullOfOrNull { addon ->
             addon.manifest.catalogs.firstOrNull { catalog ->
-                catalog.extra.orEmpty().none { it.isRequired }
+                catalog.extra.orEmpty().none { it.isRequired == true }
             }?.copy(transportUrl = addon.getTransportUrl().toString())
         } ?: throw Exception("No valid catalog addons found")
 
@@ -257,7 +257,7 @@ class Stremio : ConfigurableAnimeSource, AnimeHttpSource() {
                         if (e.type == ExtraType.SEARCH || e.type == ExtraType.GENRE) {
                             append(
                                 e.type.name.first().let { c ->
-                                    if (e.isRequired) c.uppercase() else c.lowercase()
+                                    if (e.isRequired == true) c.uppercase() else c.lowercase()
                                 },
                             )
                         }
@@ -277,7 +277,7 @@ class Stremio : ConfigurableAnimeSource, AnimeHttpSource() {
 
         genreList = if (genreOptions?.isNotEmpty() == true) {
             buildList {
-                if (!genreExtra.isRequired) {
+                if (genreExtra.isRequired != true) {
                     add("Any" to "")
                 }
 

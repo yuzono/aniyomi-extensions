@@ -52,13 +52,13 @@ data class CatalogDto(
     data class ExtraDto(
         @SerialName("name")
         val type: ExtraType,
-        val isRequired: Boolean,
+        val isRequired: Boolean? = null,
         val options: List<String>? = null,
     )
 
     fun hasRequired(type: ExtraType): Boolean {
         return extra.orEmpty().any {
-            it.type == type && it.isRequired
+            it.type == type && it.isRequired == true
         }
     }
 }
