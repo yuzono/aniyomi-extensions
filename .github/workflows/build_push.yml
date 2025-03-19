@@ -36,8 +36,9 @@ jobs:
         run: |
           echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
           echo "LATEST_COMMIT_MESSAGE<<{delimiter}
-          $(git log -1 --pretty=%H)
           $(git log -1 --pretty=%B)
+
+          Built on commit: $(git log -1 --pretty=%H)
           {delimiter}" >> $GITHUB_OUTPUT
 
       - name: Find lib changes
