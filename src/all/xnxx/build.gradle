@@ -1,0 +1,9 @@
+ext {
+    extKmkVersionCode = 0
+    extName = 'Xnxx'
+    extClass = '.Xnxx'
+    extVersionCode = 3
+    containsNsfw = true
+}
+
+apply from: "$rootDir/common.gradle"
