@@ -3,7 +3,7 @@ ext {
     extName = 'Debrid Index'
     extClass = '.DebridIndex'
     extVersionCode = 1
-    containsNsfw = false
+    isNsfw = false
 }
 
 apply from: "$rootDir/common.gradle"

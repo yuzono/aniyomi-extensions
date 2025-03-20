@@ -3,7 +3,7 @@ ext {
     extName = 'Torrentio (Torrent / Debrid)'
     extClass = '.Torrentio'
     extVersionCode = 5
-    containsNsfw = false
+    isNsfw = false
 }
 
 apply from: "$rootDir/common.gradle"
