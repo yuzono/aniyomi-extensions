@@ -3,7 +3,7 @@ ext {
     extName = 'Subsplease'
     extClass = '.Subsplease'
     extVersionCode = 3
-    containsNsfw = false
+    isNsfw = false
 }
 
 apply from: "$rootDir/common.gradle"
