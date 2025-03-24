@@ -1,6 +1,6 @@
 # Contributing
 
-This guide have some instructions and tips on how to create a new Anikku extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledge.
+This guide have some instructions and tips on how to create a new Aniyomi extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledge.
 
 This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/zosetsu-repo/aniyomi-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
 
@@ -85,7 +85,7 @@ Some alternative steps can be followed to ignore "repo" branch and skip unrelate
 2. Do a partial clone.
     ```bash
     git clone --filter=blob:none --sparse <fork-repo-url>
-    cd anikku-extensions/
+    cd aniyomi-extensions/
     ```
 3. Configure sparse checkout.
 
@@ -146,7 +146,7 @@ Some alternative steps can be followed to ignore "repo" branch and skip unrelate
 4. Configure remotes.
     ```bash
     # add upstream
-    git remote add upstream <anikku-repo-url>
+    git remote add upstream <aniyomi-repo-url>
     # optionally disable push to upstream
     git remote set-url --push upstream no_pushing
     # ignore 'repo' branch of upstream
@@ -184,8 +184,6 @@ and [negative refspecs](https://github.blog/2020-10-19-git-2-29-released/#user-c
 </details>
 
 ## Getting help
-
-- Join [the Discord server](https://discord.gg/85jB7V5AJR) for online help and to ask questions while developing your extension. When doing so, please ask it in the `#dev` channel.
 
 - There are some features and tricks that are not explored in this document. Refer to existing extension code for examples.
 
