@@ -37,7 +37,7 @@ jobs:
 
       - name: Find lib changes
         id: modified-libs
-        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
+        uses: tj-actions/changed-files@823fcebdb31bb35fdf2229d9f769b400309430d0 # v46.0.3
         with:
           files: lib/
           files_ignore: lib/**.md
@@ -105,7 +105,7 @@ jobs:
         run: ./gradlew -p src assembleDebug
 
       - name: Upload APKs (chunk ${{ matrix.chunk }})
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: github.repository == 'anikku-app/anikku-extensions'
         with:
           name: "individual-apks-${{ matrix.chunk }}"
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download APK artifacts
-        uses: actions/download-artifact@b14cf4c92620c250e1c074ab0a5800e37df86765 # v4.2.0
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           path: ~/apk-artifacts
 
