@@ -2,28 +2,30 @@
 
 This guide have some instructions and tips on how to create a new Anikku extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledge.
 
-This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/anikku-app/anikku-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
+This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/zosetsu-repo/aniyomi-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-   1. [Tools](#tools)
-   2. [Cloning the repository](#cloning-the-repository)
-2. [Getting help](#getting-help)
-3. [Writing an extension](#writing-an-extension)
-   1. [Setting up a new Gradle module](#setting-up-a-new-gradle-module)
+- [Contributing](#contributing)
+  - [Table of Contents](#table-of-contents)
+  - [Prerequisites](#prerequisites)
+    - [Tools](#tools)
+    - [Cloning the repository](#cloning-the-repository)
+  - [Getting help](#getting-help)
+  - [Writing an extension](#writing-an-extension)
+    - [Setting up a new Gradle module](#setting-up-a-new-gradle-module)
       - [Extension file structure](#extension-file-structure)
       - [AndroidManifest.xml (optional)](#androidmanifestxml-optional)
       - [build.gradle](#buildgradle)
-   2. [Core dependencies](#core-dependencies)
+    - [Core dependencies](#core-dependencies)
       - [Extension API](#extension-api)
       - [CryptoAES library](#cryptoaes-library)
       - [Unpacker library](#unpacker-library)
       - [Synchrony library](#synchrony-library)
       - [Additional dependencies](#additional-dependencies)
-   3. [Extension main class](#extension-main-class)
+    - [Extension main class](#extension-main-class)
       - [Main class key variables](#main-class-key-variables)
-   4. [Extension call flow](#extension-call-flow)
+    - [Extension call flow](#extension-call-flow)
       - [Popular Anime](#popular-anime)
       - [Latest Anime](#latest-anime)
       - [Anime Search](#anime-search)
@@ -31,26 +33,26 @@ This guide is not definitive and it's being updated over time. If you find any i
       - [Anime Details](#anime-details)
       - [Episode](#episode)
       - [Episode Videos](#episode-videos)
-   5. [Misc notes](#misc-notes)
-   6. [Advanced Extension features](#advanced-extension-features)
+    - [Misc notes](#misc-notes)
+    - [Advanced Extension features](#advanced-extension-features)
       - [URL intent filter](#url-intent-filter)
       - [Renaming existing sources](#renaming-existing-sources)
-4. [Multi-source themes](#multi-source-themes)
-   1. [The directory structure](#the-directory-structure)
-   2. [Development workflow](#development-workflow)
-   3. [Scaffolding overrides](#scaffolding-overrides)
-   4. [Additional Notes](#additional-notes)
-5. [Running](#running)
-6. [Debugging](#debugging)
-   1. [Android Debugger](#android-debugger)
-   2. [Logs](#logs)
-   3. [Inspecting network calls](#inspecting-network-calls)
-   4. [Using external network inspecting tools](#using-external-network-inspecting-tools)
+  - [Multi-source themes](#multi-source-themes)
+    - [The directory structure](#the-directory-structure)
+    - [Development workflow](#development-workflow)
+    - [Scaffolding overrides](#scaffolding-overrides)
+    - [Additional Notes](#additional-notes)
+  - [Running](#running)
+  - [Debugging](#debugging)
+    - [Android Debugger](#android-debugger)
+    - [Logs](#logs)
+    - [Inspecting network calls](#inspecting-network-calls)
+    - [Using external network inspecting tools](#using-external-network-inspecting-tools)
       - [Setup your proxy server](#setup-your-proxy-server)
       - [OkHttp proxy setup](#okhttp-proxy-setup)
-7. [Building](#building)
-8. [Submitting the changes](#submitting-the-changes)
-   1. [Pull Request checklist](#pull-request-checklist)
+  - [Building](#building)
+  - [Submitting the changes](#submitting-the-changes)
+    - [Pull Request checklist](#pull-request-checklist)
 
 ## Prerequisites
 
@@ -267,11 +269,11 @@ The extension's version name is generated automatically by concatenating `14` an
 
 #### Extension API
 
-Extensions rely on [extensions-lib](https://github.com/anikku-app/extensions-lib), which provides some interfaces and stubs from the [app](https://github.com/anikku-app/anikku) for compilation purposes. The actual implementations can be found [here](https://github.com/anikku-app/anikku/tree/master/app/src/main/java/eu/kanade/tachiyomi/animesource). Referencing the actual implementation will help with understanding extensions' call flow.
+Extensions rely on [extensions-lib](https://github.com/komikku-app/aniyomi-extensions-lib), which provides some interfaces and stubs from the [app](https://github.com/komikku-app/anikku) for compilation purposes. The actual implementations can be found [here](https://github.com/komikku-app/anikku/tree/master/app/src/main/java/eu/kanade/tachiyomi/animesource). Referencing the actual implementation will help with understanding extensions' call flow.
 
 #### CryptoAES library
 
-The [`cryptoaes`](https://github.com/anikku-app/anikku-extensions/tree/master/lib/cryptoaes) provides utilities for decrypting AES-encrypted data, like data encrypted with AES+EvpKDF (The key-derivation algorithm used by the [cryptojs](https://cryptojs.gitbook.io/docs/) library). It also includes some utilities to decrypt strings in the [jsfuck](https://jsfuck.com/) format.
+The [`cryptoaes`](https://github.com/zosetsu-repo/aniyomi-extensions/tree/master/lib/cryptoaes) provides utilities for decrypting AES-encrypted data, like data encrypted with AES+EvpKDF (The key-derivation algorithm used by the [cryptojs](https://cryptojs.gitbook.io/docs/) library). It also includes some utilities to decrypt strings in the [jsfuck](https://jsfuck.com/) format.
 
 ```groovy
 dependencies {
@@ -281,7 +283,7 @@ dependencies {
 
 #### Unpacker library
 
-The [`unpacker`](https://github.com/anikku-app/anikku-extensions/tree/master/lib/unpacker) library provides a deobfuscator(unpacker) for javascript code obfuscated with the [jspacker](http://dean.edwards.name/packer/) algorithm.
+The [`unpacker`](https://github.com/zosetsu-repo/aniyomi-extensions/tree/master/lib/unpacker) library provides a deobfuscator(unpacker) for javascript code obfuscated with the [jspacker](http://dean.edwards.name/packer/) algorithm.
 
 ```groovy
 dependencies {
@@ -291,7 +293,7 @@ dependencies {
 
 #### Synchrony library
 
-[`synchrony`](https://github.com/anikku-app/anikku-extensions/tree/master/lib/synchrony) is a library that bundles and runs the [synchrony](https://github.com/relative/synchrony) deobfuscator with your extension to help when deobfuscating obfuscated javascript. Useful to get data on highly obfuscated javascript code.
+[`synchrony`](https://github.com/zosetsu-repo/aniyomi-extensions/tree/master/lib/synchrony) is a library that bundles and runs the [synchrony](https://github.com/relative/synchrony) deobfuscator with your extension to help when deobfuscating obfuscated javascript. Useful to get data on highly obfuscated javascript code.
 
 ```groovy
 dependencies {
@@ -302,14 +304,14 @@ dependencies {
 #### Additional dependencies
 
 If you find yourself needing additional functionality, you can add more dependencies to your `build.gradle` file.
-Many of [the dependencies](https://github.com/anikku-app/anikku/blob/master/app/build.gradle.kts) from the main Anikku app are exposed to extensions by default.
+Many of [the dependencies](https://github.com/komikku-app/anikku/blob/master/app/build.gradle.kts) from the main Anikku app are exposed to extensions by default.
 
 > Note that several dependencies are already exposed to all extensions via Gradle version catalog.
 > To view which are available view `libs.versions.toml` under the `gradle` folder
 
 Notice that we're using `compileOnly` instead of `implementation` if the app already contains it. You could use `implementation` instead for a new dependency, or you prefer not to rely on whatever the main app has at the expense of app size.
 
-Note that using `compileOnly` restricts you to versions that must be compatible with those used in [the latest stable version of Anikku](https://github.com/anikku-app/anikku/releases/latest).
+Note that using `compileOnly` restricts you to versions that must be compatible with those used in [the latest stable version of Anikku](https://github.com/komikku-app/anikku/releases/latest).
 
 ### Extension main class
 
@@ -356,7 +358,7 @@ a.k.a. the Latest source entry point in the app (invoked by tapping on the "Late
 
 ##### Filters
 
-The search flow have support to filters that can be added to a `AnimeFilterList` inside the `getFilterList` method. When the user changes the filter's state, they will be passed to the `searchAnimeRequest`, and they can be iterated to create the request (by getting the `filter.state` value, where the type varies depending on the `AnimeFilter` used). You can check the filter types available [here](https://github.com/anikku-app/anikku/blob/master/source-api/src/main/java/eu/kanade/tachiyomi/animesource/model/AnimeFilter.kt) and in the table below.
+The search flow have support to filters that can be added to a `AnimeFilterList` inside the `getFilterList` method. When the user changes the filter's state, they will be passed to the `searchAnimeRequest`, and they can be iterated to create the request (by getting the `filter.state` value, where the type varies depending on the `AnimeFilter` used). You can check the filter types available [here](https://github.com/komikku-app/anikku/blob/master/source-api/src/main/java/eu/kanade/tachiyomi/animesource/model/AnimeFilter.kt) and in the table below.
 
 | Filter | State type | Description |
 | ------ | ---------- | ----------- |
@@ -387,7 +389,7 @@ open class UriPartFilter(displayName: String, private val vals: Array<Pair<Strin
 - `fetchAnimeDetails` is called to update an anime's details from when it was initialized earlier.
     - `SAnime.initialized` tells the app if it should call `fetchAnimeDetails`. If you are overriding `fetchAnimeDetails`, make sure to pass it as `true`.
     - `SAnime.genre` is a string containing list of all genres separated with `", "`.
-    - `SAnime.status` is an "enum" value. Refer to [the values in the `SAnime` companion object](https://github.com/anikku-app/extensions-lib/blob/main/library/src/main/java/eu/kanade/tachiyomi/animesource/model/SAnime.kt#L26-L32).
+    - `SAnime.status` is an "enum" value. Refer to [the values in the `SAnime` companion object](https://github.com/komikku-app/aniyomi-extensions-lib/blob/main/library/src/main/java/eu/kanade/tachiyomi/animesource/model/SAnime.kt#L26-L32).
     - During a backup, only `url` and `title` are stored. To restore the rest of the anime data, the app calls `fetchAnimeDetails`, so all fields should be (re)filled in if possible.
     - If a `SAnime` is cached `fetchAnimeDetails` will be only called when the user does a manual update(Swipe-to-Refresh).
 - `fetchEpisodeList` is called to display the episode list.
@@ -438,7 +440,7 @@ open class UriPartFilter(displayName: String, private val vals: Array<Pair<Strin
 #### URL intent filter
 
 Extensions can define URL intent filters by defining it inside a custom `AndroidManifest.xml` file.
-For an example, refer to [the AniWatch module's `AndroidManifest.xml` file](https://github.com/anikku-app/anikku-extensions/blob/master/src/en/aniwatch/AndroidManifest.xml) and [its corresponding `AniWatchUrlActivity` handler](https://github.com/anikku-app/anikku-extensions/blob/master/src/en/aniwatch/src/eu/kanade/tachiyomi/animeextension/en/zoro/AniWatchUrlActivity.kt).
+For an example, refer to [the AniWatch module's `AndroidManifest.xml` file](https://github.com/zosetsu-repo/aniyomi-extensions/blob/master/src/en/aniwatch/AndroidManifest.xml) and [its corresponding `AniWatchUrlActivity` handler](https://github.com/zosetsu-repo/aniyomi-extensions/blob/master/src/en/aniwatch/src/eu/kanade/tachiyomi/animeextension/en/zoro/AniWatchUrlActivity.kt).
 
 To test if the URL intent filter is working as expected, you can try opening the website in a browser and navigating to the endpoint that was added as a filter or clicking a hyperlink. Alternatively, you can use the `adb` command below.
 
@@ -450,7 +452,7 @@ $ adb shell am start -d "<your-link>" -a android.intent.action.VIEW
 
 There is some cases where existing sources changes their name on the website. To correctly reflect these changes in the extension, you need to explicity set the `id` to the same old value, otherwise it will get changed by the new `name` value and users will be forced to migrate back to the source.
 
-To get the current `id` value before the name change, you can search the source name in the [repository JSON file](https://github.com/anikku-app/extensions/blob/repo/index.json) by looking into the `sources` attribute of the extension. When you have the `id` copied, you can override it in the source:
+To get the current `id` value before the name change, you can search the source name in the [repository JSON file](https://github.com/zosetsu-repo/ani-repo/blob/repo/index.json) by looking into the `sources` attribute of the extension. When you have the `id` copied, you can override it in the source:
 
 ```kotlin
 override val id: Long = <the-id>

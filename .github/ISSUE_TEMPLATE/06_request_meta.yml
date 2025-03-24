@@ -31,9 +31,9 @@ body:
           required: true
         - label: I have written a short but informative title.
           required: true
-        - label: If this is an issue with the app itself, I should be opening an issue in the [app repository](https://github.com/anikku-app/anikku/issues/new/choose).
+        - label: If this is an issue with the app itself, I should be opening an issue in the [app repository](https://github.com/komikku-app/anikku/issues/new/choose).
           required: true
-        - label: I have updated the app to **[latest version](https://github.com/anikku-app/anikku/releases/latest)**.
+        - label: I have updated the app to **[latest version](https://github.com/komikku-app/anikku/releases/latest)**.
           required: true
         - label: I have updated all installed extensions.
           required: true
