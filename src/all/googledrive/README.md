@@ -58,5 +58,5 @@ Google can sometimes think that webview isn't a secure browser, and will thus re
 2. In the top right, click the three dots then click `Refresh`
 3. Click the `Try again` button after the website doesn't let you log in
 4. Make sure that your webview is up to date
-   
+
 Try a combination of these steps, and after a few tries it should eventually let you log in.
