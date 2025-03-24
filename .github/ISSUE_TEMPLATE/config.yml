@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: ⚠️ Application issue
-    url: https://github.com/anikku-app/anikku/issues/new/choose
+    url: https://github.com/komikku-app/anikku/issues/new/choose
     about: Issues and requests about the app itself should be opened in the tachiyomi repository instead
   - name: 📦 Anikku extensions
     url: https://anikku-app.github.io/extensions
@@ -10,5 +10,5 @@ contact_links:
     url: https://anikku-app.github.io/help/
     about: Guides, troubleshooting, and answers to common questions
   - name: Anikku app GitHub repository
-    url: https://github.com/anikku-app/anikku
+    url: https://github.com/komikku-app/anikku
     about: Issues about the app itself should be opened here instead.

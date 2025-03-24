@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload APKs (chunk ${{ matrix.chunk }})
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: github.repository == 'anikku-app/anikku-extensions'
+        if: github.repository == 'zosetsu-repo/aniyomi-extensions'
         with:
           name: "individual-apks-${{ matrix.chunk }}"
           path: "**/*.apk"
@@ -138,7 +138,7 @@ jobs:
     needs:
       - prepare
       - build_individual
-    if: github.repository == 'anikku-app/anikku-extensions'
+    if: github.repository == 'zosetsu-repo/aniyomi-extensions'
     runs-on: ubuntu-latest
     steps:
       - name: Download APK artifacts
@@ -162,7 +162,7 @@ jobs:
         run: |
           cd ${{ github.ref_name }}
           python ./.github/scripts/move-apks.py
-          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/anikku-app/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
+          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/komikku-app/aniyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
           curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
           java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
           python ./.github/scripts/create-repo.py
@@ -170,7 +170,7 @@ jobs:
       - name: Checkout repo branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: anikku-app/extensions
+          repository: zosetsu-repo/ani-repo
           token: ${{ secrets.BOT_PAT }}
           ref: repo
           path: repo
@@ -189,4 +189,4 @@ jobs:
 
       - name: Purge cached index on jsDelivr
         run: |
-          curl https://purge.jsdelivr.net/gh/anikku-app/extensions@repo/index.min.json
+          curl https://purge.jsdelivr.net/gh/zosetsu-repo/ani-repo@repo/index.min.json
