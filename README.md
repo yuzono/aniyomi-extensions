@@ -1,6 +1,6 @@
 | Install on Aniyomi | Install on Anikku | Build  |
 |--------------------|-------------------|--------|
-| [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20this%20repo-blue&style=flat)](https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://raw.githubusercontent.com/zosetsu-repo/ani-repo/repo/index.min.json) | [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20repo-gray?style=flat&labelColor=red)](https://intradeus.github.io/http-protocol-redirector/?r=anikku://add-repo?url=https://raw.githubusercontent.com/zosetsu-repo/ani-repo/repo/index.min.json) | ![CI](https://github.com/zosetsu-repo/aniyomi-extensions/actions/workflows/build_push.yml/badge.svg) |
+| [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20this%20repo-blue&style=flat)](https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json) | [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20repo-gray?style=flat&labelColor=red)](https://intradeus.github.io/http-protocol-redirector/?r=anikku://add-repo?url=https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json) | ![CI](https://github.com/yuzono/aniyomi-extensions/actions/workflows/build_push.yml/badge.svg) |
 
 
 # ![app icon](./.github/readme-images/app-icon.png)Anikku/Aniyomi Extensions
@@ -11,7 +11,7 @@ This repository contains the available extension catalogues for the [Anikku](htt
 # Manual install
 just paste this into your anime repo
 ```
-https://raw.githubusercontent.com/zosetsu-repo/ani-repo/repo/index.min.json
+https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json
 ```
 
 # Usage
@@ -20,7 +20,7 @@ Extension sources can be downloaded, installed, and uninstalled via the main Ani
 
 ## Downloads
 
-If you prefer to directly download the APK files, they are available via https://anikku-app.github.io/extensions/ or directly in this GitHub repository in the [`repo` branch](https://github.com/zosetsu-repo/ani-repo/tree/repo/apk).
+If you prefer to directly download the APK files, they are available via https://anikku-app.github.io/extensions/ or directly in this GitHub repository in the [`repo` branch](https://github.com/yuzono/anime-repo/tree/repo/apk).
 
 # Requests
 
@@ -30,7 +30,7 @@ Source requests here are meant as up-for-grabs for any developer, thus it's impo
 
 Contributions are welcome!
 
-Check out the repo's [issue backlog](https://github.com/zosetsu-repo/aniyomi-extensions/issues) for source requests and bug reports.
+Check out the repo's [issue backlog](https://github.com/yuzono/aniyomi-extensions/issues) for source requests and bug reports.
 
 To get started with development, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
