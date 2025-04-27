@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
     inputs:
 
+permissions:
+  contents: write
+      
 jobs:
   update-kohi-den:
     name: Update Kohi-den
