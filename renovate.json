@@ -2,8 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "labels": ["Dependencies"],
   "rebaseWhen": "conflicted",
+  "automerge": true,
+  "semanticCommits": "enabled",
   "extends": [
-    ":semanticCommits",
     "config:best-practices"
   ],
   "includePaths": [
