@@ -2,7 +2,7 @@
 
 This guide have some instructions and tips on how to create a new Aniyomi extension. Please **read it carefully** if you're a new contributor or don't have any experience on the required languages and knowledge.
 
-This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/zosetsu-repo/aniyomi-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
+This guide is not definitive and it's being updated over time. If you find any issue on it, feel free to report it through a [Meta Issue](https://github.com/yuzono/aniyomi-extensions/issues/new?assignees=&labels=Meta+request&template=request_meta.yml) or fixing it directly by submitting a Pull Request.
 
 ## Table of Contents
 
@@ -271,7 +271,7 @@ Extensions rely on [extensions-lib](https://github.com/komikku-app/aniyomi-exten
 
 #### CryptoAES library
 
-The [`cryptoaes`](https://github.com/zosetsu-repo/aniyomi-extensions/tree/master/lib/cryptoaes) provides utilities for decrypting AES-encrypted data, like data encrypted with AES+EvpKDF (The key-derivation algorithm used by the [cryptojs](https://cryptojs.gitbook.io/docs/) library). It also includes some utilities to decrypt strings in the [jsfuck](https://jsfuck.com/) format.
+The [`cryptoaes`](https://github.com/yuzono/aniyomi-extensions/tree/master/lib/cryptoaes) provides utilities for decrypting AES-encrypted data, like data encrypted with AES+EvpKDF (The key-derivation algorithm used by the [cryptojs](https://cryptojs.gitbook.io/docs/) library). It also includes some utilities to decrypt strings in the [jsfuck](https://jsfuck.com/) format.
 
 ```groovy
 dependencies {
@@ -281,7 +281,7 @@ dependencies {
 
 #### Unpacker library
 
-The [`unpacker`](https://github.com/zosetsu-repo/aniyomi-extensions/tree/master/lib/unpacker) library provides a deobfuscator(unpacker) for javascript code obfuscated with the [jspacker](http://dean.edwards.name/packer/) algorithm.
+The [`unpacker`](https://github.com/yuzono/aniyomi-extensions/tree/master/lib/unpacker) library provides a deobfuscator(unpacker) for javascript code obfuscated with the [jspacker](http://dean.edwards.name/packer/) algorithm.
 
 ```groovy
 dependencies {
@@ -291,7 +291,7 @@ dependencies {
 
 #### Synchrony library
 
-[`synchrony`](https://github.com/zosetsu-repo/aniyomi-extensions/tree/master/lib/synchrony) is a library that bundles and runs the [synchrony](https://github.com/relative/synchrony) deobfuscator with your extension to help when deobfuscating obfuscated javascript. Useful to get data on highly obfuscated javascript code.
+[`synchrony`](https://github.com/yuzono/aniyomi-extensions/tree/master/lib/synchrony) is a library that bundles and runs the [synchrony](https://github.com/relative/synchrony) deobfuscator with your extension to help when deobfuscating obfuscated javascript. Useful to get data on highly obfuscated javascript code.
 
 ```groovy
 dependencies {
@@ -438,7 +438,7 @@ open class UriPartFilter(displayName: String, private val vals: Array<Pair<Strin
 #### URL intent filter
 
 Extensions can define URL intent filters by defining it inside a custom `AndroidManifest.xml` file.
-For an example, refer to [the AniWatch module's `AndroidManifest.xml` file](https://github.com/zosetsu-repo/aniyomi-extensions/blob/master/src/en/aniwatch/AndroidManifest.xml) and [its corresponding `AniWatchUrlActivity` handler](https://github.com/zosetsu-repo/aniyomi-extensions/blob/master/src/en/aniwatch/src/eu/kanade/tachiyomi/animeextension/en/zoro/AniWatchUrlActivity.kt).
+For an example, refer to [the AniWatch module's `AndroidManifest.xml` file](https://github.com/yuzono/aniyomi-extensions/blob/master/src/en/aniwatch/AndroidManifest.xml) and [its corresponding `AniWatchUrlActivity` handler](https://github.com/yuzono/aniyomi-extensions/blob/master/src/en/aniwatch/src/eu/kanade/tachiyomi/animeextension/en/zoro/AniWatchUrlActivity.kt).
 
 To test if the URL intent filter is working as expected, you can try opening the website in a browser and navigating to the endpoint that was added as a filter or clicking a hyperlink. Alternatively, you can use the `adb` command below.
 
@@ -450,7 +450,7 @@ $ adb shell am start -d "<your-link>" -a android.intent.action.VIEW
 
 There is some cases where existing sources changes their name on the website. To correctly reflect these changes in the extension, you need to explicity set the `id` to the same old value, otherwise it will get changed by the new `name` value and users will be forced to migrate back to the source.
 
-To get the current `id` value before the name change, you can search the source name in the [repository JSON file](https://github.com/zosetsu-repo/ani-repo/blob/repo/index.json) by looking into the `sources` attribute of the extension. When you have the `id` copied, you can override it in the source:
+To get the current `id` value before the name change, you can search the source name in the [repository JSON file](https://github.com/yuzono/anime-repo/blob/repo/index.json) by looking into the `sources` attribute of the extension. When you have the `id` copied, you can override it in the source:
 
 ```kotlin
 override val id: Long = <the-id>
