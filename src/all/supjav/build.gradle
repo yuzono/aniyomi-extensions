@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 2
     extName = 'SupJav'
     extClass = '.SupJavFactory'
-    extVersionCode = 14
+    extVersionCode = 15
     isNsfw = true
 }
 
