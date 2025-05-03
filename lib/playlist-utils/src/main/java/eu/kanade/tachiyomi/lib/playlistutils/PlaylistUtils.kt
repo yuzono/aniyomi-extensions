@@ -10,7 +10,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.internal.commonEmptyHeaders
 import java.io.File
-import kotlin.math.abs
 
 class PlaylistUtils(private val client: OkHttpClient, private val headers: Headers = commonEmptyHeaders) {
 
@@ -154,7 +153,6 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
                 ?.let { resolution ->
                     val standardQuality = Regex("""[xX](\d+)""").find(resolution)
                         ?.groupValues?.get(1)
-                        ?.let(::stnQuality)
 
                     if (!standardQuality.isNullOrBlank()) {
                         "$standardQuality ($resolution)"
@@ -366,13 +364,6 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     }
 
     // ============================= Utilities ==============================
-
-    private fun stnQuality(quality: String): String {
-        val intQuality = quality.trim().toInt()
-        val standardQualities = listOf(144, 240, 360, 480, 720, 1080)
-        val result =  standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
-        return "${result}p"
-    }
 
     private fun cleanSubtitleData(matchResult: MatchResult): String {
         val lineCount = matchResult.groupValues[1].count { it == '\n' }
