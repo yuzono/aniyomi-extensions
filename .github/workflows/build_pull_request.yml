@@ -28,7 +28,6 @@ jobs:
 
       - name: Set env
         run: |
-          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
           echo "LATEST_COMMIT_MESSAGE<<{delimiter}
           $(git log -1 --pretty=%B)
 
@@ -46,7 +45,7 @@ jobs:
 
       # This step is to alert whether a bumping version might occur.
       - name: Bump extensions that uses a modified lib
-        if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
+        if: steps.modified-libs.outputs.any_changed == 'true' && !startsWith(github.event.pull_request.title, '[skip mass-bump]')
         run: |
           latest_commit_author=$(git log -1 --pretty=%an)
           isKmk=false
@@ -94,15 +93,23 @@ jobs:
           java-version: 17
           distribution: temurin
 
+      - name: Prepare signing key
+        run: |
+          echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
+          chmod 600 signingkey.jks
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4
         with:
-          cache-read-only: true
+          cache-read-only: ${{ matrix.chunk != 0 }}
 
       - name: Build extensions (chunk ${{ matrix.chunk }})
         env:
           CI_CHUNK_NUM: ${{ matrix.chunk }}
-        run: ./gradlew -p src assembleDebug
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew -p src assembleRelease
 
       - name: Upload APKs (chunk ${{ matrix.chunk }})
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -111,6 +118,9 @@ jobs:
           name: "individual-apks-${{ matrix.chunk }}"
           path: "**/*.apk"
           retention-days: 1
+
+      - name: Clean up CI files
+        run: rm signingkey.jks
 
   publish_repo:
     name: Check Publish repo

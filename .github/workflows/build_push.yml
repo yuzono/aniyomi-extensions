@@ -37,7 +37,6 @@ jobs:
       - name: Set env
         id: set-env
         run: |
-          echo "MERGED_COMMIT_MESSAGE=Merge remote-tracking branch 'origin/kohiden'" >> $GITHUB_ENV
           echo "LATEST_COMMIT_MESSAGE<<{delimiter}
           $(git log -1 --pretty=%B)
 
@@ -58,7 +57,7 @@ jobs:
         # If any changes caused by the merge commit, skip this step because versions should already pumped with that merge.
         # But that should be avoided because our own extensions may not be bumped.
       - name: Bump extensions that uses a modified lib
-        if: steps.modified-libs.outputs.any_changed == 'true' && github.event.head_commit.message != ${{ env.MERGED_COMMIT_MESSAGE }}
+        if: steps.modified-libs.outputs.any_changed == 'true' && !startsWith(github.event.head_commit.message, '[skip mass-bump]')
         run: |
           latest_commit_author=$(git log -1 --pretty=%an)
           isKmk=false
@@ -111,6 +110,7 @@ jobs:
       - name: Prepare signing key
         run: |
           echo ${{ secrets.SIGNING_KEY }} | base64 -d > signingkey.jks
+          chmod 600 signingkey.jks
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
