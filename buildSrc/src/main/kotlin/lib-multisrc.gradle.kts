@@ -33,14 +33,9 @@ android {
     }
 }
 
-versionCatalogs
-    .named("libs")
-    .findBundle("common")
-    .ifPresent { common ->
-        dependencies {
-            compileOnly(common)
-        }
-    }
+dependencies {
+    compileOnly(versionCatalogs.named("libs").findBundle("common").get())
+}
 
 tasks {
     preBuild {

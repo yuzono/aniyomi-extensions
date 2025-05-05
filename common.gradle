@@ -12,9 +12,9 @@ Project theme = ext.has("themePkg") ? project(":lib-multisrc:$themePkg") : null
 if (theme != null) evaluationDependsOn(theme.path)
 
 android {
-    compileSdkVersion AndroidConfig.compileSdk
-    namespace AndroidConfig.namespace
+    compileSdk AndroidConfig.compileSdk
 
+    namespace "eu.kanade.tachiyomi.animeextension"
     sourceSets {
         main {
             manifest.srcFile "AndroidManifest.xml"
@@ -22,17 +22,11 @@ android {
             res.srcDirs = ['res']
             assets.srcDirs = ['assets']
         }
-        release {
-            manifest.srcFile "AndroidManifest.xml"
-        }
-        debug {
-            manifest.srcFile "AndroidManifest.xml"
-        }
     }
 
     defaultConfig {
-        minSdkVersion AndroidConfig.minSdk
-        targetSdkVersion AndroidConfig.targetSdk
+        minSdk AndroidConfig.minSdk
+        targetSdk AndroidConfig.targetSdk
         applicationIdSuffix project.parent.name + "." + project.name
         Integer extKmkVersionCode = project.ext.find("extKmkVersionCode") ?: 0
         Integer baseKmkVersionCode = theme == null ? 0 : theme.ext.find("baseKmkVersionCode") ?: 0
@@ -57,7 +51,6 @@ android {
                     SOURCESCHEME: split[0],
             ]
         }
-
     }
 
     signingConfigs {
@@ -89,6 +82,10 @@ android {
         buildConfig true
     }
 
+    packaging {
+        resources.excludes.add("kotlin-tooling-metadata.json")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -106,7 +103,7 @@ dependencies {
     compileOnly(libs.bundles.common)
 }
 
-configurations.all {
+configurations.configureEach {
     resolutionStrategy.eachDependency { DependencyResolveDetails details ->
         if (details.requested.group == 'org.jetbrains.kotlin' && details.requested.name == 'kotlin-stdlib-jdk8' && details.requested.version == '1.7.0') {
             details.useVersion(libs.versions.kotlin.version.get())
