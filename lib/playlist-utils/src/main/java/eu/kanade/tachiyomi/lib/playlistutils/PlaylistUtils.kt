@@ -399,7 +399,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
     companion object {
         private val FIX_SUBTITLE_REGEX = Regex("""${'$'}(\n{2,})(?!(?:\d+:)*\d+(?:\.\d+)?\s-+>\s(?:\d+:)*\d+(?:\.\d+)?)""", RegexOption.MULTILINE)
-        
+
         private const val PLAYLIST_SEPARATOR = "#EXT-X-STREAM-INF:"
 
         private val SUBTITLE_REGEX by lazy { Regex("""#EXT-X-MEDIA:TYPE=SUBTITLES.*?NAME="(.*?)".*?URI="(.*?)"""") }

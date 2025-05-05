@@ -1,5 +1,4 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "labels": ["Dependencies"],
   "rebaseWhen": "conflicted",
   "automerge": true,
@@ -7,6 +6,7 @@
   "extends": [
     "config:best-practices"
   ],
+  "schedule": ["on sunday"],
   "includePaths": [
     "buildSrc/gradle/**",
     "gradle/**",
