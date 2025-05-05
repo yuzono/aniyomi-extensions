@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: write
-      
+
 jobs:
   update-kohi-den:
     name: Update Kohi-den
