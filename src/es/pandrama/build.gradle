@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 0
     extName = 'Pandrama'
     extClass = '.Pandrama'
-    extVersionCode = 2
+    extVersionCode = 3
 }
 
 apply from: "$rootDir/common.gradle"

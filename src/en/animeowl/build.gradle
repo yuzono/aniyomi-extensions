@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 3
     extName = 'AnimeOwl'
     extClass = '.AnimeOwl'
-    extVersionCode = 23
+    extVersionCode = 24
 }
 
 apply from: "$rootDir/common.gradle"
