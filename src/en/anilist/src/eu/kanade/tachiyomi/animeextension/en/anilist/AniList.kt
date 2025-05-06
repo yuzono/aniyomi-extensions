@@ -147,6 +147,10 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
                 put("status", params.status)
             }
 
+            if (params.country.isNotBlank()) {
+                put("countryOfOrigin", params.country)
+            }
+
             put("type", "ANIME")
             if (!preferences.allowAdult) put("isAdult", false)
         }
