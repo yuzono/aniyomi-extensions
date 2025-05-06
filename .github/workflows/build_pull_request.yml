@@ -163,7 +163,7 @@ jobs:
       - name: Merge repo
         run: |
           cd repo
-          python ../PR/.github/scripts/merge-repo.py '${{ needs.prepare.outputs.delete }}'
+          python ../PR/.github/scripts/merge-repo.py '${{ needs.prepare.outputs.delete }}' 'PR/repo'
 
       # Showing which extensions are to be updated with this PR
       - name: Check Deploy repo
