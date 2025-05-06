@@ -83,8 +83,8 @@ class RouVideo(
     // ============================== Popular ===============================
 
     override fun popularAnimeRequest(page: Int): Request {
-        fetchTagsList()
-        fetchHotSearch()
+        fetchTagsListOnce()
+        if (page == 0) updateHotSearch()
 
         return GET(
             videoUrl.toHttpUrl().newBuilder().apply {
@@ -108,8 +108,8 @@ class RouVideo(
     // =============================== Latest ===============================
 
     override fun latestUpdatesRequest(page: Int): Request {
-        fetchTagsList()
-        fetchHotSearch()
+        fetchTagsListOnce()
+        if (page == 0) updateHotSearch()
 
         return GET(
             videoUrl.toHttpUrl().newBuilder().apply {
@@ -126,83 +126,115 @@ class RouVideo(
     // =============================== Search ===============================
 
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
-        return when {
-            query.startsWith(PREFIX_ID) -> {
-                val id = query.removePrefix(PREFIX_ID)
-                handleSearchAnime(animeUrl(id), docHeaders) {
-                    AnimesPage(listOf(parseAnimeDetails(this)), false)
-                }
-            }
-            query.startsWith(PREFIX_TAG) -> {
-                val tag = query.removePrefix(PREFIX_TAG)
-                val url = videoUrl.toHttpUrl().newBuilder().apply {
-                    addPathSegments("$CATEGORY_SLUG/$tag")
-                    addQueryParameter("page", page.toString())
-                }.build()
-                handleSearchAnime(url.toString(), docHeaders, ::popularAnimeParse)
-            }
-            else -> {
-                fetchTagsList()
-                fetchHotSearch()
-
-                val categoryFilter = filters.filterIsInstance<RouVideoFilter.CategoryFilter>().firstOrNull()
-                val sortFilter = filters.filterIsInstance<RouVideoFilter.SortFilter>().firstOrNull()
-                val tagFilter = filters.filterIsInstance<RouVideoFilter.TagFilter>().firstOrNull()
-                val hotSearchFilter = filters.filterIsInstance<RouVideoFilter.HotSearchFilter>().firstOrNull()
-
-                when {
-                    query.isBlank() && categoryFilter?.toUriPart() == WATCHING ->
-                        handleSearchAnime(watchingURL, apiHeaders) {
-                            val jsonStr = body.string()
-                            json.decodeFromString<List<RouVideoDto.Video>>(jsonStr)
-                                .toAnimePage()
-                        }
-
-                    categoryFilter == null || categoryFilter.toUriPart() == FEATURED ->
-                        handleSearchAnime(featuredURL, docHeaders) {
-                            val document = asJsoup()
-                            document.selectFirst("script#__NEXT_DATA__")?.data()
-                                ?.let {
-                                    json.decodeFromString<RouVideoDto.HotVideoList>(it)
-                                        .props.pageProps.toAnimePage(sortFilter?.toUriPart())
-                                }
-                                ?: AnimesPage(emptyList(), false)
-                        }
-
-                    else -> {
-                        val url = videoUrl.toHttpUrl().newBuilder().apply {
-                            if (query.isBlank()) {
-                                when {
-                                    categoryFilter.toUriPart() != ALL_VIDEOS ->
-                                        addPathSegments("$CATEGORY_SLUG/${categoryFilter.toUriPart()}")
-
-                                    hotSearchFilter != null && !hotSearchFilter.isEmpty() -> {
-                                        addPathSegment("search")
-                                        addQueryParameter("q", hotSearchFilter.toUriPart())
-                                        if (tagFilter != null && !tagFilter.isEmpty()) {
-                                            addQueryParameter(CATEGORY_SLUG, tagFilter.toUriPart())
-                                        }
-                                    }
-
-                                    tagFilter != null && !tagFilter.isEmpty() ->
-                                        addPathSegments("$CATEGORY_SLUG/${tagFilter.toUriPart()}")
-
-                                    else ->
-                                        addPathSegment(VIDEO_SLUG)
-                                }
-                                sortFilter?.let { addQueryParameter("order", it.toUriPart()) }
-                            } else {
-                                addPathSegment("search")
-                                addQueryParameter("q", query)
-                                addQueryParameter(CATEGORY_SLUG, categoryFilter.toUriPart())
-                            }
-                            addQueryParameter("page", page.toString())
-                        }.build()
-                        handleSearchAnime(url.toString(), docHeaders, ::popularAnimeParse)
-                    }
-                }
+        // Handle direct ID search (no need for tag/hot search fetching)
+        if (query.startsWith(PREFIX_ID)) {
+            val id = query.removePrefix(PREFIX_ID)
+            return handleSearchAnime(animeUrl(id), docHeaders) {
+                AnimesPage(listOf(parseAnimeDetails(this)), false)
             }
         }
+
+        // Handle direct Tag search from query (no need for tag/hot search fetching)
+        if (query.startsWith(PREFIX_TAG)) {
+            val tagValue = query.removePrefix(PREFIX_TAG)
+            val url = videoUrl.toHttpUrl().newBuilder().apply {
+                addPathSegments("$CATEGORY_SLUG/$tagValue")
+                addQueryParameter("page", page.toString())
+            }.build()
+            return handleSearchAnime(url.toString(), docHeaders, ::popularAnimeParse)
+        }
+
+        // For other search/browse types, ensure tags and hot searches are fetched
+        fetchTagsListOnce()
+        if (page == 0) updateHotSearch()
+
+        val categoryFilter = filters.filterIsInstance<RouVideoFilter.CategoryFilter>().firstOrNull()
+        val sortFilter = filters.filterIsInstance<RouVideoFilter.SortFilter>().firstOrNull()
+        val tagFilter = filters.filterIsInstance<RouVideoFilter.TagFilter>().firstOrNull()
+        val hotSearchFilter = filters.filterIsInstance<RouVideoFilter.HotSearchFilter>().firstOrNull()
+
+        val categoryUriPart = categoryFilter?.toUriPart()
+
+        if (query.isBlank() || categoryUriPart == FEATURED) {
+            // Browsing scenarios (no text query)
+            return when (categoryUriPart) {
+                WATCHING -> {
+                    handleSearchAnime(watchingURL, apiHeaders) {
+                        json.decodeFromString<List<RouVideoDto.Video>>(body.string()).toAnimePage()
+                    }
+                }
+                FEATURED, null, "" -> { // "Featured", "No category", or "All Categories" -> Show featured content
+                    handleSearchAnime(featuredURL, docHeaders) {
+                        asJsoup().parseFeaturedPage(sortFilter)
+                    }
+                }
+                else -> {
+                    // Specific category (e.g., "asian") or "All Videos" (ALL_VIDEOS)
+                    val url = buildBrowseUrl(page, categoryUriPart, sortFilter, tagFilter, hotSearchFilter)
+                    handleSearchAnime(url, docHeaders, ::popularAnimeParse)
+                }
+            }
+        } else {
+            // Text search scenario
+            val url = videoUrl.toHttpUrl().newBuilder().apply {
+                addPathSegment("search")
+                addQueryParameter("q", query)
+
+                // Add category to search query if it's a specific one (not null or empty string)
+                if (!categoryUriPart.isNullOrEmpty()) {
+                    addQueryParameter(CATEGORY_SLUG, categoryUriPart)
+                }
+                addQueryParameter("page", page.toString())
+                // Sort filter is not applied for text search
+            }.build()
+            return handleSearchAnime(url.toString(), docHeaders, ::popularAnimeParse)
+        }
+    }
+
+    private fun Document.parseFeaturedPage(sortFilter: RouVideoFilter.SortFilter?): AnimesPage {
+        return this.selectFirst("script#__NEXT_DATA__")?.data()
+            ?.let {
+                json.decodeFromString<RouVideoDto.HotVideoList>(it)
+                    .props.pageProps.toAnimePage(sortFilter?.toUriPart())
+            }
+            ?: AnimesPage(emptyList(), false)
+    }
+
+    private fun buildBrowseUrl(
+        page: Int,
+        categoryUri: String?, // Expects specific category (e.g. "asian") or ALL_VIDEOS.
+        sortFilter: RouVideoFilter.SortFilter?,
+        tagFilter: RouVideoFilter.TagFilter?,
+        hotSearchFilter: RouVideoFilter.HotSearchFilter?,
+    ): String {
+        return videoUrl.toHttpUrl().newBuilder().apply {
+            when {
+                // Specific category (e.g., "asian") is provided
+                categoryUri != null && categoryUri != ALL_VIDEOS -> {
+                    addPathSegments("$CATEGORY_SLUG/$categoryUri")
+                }
+                // Tag filter is active
+                tagFilter?.isEmpty() == false -> {
+                    if (hotSearchFilter?.isEmpty() == false) {
+                        // Hot search filter is active => search within the tag
+                        addPathSegment("search")
+                        addQueryParameter("q", hotSearchFilter.toUriPart())
+                        addQueryParameter(CATEGORY_SLUG, tagFilter.toUriPart())
+                    } else {
+                        // Only tag filter is active => browse by tag
+                        addPathSegments("$CATEGORY_SLUG/${tagFilter.toUriPart()}")
+                    }
+                }
+                else -> {
+                    // Default to browsing all videos
+                    addPathSegment(VIDEO_SLUG)
+                }
+            }
+
+            // Add sorting and pagination parameters
+            sortFilter?.let { addQueryParameter("order", it.toUriPart()) }
+            addQueryParameter("page", page.toString())
+        }.build().toString()
     }
 
     private suspend fun handleSearchAnime(url: String, headers: Headers, parse: Response.() -> AnimesPage): AnimesPage {
@@ -262,7 +294,7 @@ class RouVideo(
     /**
      * Fetch the genres from the source to be used in the filters.
      */
-    private fun fetchTagsList() {
+    private fun fetchTagsListOnce() {
         if (!this::tagsArray.isInitialized) {
             runCatching {
                 client.newCall(tagsListRequest())
@@ -309,7 +341,7 @@ class RouVideo(
 
     private fun hotSearchRequest() = GET("$videoUrl/search", docHeaders)
 
-    private fun fetchHotSearch() {
+    private fun updateHotSearch() {
         runCatching {
             client.newCall(hotSearchRequest())
                 .execute()

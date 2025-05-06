@@ -8,6 +8,7 @@ internal object RouVideoFilter {
     class CategoryFilter(intl: Intl) : UriPartFilter(
         intl["category"],
         arrayOf(
+            Tag("<${intl["category"]}>", ""),
             Tag(intl["featured"], FEATURED),
             Tag(intl["other_watching"], WATCHING),
         )
@@ -43,6 +44,7 @@ internal object RouVideoFilter {
 
     fun categories(intl: Intl) = setOf(
         Tag(intl["ChineseAV"], "國產AV"), // ChineseAV
+        Tag(intl["ChineseSub"], "中文字幕"), // ChineseSub
         Tag(intl["Madou_Media"], "麻豆傳媒"), // Madou Media
         Tag(intl["Selfie_leaked"], "自拍流出"), // Selfie leaked
         Tag(intl["Tanhua"], "探花"), // Tanhua (Flower exploration - Thám hoa - Check hàng)
