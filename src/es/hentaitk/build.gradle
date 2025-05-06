@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'HentaiTk'
     extClass = '.Hentaitk'
-    extVersionCode = 14
+    extVersionCode = 15
     isNsfw = true
 }
 
