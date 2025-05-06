@@ -48,6 +48,7 @@ object Filters {
     class SeasonFilter : QueryPartFilter("Season", AniListFiltersData.SEASON_LIST)
     class FormatFilter : CheckBoxFilterList("Format", AniListFiltersData.FORMAT_LIST)
     class StatusFilter : QueryPartFilter("Airing Status", AniListFiltersData.STATUS_LIST)
+    class CountryFilter : QueryPartFilter("Country Of Origin", AniListFiltersData.COUNTRY_LIST)
 
     class SortFilter : AnimeFilter.Sort(
         "Sort",
@@ -61,6 +62,7 @@ object Filters {
         SeasonFilter(),
         FormatFilter(),
         StatusFilter(),
+        CountryFilter(),
         SortFilter(),
     )
 
@@ -70,6 +72,7 @@ object Filters {
         val season: String = "",
         val format: List<String> = emptyList(),
         val status: String = "",
+        val country: String = "",
         val sort: String = "",
     )
 
@@ -82,6 +85,7 @@ object Filters {
             filters.asQueryPart<SeasonFilter>(),
             filters.parseCheckboxList<FormatFilter>(AniListFiltersData.FORMAT_LIST),
             filters.asQueryPart<StatusFilter>(),
+            filters.asQueryPart<CountryFilter>(),
             filters.getSort<SortFilter>(),
         )
     }
@@ -110,6 +114,8 @@ object Filters {
 
         val YEAR_LIST = arrayOf(
             Pair("<Select>", ""),
+            Pair("2026", "2026"),
+            Pair("2025", "2025"),
             Pair("2024", "2024"),
             Pair("2023", "2023"),
             Pair("2022", "2022"),
@@ -221,6 +227,14 @@ object Filters {
             Pair("Finished", "FINISHED"),
             Pair("Not Yet Aired", "NOT_YET_RELEASED"),
             Pair("Cancelled", "CANCELLED"),
+        )
+
+        val COUNTRY_LIST = arrayOf(
+            Pair("<Select>", ""),
+            Pair("Japan", "JP"),
+            Pair("South Korea", "KR"),
+            Pair("China", "CN"),
+            Pair("Taiwan", "TW"),
         )
 
         val SORT_LIST = arrayOf(

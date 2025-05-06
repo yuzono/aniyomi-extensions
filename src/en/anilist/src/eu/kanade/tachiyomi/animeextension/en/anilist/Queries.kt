@@ -16,6 +16,7 @@ query (
     %seasonYear: Int,
     %season: MediaSeason,
     %format: [MediaFormat],
+    %countryOfOrigin: CountryCode,
 ) {
     Page (page: %page, perPage: %perPage) {
         pageInfo {
@@ -32,6 +33,7 @@ query (
             seasonYear: %seasonYear,
             season: %season,
             format_in: %format,
+            countryOfOrigin: %countryOfOrigin,
         ) {
             id
             title {
