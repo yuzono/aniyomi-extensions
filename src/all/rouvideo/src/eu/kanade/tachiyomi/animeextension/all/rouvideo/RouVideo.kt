@@ -21,6 +21,9 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -103,6 +106,37 @@ class RouVideo(
 
         return json.decodeFromString<RouVideoDto.VideoList>(data)
             .props.pageProps.toAnimePage()
+    }
+
+    override suspend fun fetchRelatedAnimeList(anime: SAnime): List<SAnime> = coroutineScope {
+        listOf(
+            async {
+                client.newCall(relatedAnimeListRequest(anime))
+                    .execute()
+                    .let { response ->
+                        relatedAnimeListParse(response)
+                    }
+            },
+            async {
+                runCatching {
+                    handleSearchAnime(watchingURL, apiHeaders) {
+                        json.decodeFromString<List<RouVideoDto.Video>>(body.string()).toAnimePage()
+                    }
+                }
+                    .getOrNull()
+                    ?.animes ?: emptyList()
+            },
+        ).awaitAll()
+            .flatten()
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        val data = document.selectFirst("script#__NEXT_DATA__")?.data()
+            ?: return emptyList()
+
+        return json.decodeFromString<RouVideoDto.VideoDetails>(data)
+            .props.pageProps.relatedVideos.map { video -> video.toSAnime() }
     }
 
     // =============================== Latest ===============================
