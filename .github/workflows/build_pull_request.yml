@@ -56,6 +56,8 @@ jobs:
           if [[ "$latest_commit_author" == *"Cuong"* || "$latest_commit_author" == *"cuong"* ]]; then
             isKmk=true
           fi
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           chmod +x ./.github/scripts/bump-versions.py
           ./.github/scripts/bump-versions.py $isKmk "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
           echo "!!! This PR will bumping extensions version that uses a modified lib"
