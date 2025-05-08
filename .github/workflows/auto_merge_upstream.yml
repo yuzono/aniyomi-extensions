@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   update-kohi-den:
+    if: github.repository == 'yuzono/aniyomi-extensions'
     name: Update Kohi-den
     runs-on: ubuntu-latest
 
