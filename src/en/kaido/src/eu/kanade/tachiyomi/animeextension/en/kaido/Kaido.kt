@@ -1,8 +1,10 @@
 package eu.kanade.tachiyomi.animeextension.en.kaido
 
+import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
+import org.jsoup.nodes.Element
 
 class Kaido : ZoroTheme(
     "en",
@@ -14,6 +16,12 @@ class Kaido : ZoroTheme(
         "StreamTape",
     ),
 ) {
+    override fun popularAnimeFromElement(element: Element): SAnime {
+        return super.popularAnimeFromElement(element).apply {
+            url = url.substringBefore("?")
+        }
+    }
+
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     // private val rapidCloudExtractor by lazy { RapidCloudExtractor(client, headers, preferences) }
 
