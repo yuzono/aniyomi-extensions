@@ -10,6 +10,11 @@ data class VideoDto(
 )
 
 @Serializable
+data class SourcesResponse(
+    val link: String? = null,
+)
+
+@Serializable
 data class SourceResponseDto(
     val sources: JsonElement,
     val encrypted: Boolean = true,
