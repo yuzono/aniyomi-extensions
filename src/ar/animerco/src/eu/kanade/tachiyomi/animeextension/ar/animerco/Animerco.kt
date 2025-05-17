@@ -36,7 +36,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "Animerco"
 
-    override val baseUrl = "https://animerco.org"
+    override val baseUrl = "https://web.animerco.org"
 
     override val lang = "ar"
 

@@ -29,7 +29,7 @@ class Cimaleek : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "سيما ليك"
 
-    override val baseUrl = "https://m.cimaleek.to"
+    override val baseUrl = "https://web.cimalek.buzz"
 
     override val lang = "ar"
 

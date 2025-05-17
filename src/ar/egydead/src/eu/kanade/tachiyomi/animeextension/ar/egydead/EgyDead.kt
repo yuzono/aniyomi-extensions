@@ -33,7 +33,7 @@ class EgyDead : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // TODO: Check frequency of url changes to potentially
     // add back overridable baseurl preference
-    override val baseUrl = "https://egydead.space"
+    override val baseUrl = "https://egydead.ca"
 
     override val lang = "ar"
 
