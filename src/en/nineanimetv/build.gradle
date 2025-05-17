@@ -1,0 +1,10 @@
+ext {
+    extKmkVersionCode = 0
+    extName = '9AnimeTV'
+    extClass = '.NineAnimeTv'
+    themePkg = 'zorotheme'
+    baseUrl = 'https://9animetv.to'
+    overrideVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
