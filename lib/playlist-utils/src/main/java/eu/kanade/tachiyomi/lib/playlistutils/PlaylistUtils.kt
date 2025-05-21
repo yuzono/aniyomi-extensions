@@ -139,14 +139,27 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
          * http://example.com/high/index.m3u8
          * #EXT-X-STREAM-INF:BANDWIDTH=64000,CODECS="mp4a.40.5"
          * http://example.com/audio/index.m3u8
+         *
+         * #EXTM3U
+         * #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="Italian",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO,LANGUAGE="ita",URI="https://vixcloud.co/playlist/274438?type=audio&rendition=ita&token=rE-R01nYsIM8a4NkBowCtQ&expires=1752746791&edge=sc-u13-01"
+         * #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",NAME="English",DEFAULT=NO,AUTOSELECT=NO,FORCED=NO,LANGUAGE="eng",URI="https://vixcloud.co/playlist/274438?type=audio&rendition=eng&token=rE-R01nYsIM8a4NkBowCtQ&expires=1752746791&edge=sc-u13-01"
+         * #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English [CC]",DEFAULT=NO,AUTOSELECT=NO,FORCED=NO,LANGUAGE="eng",URI="https://vixcloud.co/playlist/274438?type=subtitle&rendition=3-eng&token=rE-R01nYsIM8a4NkBowCtQ&expires=1752746791&edge=sc-u13-01"
+         * #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",DEFAULT=NO,AUTOSELECT=NO,FORCED=NO,LANGUAGE="eng",URI="https://vixcloud.co/playlist/274438?type=subtitle&rendition=4-eng&token=rE-R01nYsIM8a4NkBowCtQ&expires=1752746791&edge=sc-u13-01"
+         * #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Italian",DEFAULT=NO,AUTOSELECT=NO,FORCED=NO,LANGUAGE="ita",URI="https://vixcloud.co/playlist/274438?type=subtitle&rendition=5-ita&token=rE-R01nYsIM8a4NkBowCtQ&expires=1752746791&edge=sc-u13-01"
+         * #EXT-X-STREAM-INF:BANDWIDTH=1200000,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=854x480,AUDIO="audio",SUBTITLES="subs"
+         * https://vixcloud.co/playlist/274438?type=video&rendition=480p&token=9vYfo_rGTzt6ns19gvR0NQ&expires=1752746791&edge=sc-u13-01
+         * #EXT-X-STREAM-INF:BANDWIDTH=2150000,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1280x720,AUDIO="audio",SUBTITLES="subs"
+         * https://vixcloud.co/playlist/274438?type=video&rendition=720p&token=9d2Xva5pQQA4zpQdLk1_sw&expires=1752746791&edge=sc-u13-01
+         * #EXT-X-STREAM-INF:BANDWIDTH=4500000,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="audio",SUBTITLES="subs"
+         * https://vixcloud.co/playlist/274438?type=video&rendition=1080p&token=xEfP4QUI9tG-E6whlvwsig&expires=1752746791&edge=sc-u13-01
+         *
          */
         return masterPlaylist.substringAfter(PLAYLIST_SEPARATOR).split(PLAYLIST_SEPARATOR).mapNotNull { stream ->
-            val codec = Regex("""CODECS=\"([^\"]+)\"""").find(stream)?.groupValues?.get(1)
+            val codec = Regex("""CODECS="([^"]+)"""").find(stream)?.groupValues?.get(1)
             if (!codec.isNullOrBlank()) {
                 // FIXME: Why skip mp4a?
                 if (codec.startsWith("mp4a")) return@mapNotNull null
             }
-
 
             val resolution = Regex("""RESOLUTION=([xX\d]+)""").find(stream)
                 ?.groupValues?.get(1)
@@ -163,10 +176,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             val bandwidth = Regex("""BANDWIDTH=(\d+)""").find(stream)
                     ?.groupValues?.get(1)
                     ?.toLongOrNull()
-                    ?.let { bandwidth ->
-                        formatBytes(bandwidth)
-                    }
-            val streamName = listOfNotNull(resolution, bandwidth).joinToString(" - ")
+            val bandWidthFormated = bandwidth
+                    ?.let(::formatBytes)
+            val streamName = listOfNotNull(resolution, bandWidthFormated).joinToString(" - ")
                 .takeIf { it.isNotBlank() }
                 ?: "Video"
 
@@ -174,15 +186,19 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
                 getAbsoluteUrl(url, playlistUrl, masterUrlBasePath)?.trimEnd()
             } ?: return@mapNotNull null
 
-            Video(
-                videoUrl,
-                videoNameGen(streamName),
-                videoUrl,
+            bandwidth to Video(
+                url = videoUrl,
+                quality = videoNameGen(streamName),
+                videoUrl = videoUrl,
                 headers = videoHeadersGen(headers, referer, videoUrl),
                 subtitleTracks = subtitleTracks,
                 audioTracks = audioTracks,
             )
         }
+            .sortedByDescending { (bandwidth, _) ->
+                bandwidth ?: 0L
+            }
+            .map { (_, video) -> video }
     }
 
     private fun getAbsoluteUrl(url: String, playlistUrl: String, masterBase: String): String? {
