@@ -1,8 +1,0 @@
-ext {
-    extKmkVersionCode = 0
-    extName = 'StreamingCommunity'
-    extClass = '.StreamingCommunity'
-    extVersionCode = 6
-}
-
-apply from: "$rootDir/common.gradle"
