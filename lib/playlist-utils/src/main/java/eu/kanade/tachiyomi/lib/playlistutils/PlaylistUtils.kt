@@ -31,7 +31,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
      */
     fun extractFromHls(
         playlistUrl: String,
-        referer: String = "",
+        referer: String = playlistUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
         masterHeaders: Headers,
         videoHeaders: Headers,
         videoNameGen: (String) -> String = { quality -> quality },
@@ -72,7 +72,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
      */
     fun extractFromHls(
         playlistUrl: String,
-        referer: String = "",
+        referer: String = playlistUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
         masterHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
@@ -228,7 +228,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         videoNameGen: (String) -> String,
         mpdHeaders: Headers,
         videoHeaders: Headers,
-        referer: String = "",
+        referer: String = mpdUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
     ): List<Video> {
@@ -269,7 +269,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     fun extractFromDash(
         mpdUrl: String,
         videoNameGen: (String) -> String,
-        referer: String = "",
+        referer: String = mpdUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
         mpdHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
@@ -316,7 +316,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     fun extractFromDash(
         mpdUrl: String,
         videoNameGen: (String, String) -> String,
-        referer: String = "",
+        referer: String = mpdUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
         mpdHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
