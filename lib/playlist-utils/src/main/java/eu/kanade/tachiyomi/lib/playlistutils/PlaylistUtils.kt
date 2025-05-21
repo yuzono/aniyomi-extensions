@@ -38,6 +38,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         videoNameGen: (String) -> String = { quality -> quality },
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
+        toStandardQuality: (String) -> String = { quality ->
+            stnQuality(quality)
+        },
     ): List<Video> {
         return extractFromHls(
             playlistUrl,
@@ -47,6 +50,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             videoNameGen,
             subtitleList,
             audioList,
+            toStandardQuality,
         )
     }
 
@@ -81,6 +85,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         videoNameGen: (String) -> String = { quality -> quality },
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
+        toStandardQuality: (String) -> String = { quality ->
+            stnQuality(quality)
+        },
     ): List<Video> {
         val masterHeaders = masterHeadersGen(headers, referer)
 
@@ -167,7 +174,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
                 ?.let { resolution ->
                     val standardQuality = Regex("""[xX](\d+)""").find(resolution)
                         ?.groupValues?.get(1)
-                        ?.let(::stnQuality)
+                        ?.let { toStandardQuality(it) }
 
                     if (!standardQuality.isNullOrBlank()) {
                         "$standardQuality ($resolution)"
@@ -385,7 +392,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
     private fun stnQuality(quality: String): String {
         val intQuality = quality.trim().toInt()
-        val standardQualities = listOf(144, 240, 360, 480, 720, 1080)
+        val standardQualities = listOf(144, 240, 360, 480, 720, 1080, 1440, 2160)
         val result =  standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
         return "${result}p"
     }
