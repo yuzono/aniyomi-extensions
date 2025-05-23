@@ -18,7 +18,7 @@ import uy.kohesive.injekt.injectLazy
 class Hds : DooPlay(
     "fr",
     "HDS",
-    "https://www.hds.quest",
+    "https://on1.hds.quest",
 ) {
 
     private val json: Json by injectLazy()
@@ -67,7 +67,7 @@ class Hds : DooPlay(
             val playerUrl = client.newCall(GET(securedUrl, headers)).execute().use { it.request.url.toString() }
             when {
                 playerUrl.contains("sentinel") -> fileMoonExtractor.videosFromUrl(playerUrl)
-                playerUrl.contains("hdsplay.online") -> streamHideVidExtractor.videosFromUrl(playerUrl)
+                playerUrl.contains("hdsplay") -> streamHideVidExtractor.videosFromUrl(playerUrl)
                 else -> emptyList()
             }
         }
