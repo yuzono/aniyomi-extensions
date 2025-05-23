@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animeextension.all.streamingcommunity
 
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.lib.i18n.Intl
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 
@@ -113,10 +114,13 @@ data class SingleShowResponse(
 
             @Serializable
             data class TrailerObject(
-                val name: String, // "Teaser Trailer"
+                @SerialName("name")
+                private val name: String?, // "Teaser Trailer"
                 val is_hd: Int, // 1
                 val youtube_id: String, // "0IqOJgtS5nw"
-            )
+            ) {
+                val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: "Trailer"
+            }
 
             @Serializable
             data class ActorObject(
@@ -152,6 +156,7 @@ data class SingleShowResponse(
                         .let { if (it.isNotBlank()) append("\n\n").append(intl["cast"]).append(": $it\n") }
                     imdb_id?.let { append("\n[IMDB](https://www.imdb.com/title/$it)") }
                     tmdb_id?.let { append("\n[TMDB](https://www.themoviedb.org/$type/$it)") }
+                    trailers.forEach { append("\n[${it.displayName}](https://www.youtube.com/watch?v=${it.youtube_id})") }
                 }.toString()
 
                 description = desc
