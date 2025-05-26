@@ -61,9 +61,10 @@ class Cimaleek : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val document = response.asJsoup()
         val url = response.request.url.toString()
         if (url.contains("movies")) {
+            val urlBuilder = url.toHttpUrl().newBuilder()
             val episode = SEpisode.create().apply {
                 name = "مشاهدة"
-                setUrlWithoutDomain("$url/watch/")
+                setUrlWithoutDomain(urlBuilder.addPathSegment("watch").toString())
             }
             episodes.add(episode)
         } else {
@@ -76,10 +77,11 @@ class Cimaleek : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     val episodeUrl = eElement.attr("href")
                     val finalNum = ("$seasonNum.$episodeNum").toFloat()
                     val episodeTitle = "الموسم ${seasonNum.toInt()} الحلقة ${episodeNum.toInt()}"
+                    val urlBuilder = episodeUrl.toHttpUrl().newBuilder()
                     val episode = SEpisode.create().apply {
                         name = episodeTitle
                         episode_number = finalNum
-                        setUrlWithoutDomain("$episodeUrl/watch/")
+                        setUrlWithoutDomain(urlBuilder.addPathSegment("watch").toString())
                     }
                     episodes.add(episode)
                 }
@@ -114,7 +116,8 @@ class Cimaleek : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
         val script = document.selectFirst("script:containsData(dtAjax)")!!.data()
-        val version = script.substringAfter("ver\":\"").substringBefore("\"")
+        val version = Regex(""""ver":"([a-z0-9]+)"""").find(script)
+            ?.groupValues?.get(1) ?: error("Version not found in script")
         return document.select(videoListSelector()).parallelCatchingFlatMapBlocking {
             extractVideos(it, version)
         }
@@ -137,6 +140,8 @@ class Cimaleek : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         videoUrl.addQueryParameter("n", element.attr("data-nume"))
         videoUrl.addQueryParameter("ver", version)
         videoUrl.addQueryParameter("rand", generateRandomString())
+        // FIXME: This call returns a JSON object with CryptoJS encrypted data, need to decrypt it to get actual m3u8 URLs.
+        // There is no video frame which using webViewResolver anymore.
         val videoFrame = client.newCall(GET(videoUrl.toString(), headers)).execute().body.string()
         val embedUrl = videoFrame.substringAfter("embed_url\":\"").substringBefore("\"")
         val referer = headers.newBuilder().add("Referer", "$baseUrl/").build()
@@ -250,7 +255,7 @@ class Cimaleek : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun latestUpdatesNextPageSelector(): String = popularAnimeNextPageSelector()
 
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/recent/page/$page/", headers)
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/recent-89541/page/$page/", headers)
 
     override fun latestUpdatesSelector(): String = popularAnimeSelector()
 
