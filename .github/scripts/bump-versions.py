@@ -11,8 +11,8 @@ VERSION_STR = "VersionCode ="
 VERSION_REGEX = re.compile(f"{VERSION_STR} (\\d+)")
 BUMPED_FILES: list[Path] = []
 
-BOT_EMAIL = "aniyomi-bot@aniyomi.org"
-BOT_NAME = "aniyomi-bot[bot]"
+BOT_EMAIL = "nadiecaca2000@gmail.com"
+BOT_NAME = "animetail-bot[bot]"
 
 def has_match(query: str, file: Path) -> tuple[Path, bool]:
     return (file, query in file.read_text())
@@ -42,7 +42,7 @@ def bump_version(file: Path):
         print(f"\n{file}: ", end="")
         text = VERSION_REGEX.sub(replace_version, f.read())
         # Move the cursor to the start again, to prevent writing at the end
-        f.seek(0) 
+        f.seek(0)
         f.write(text)
 
 def bump_lib_multisrc(theme: str):

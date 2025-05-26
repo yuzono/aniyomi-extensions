@@ -3,7 +3,7 @@ ext {
     extClass = '.JetAnime'
     themePkg = 'dooplay'
     baseUrl = 'https://ssl.jetanimes.com'
-    overrideVersionCode = 7
+    overrideVersionCode = 9
 }
 
 apply from: "$rootDir/common.gradle"

@@ -1,7 +1,7 @@
 ext {
     extName = 'Serienstream'
     extClass = '.Serienstream'
-    extVersionCode = 18
+    extVersionCode = 23
 }
 
 apply from: "$rootDir/common.gradle"

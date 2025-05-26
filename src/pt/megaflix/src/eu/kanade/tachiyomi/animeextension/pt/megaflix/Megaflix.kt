@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.pt.megaflix
 
 import android.app.Application
-import android.util.Base64
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.pt.megaflix.extractors.MegaflixExtractor
@@ -12,8 +11,13 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
+import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mixdropextractor.MixDropExtractor
+import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
+import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.vidhideextractor.VidHideExtractor
+import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -31,7 +35,7 @@ class Megaflix : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "Megaflix"
 
-    override val baseUrl = "https://megaflix.co"
+    override val baseUrl = "https://megaflix.ac"
 
     override val lang = "pt-BR"
 
@@ -69,7 +73,11 @@ class Megaflix : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun latestUpdatesNextPageSelector() = "div.nav-links > a:containsOwn(PRÓXIMO)"
 
     // =============================== Search ===============================
-    override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
+    override suspend fun getSearchAnime(
+        page: Int,
+        query: String,
+        filters: AnimeFilterList,
+    ): AnimesPage {
         return if (query.startsWith(PREFIX_SEARCH)) { // URL intent handler
             val path = query.removePrefix(PREFIX_SEARCH)
             client.newCall(GET("$baseUrl/$path"))
@@ -131,6 +139,7 @@ class Megaflix : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     episode_number = 1F
                 },
             )
+
             else -> seasons.parallelFlatMapBlocking(::episodesFromSeason).reversed()
         }
     }
@@ -148,11 +157,7 @@ class Megaflix : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         name = element.selectFirst("h2.entry-title")!!.text()
         setUrlWithoutDomain(element.selectFirst("a.lnk-blk")!!.attr("href"))
         episode_number = element.selectFirst("span.num-epi")?.run {
-            text().split("x").let {
-                val season = it.first().toFloatOrNull() ?: 0F
-                val episode = it.last().toFloatOrNull() ?: 0F
-                season * 100F + episode
-            }
+            text().split("x").last().toFloatOrNull() ?: 0F
         } ?: 0F
     }
 
@@ -163,40 +168,61 @@ class Megaflix : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             .parallelCatchingFlatMapBlocking { element ->
                 val language = element.text().substringAfter("-")
                 val id = element.attr("href")
-                val url = element.parents().get(5)?.selectFirst("div$id a")
-                    ?.run {
-                        attr("href")
-                            .substringAfter("token=")
-                            .let { String(Base64.decode(it, Base64.DEFAULT)) }
-                            .substringAfter("||")
+                val url = element.closest("body")?.selectFirst("div$id iframe")
+                    ?.let {
+                        val iframeUrl = it.attr("src")
+                        client.newCall(GET(iframeUrl, headers))
+                            .execute()
+                            .asJsoup()
+                            .selectFirst("iframe")
+                            ?.attr("src")
                     } ?: return@parallelCatchingFlatMapBlocking emptyList()
 
                 getVideoList(url, language)
             }
     }
 
+    /*--------------------------------Video extractors------------------------------------*/
+    private val webViewResolver by lazy { WebViewResolver() }
+    private val playlistUtils by lazy { PlaylistUtils(client, headers) }
+
     private val mixdropExtractor by lazy { MixDropExtractor(client) }
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     private val megaflixExtractor by lazy { MegaflixExtractor(client, headers) }
+    private val voeExtractor by lazy { VoeExtractor(client) }
+    private val filemoonExtractor by lazy { FilemoonExtractor(client) }
+    private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }
+    private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
 
     private fun getVideoList(url: String, language: String): List<Video> {
         return when {
-            "mixdrop.co" in url -> mixdropExtractor.videoFromUrl(url, language)
-            "streamtape.com" in url -> streamtapeExtractor.videosFromUrl(url, "StreamTape - $language")
-            "mflix.vip" in url -> megaflixExtractor.videosFromUrl(url, language)
-            else -> null
-        }.orEmpty()
+            arrayOf("mixdrop", "mixdroop", "mix").any(url) -> mixdropExtractor.videoFromUrl(url, language)
+            arrayOf("streamtape", "stp", "stape").any(url) -> streamtapeExtractor.videosFromUrl(url, "StreamTape - $language")
+            arrayOf("mflix").any(url) -> megaflixExtractor.videosFromUrl(url, language)
+            arrayOf("voe").any(url) -> voeExtractor.videosFromUrl(url, "$language ")
+            arrayOf("filemoon", "moonplayer").any(url) -> filemoonExtractor.videosFromUrl(url, prefix = "$language Filemoon:")
+            arrayOf("vidhide", "vid.").any(url) -> vidHideExtractor.videosFromUrl(url, videoNameGen = { "$language VidHide:$it" })
+            arrayOf("wishembed", "streamwish", "strwish", "wish", "jwplayerhls").any(url) -> streamWishExtractor.videosFromUrl(url, videoNameGen = { "$language StreamWish:$it" })
+            arrayOf("fembedder").any(url) -> {
+                val webViewResult = webViewResolver.getUrl(url, headers)
+                if (webViewResult.isBlank()) {
+                    return emptyList()
+                }
+                return if (webViewResult.contains("m3u8")) {
+                    playlistUtils.extractFromHls(webViewResult)
+                } else {
+                    listOf(Video(url, "Default", url))
+                }
+            }
+            else -> emptyList()
+        }
     }
 
     override fun videoListSelector() = "aside.video-options li a"
 
-    override fun videoFromElement(element: Element): Video {
-        TODO("Not yet implemented")
-    }
+    override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
 
-    override fun videoUrlParse(document: Document): String {
-        TODO("Not yet implemented")
-    }
+    override fun videoUrlParse(document: Document) = throw UnsupportedOperationException()
 
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
@@ -260,6 +286,8 @@ class Megaflix : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             ),
         ).reversed()
     }
+
+    private fun Array<String>.any(url: String): Boolean = this.any { url.contains(it, ignoreCase = true) }
 
     companion object {
         const val PREFIX_SEARCH = "path:"

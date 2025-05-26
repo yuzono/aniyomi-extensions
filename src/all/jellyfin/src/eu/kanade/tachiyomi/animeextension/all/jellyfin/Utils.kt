@@ -21,8 +21,11 @@ val SharedPreferences.password
 val SharedPreferences.apiKey
     get() = getString(Jellyfin.APIKEY_KEY, "")!!
 
-fun SharedPreferences.clearApiKey() {
-    edit().remove(Jellyfin.APIKEY_KEY).apply()
+fun SharedPreferences.clearCredentials() {
+    edit()
+        .remove(Jellyfin.APIKEY_KEY)
+        .remove(Jellyfin.USERID_KEY)
+        .apply()
 }
 
 fun Long.formatBytes(): String = when {

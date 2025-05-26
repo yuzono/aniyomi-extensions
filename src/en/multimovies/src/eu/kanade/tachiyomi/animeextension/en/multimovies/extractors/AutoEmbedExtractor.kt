@@ -764,7 +764,7 @@ class AutoEmbedExtractor(private val client: OkHttpClient) {
                     RabbitStreamExtractor(client).videosFromUrl(videoUrl, headers = videoHeaders, prefix = prefix)
                 }
                 videoUrl.contains("https://dood") -> {
-                    DoodExtractor(client).videoFromUrl(videoUrl, server.name, false)
+                    DoodExtractor(client).videoFromUrl(videoUrl, server.name)
                         ?.let(::listOf)
                 }
                 else -> null

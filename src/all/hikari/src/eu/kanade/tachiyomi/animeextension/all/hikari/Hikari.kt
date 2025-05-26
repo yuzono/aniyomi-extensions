@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.all.hikari
 
 import android.app.Application
+import android.util.Log
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -11,7 +12,9 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
+import eu.kanade.tachiyomi.lib.chillxextractor.ChillxExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
+import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.lib.vidhideextractor.VidHideExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
@@ -217,6 +220,8 @@ class Hikari : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
 
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
     private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }
+    private val chillxExtractor by lazy { ChillxExtractor(client, headers) }
+    private val streamwishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val embedRegex = Regex("""getEmbed\(\s*(\d+)\s*,\s*(\d+)\s*,\s*'(\d+)'""")
 
     override fun videoListRequest(episode: SEpisode): Request {
@@ -233,36 +238,112 @@ class Hikari : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun videoListParse(response: Response): List<Video> {
         val html = response.parseAs<HtmlResponseDto>().toHtml(baseUrl)
+        Log.d("Hikari", html.toString())
 
         val headers = headersBuilder()
             .set("Referer", response.request.url.toString())
             .build()
 
-        val embedUrls = html.select(videoListSelector()).flatMap {
-            val name = it.text()
-            val onClick = it.selectFirst("a")!!.attr("onclick")
-            val match = embedRegex.find(onClick)!!.groupValues
+        val subEmbedUrls = html.select(".servers-sub div.item.server-item").flatMap { item ->
+            val name = item.text().trim() + " (Sub)"
+            val onClick = item.selectFirst("a")?.attr("onclick")
+            if (onClick == null) {
+                Log.e("Hikari", "onClick attribute is null for item: $item")
+                return@flatMap emptyList<Pair<String, String>>()
+            }
+
+            val match = embedRegex.find(onClick)?.groupValues
+            if (match == null) {
+                Log.e("Hikari", "No match found for onClick: $onClick")
+                return@flatMap emptyList<Pair<String, String>>()
+            }
+
             val url = "$baseUrl/ajax/embed/${match[1]}/${match[2]}/${match[3]}"
             val iframeList = client.newCall(
                 GET(url, headers),
             ).execute().parseAs<List<String>>()
 
             iframeList.map {
-                Pair(Jsoup.parseBodyFragment(it).selectFirst("iframe")!!.attr("src"), name)
+                val iframeSrc = Jsoup.parseBodyFragment(it).selectFirst("iframe")?.attr("src")
+                if (iframeSrc == null) {
+                    Log.e("Hikari", "iframe src is null for URL: $url")
+                    return@map Pair("", "")
+                }
+                Pair(iframeSrc, name)
+            }.filter { it.first.isNotEmpty() }
+        }
+        val dubEmbedUrls = html.select(".servers-dub div.item.server-item").flatMap { item ->
+            val name = item.text().trim() + " (Dub)"
+            val onClick = item.selectFirst("a")?.attr("onclick")
+            if (onClick == null) {
+                Log.e("Hikari", "onClick attribute is null for item: $item")
+                return@flatMap emptyList<Pair<String, String>>()
             }
+
+            val match = embedRegex.find(onClick)?.groupValues
+            if (match == null) {
+                Log.e("Hikari", "No match found for onClick: $onClick")
+                return@flatMap emptyList<Pair<String, String>>()
+            }
+
+            val url = "$baseUrl/ajax/embed/${match[1]}/${match[2]}/${match[3]}"
+            val iframeList = client.newCall(
+                GET(url, headers),
+            ).execute().parseAs<List<String>>()
+
+            iframeList.map {
+                val iframeSrc = Jsoup.parseBodyFragment(it).selectFirst("iframe")?.attr("src")
+                if (iframeSrc == null) {
+                    Log.e("Hikari", "iframe src is null for URL: $url")
+                    return@map Pair("", "")
+                }
+                Pair(iframeSrc, name)
+            }.filter { it.first.isNotEmpty() }
         }
 
-        return embedUrls.parallelCatchingFlatMapBlocking {
+        val sdEmbedUrls = html.select(".servers-sub.\\&.dub div.item.server-item").flatMap { item ->
+            val name = item.text().trim() + " (Sub + Dub)"
+            val onClick = item.selectFirst("a")?.attr("onclick")
+            if (onClick == null) {
+                Log.e("Hikari", "onClick attribute is null for item: $item")
+                return@flatMap emptyList<Pair<String, String>>()
+            }
+
+            val match = embedRegex.find(onClick)?.groupValues
+            if (match == null) {
+                Log.e("Hikari", "No match found for onClick: $onClick")
+                return@flatMap emptyList<Pair<String, String>>()
+            }
+
+            val url = "$baseUrl/ajax/embed/${match[1]}/${match[2]}/${match[3]}"
+            val iframeList = client.newCall(
+                GET(url, headers),
+            ).execute().parseAs<List<String>>()
+
+            iframeList.map {
+                val iframeSrc = Jsoup.parseBodyFragment(it).selectFirst("iframe")?.attr("src")
+                if (iframeSrc == null) {
+                    Log.e("Hikari", "iframe src is null for URL: $url")
+                    return@map Pair("", "")
+                }
+                Pair(iframeSrc, name)
+            }.filter { it.first.isNotEmpty() }
+        }
+
+        return sdEmbedUrls.parallelCatchingFlatMapBlocking {
             getVideosFromEmbed(it.first, it.second)
+        }.ifEmpty {
+            (subEmbedUrls + dubEmbedUrls).parallelCatchingFlatMapBlocking {
+                getVideosFromEmbed(it.first, it.second)
+            }
         }
     }
 
     private fun getVideosFromEmbed(embedUrl: String, name: String): List<Video> = when {
-        name.contains("vidhide", true) -> vidHideExtractor.videosFromUrl(embedUrl)
-        embedUrl.contains("filemoon", true) -> {
-            filemoonExtractor.videosFromUrl(embedUrl, prefix = "$name - ", headers = headers)
-        }
-        else -> emptyList()
+        name.contains("vidhide", true) -> vidHideExtractor.videosFromUrl(embedUrl, videoNameGen = { s -> "$name - $s" })
+        embedUrl.contains("filemoon", true) -> filemoonExtractor.videosFromUrl(embedUrl, prefix = "$name - ", headers = headers)
+        name.contains("streamwish", true) -> streamwishExtractor.videosFromUrl(embedUrl, prefix = "$name - ")
+        else -> chillxExtractor.videoFromUrl(embedUrl, referer = baseUrl, prefix = "$name - ")
     }
 
     override fun videoListSelector() = ".server-item:has(a[onclick~=getEmbed])"

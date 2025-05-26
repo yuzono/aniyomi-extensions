@@ -45,7 +45,7 @@ class ItemDto(
     val seasonName: String? = null,
 
     // Anime Details
-    val seriesStatus: String? = null,
+    val status: String? = null,
     val overview: String? = null,
     val genres: List<String>? = null,
     val studios: List<StudioDto>? = null,
@@ -97,7 +97,7 @@ class ItemDto(
         status = if (type == "Movie") {
             SAnime.COMPLETED
         } else {
-            seriesStatus.parseStatus()
+            this@ItemDto.status.parseStatus()
         }
 
         if (type == "Season") {

@@ -14,8 +14,10 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
+import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -30,7 +32,6 @@ import okhttp3.Response
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -38,7 +39,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Hentaila"
 
-    override val baseUrl = "https://www4.hentaila.com"
+    override val baseUrl = "https://www5.hentaila.com"
 
     override val lang = "es"
 
@@ -65,6 +66,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             "Mp4Upload",
             "BurstCloud",
             "StreamHideVid",
+            "Sendvid",
         )
 
         private val DATE_FORMATTER by lazy {
@@ -72,67 +74,59 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/directorio?filter=popular&p=$page", headers)
+    override fun popularAnimeRequest(page: Int) = GET(baseUrl, headers)
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
-        val elements = document.select(".hentais .hentai")
-        val nextPage = document.select(".pagination .fa-arrow-right").any()
-        val animeList = elements.map { element ->
+        val elements = document.select("section.latest-hentais div.slider > div.item")
+        val animes = elements.map { element ->
             SAnime.create().apply {
-                setUrlWithoutDomain(element.select("a").attr("abs:href"))
-                title = element.selectFirst(".h-header .h-title")!!.text()
-                thumbnail_url = element.selectFirst(".h-thumb img")!!.attr("abs:src").replace("/fondos/", "/portadas/")
+                setUrlWithoutDomain(element.select("h2.h-title a").attr("abs:href"))
+                title = element.selectFirst("h2.h-title a")!!.text()
+                thumbnail_url = element.selectFirst("figure.bg img")!!.attr("abs:src").replace("/fondos/", "/portadas/")
             }
         }
-        return AnimesPage(animeList, nextPage)
+        return AnimesPage(animes, false)
     }
 
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/directorio?filter=recent&p=$page", headers)
+    override fun latestUpdatesRequest(page: Int) = GET(baseUrl, headers)
 
-    override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
+    override fun latestUpdatesParse(response: Response): AnimesPage {
+        val document = response.asJsoup()
+        val elements = document.select("section.episodes div.grid article.hentai")
+        val animes = elements.map { element ->
+            SAnime.create().apply {
+                setUrlWithoutDomain(element.select("a").attr("abs:href").replace("/ver/", "/hentai-").substringBeforeLast("-"))
+                title = element.selectFirst("h2.h-title")!!.text()
+                thumbnail_url = element.selectFirst("img")!!.attr("abs:src").replace("/thumbs/", "/portadas/")
+            }
+        }
+        return AnimesPage(animes.distinctBy { it.url }, false)
+    }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
-        val genreFilter = filterList.find { it is GenreFilter } as GenreFilter
+        val genreFilter = filterList.filterIsInstance<GenreFilter>().firstOrNull()
 
         if (query.isNotEmpty()) {
-            if (query.length < 2) throw IOException("La búsqueda debe tener al menos 2 caracteres")
+            require(query.length >= 2) { "La búsqueda debe tener al menos 2 caracteres" }
             return POST("$baseUrl/api/search", headers, FormBody.Builder().add("value", query).build())
         }
 
-        var url = "$baseUrl/directorio?p=$page".toHttpUrl().newBuilder()
-
-        if (genreFilter.state != 0) {
-            url = "$baseUrl/genero/${genreFilter.toUriPart()}?p=$page".toHttpUrl().newBuilder()
-        }
+        val urlBuilder = "$baseUrl/${if (genreFilter?.state != 0) "genero/${genreFilter?.toUriPart()}" else "directorio?p=$page"}"
+            .toHttpUrl().newBuilder()
 
         filterList.forEach { filter ->
             when (filter) {
-                is OrderFilter -> {
-                    url.addQueryParameter("filter", filter.toUriPart())
-                }
-                is StatusOngoingFilter -> {
-                    if (filter.state) {
-                        url.addQueryParameter("status[1]", "on")
-                    }
-                }
-                is StatusCompletedFilter -> {
-                    if (filter.state) {
-                        url.addQueryParameter("status[2]", "on")
-                    }
-                }
-                is UncensoredFilter -> {
-                    if (filter.state) {
-                        url.addQueryParameter("uncensored", "on")
-                    }
-                }
-
+                is OrderFilter -> urlBuilder.addQueryParameter("filter", filter.toUriPart())
+                is StatusOngoingFilter -> if (filter.state) urlBuilder.addQueryParameter("status[1]", "on")
+                is StatusCompletedFilter -> if (filter.state) urlBuilder.addQueryParameter("status[2]", "on")
+                is UncensoredFilter -> if (filter.state) urlBuilder.addQueryParameter("uncensored", "on")
                 else -> {}
             }
         }
 
-        return GET(url.build().toString(), headers)
+        return GET(urlBuilder.build().toString(), headers)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
@@ -150,7 +144,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         val document = response.asJsoup()
-        val animes = document.select("div.columns main section.section div.grid.hentais article.hentai").map {
+        val animeList = document.select("div.columns main section.section div.grid.hentais article.hentai").map {
             SAnime.create().apply {
                 title = it.select("header.h-header h2").text()
                 setUrlWithoutDomain(it.select("a").attr("abs:href"))
@@ -160,7 +154,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
         val hasNextPage = document.select("a.btn.rnd.npd.fa-arrow-right").any()
 
-        return AnimesPage(animes, hasNextPage)
+        return AnimesPage(animeList, hasNextPage)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -205,7 +199,9 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
-    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client) }
+    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
+    private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
@@ -227,7 +223,8 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 "mp4upload" -> mp4uploadExtractor.videosFromUrl(urlServer, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(urlServer, headers = headers)
                 "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(urlServer)
-                else -> emptyList()
+                "sendvid" -> sendvidExtractor.videosFromUrl(urlServer)
+                else -> universalExtractor.videosFromUrl(urlServer, headers)
             }
         }
     }
@@ -279,20 +276,20 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             Pair("Casadas", "casadas"),
             Pair("Chikan", "chikan"),
             Pair("Ecchi", "ecchi"),
-            Pair("Escolares", "escolares"),
             Pair("Enfermeras", "enfermeras"),
             Pair("Futanari", "futanari"),
-            Pair("Harem", "Harem"),
+            Pair("Escolares", "escolares"),
             Pair("Gore", "gore"),
             Pair("Hardcore", "hardcore"),
+            Pair("Harem", "harem"),
             Pair("Incesto", "incesto"),
             Pair("Juegos Sexuales", "juegos-sexuales"),
-            Pair("Maids", "maids"),
             Pair("Milfs", "milfs"),
+            Pair("Maids", "maids"),
             Pair("Netorare", "netorare"),
             Pair("Ninfomania", "ninfomania"),
             Pair("Ninjas", "ninjas"),
-            Pair("Orgia", "orgia"),
+            Pair("Orgias", "orgias"),
             Pair("Romance", "romance"),
             Pair("Shota", "shota"),
             Pair("Softcore", "softcore"),
@@ -303,9 +300,15 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             Pair("Vanilla", "vanilla"),
             Pair("Violacion", "violacion"),
             Pair("Virgenes", "virgenes"),
-            Pair("Yaoi", "Yaoi"),
+            Pair("Yaoi", "yaoi"),
             Pair("Yuri", "yuri"),
             Pair("Bondage", "bondage"),
+            Pair("Elfas", "elfas"),
+            Pair("Petit", "petit"),
+            Pair("Threesome", "threesome"),
+            Pair("Paizuri", "paizuri"),
+            Pair("Gal", "gal"),
+            Pair("Oyakodon", "oyakodon"),
         ),
     )
 

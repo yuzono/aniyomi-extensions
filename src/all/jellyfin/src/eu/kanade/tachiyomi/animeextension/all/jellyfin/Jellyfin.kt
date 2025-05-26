@@ -393,14 +393,13 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
     companion object {
         private const val SEASONS_FETCH_LIMIT = 20
         private const val SERIES_FETCH_LIMIT = 5
-        private val ALLOWED_LIBRARIES = listOf(
-            "unknown",
-            "movies",
-            "tvshows",
-            "homevideos",
-            "boxsets",
-            "playlists",
-            "folders",
+        private val LIBRARY_BLACKLIST = listOf(
+            "music",
+            "musicvideos",
+            "trailers",
+            "books",
+            "photos",
+            "livetv",
         )
 
         const val APIKEY_KEY = "api_key"
@@ -539,7 +538,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             validationMessage = "The URL is invalid, malformed, or ends with a slash",
             key = HOSTURL_KEY,
             restartRequired = true,
-        ) { preferences.clearApiKey() }
+        ) { preferences.clearCredentials() }
 
         screen.addEditTextPreference(
             title = "Username",
@@ -547,7 +546,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             summary = username.ifBlank { "The user account name" },
             key = USERNAME_KEY,
             restartRequired = true,
-        ) { preferences.clearApiKey() }
+        ) { preferences.clearCredentials() }
 
         screen.addEditTextPreference(
             title = "Password",
@@ -556,7 +555,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             key = PASSWORD_KEY,
             restartRequired = true,
-        ) { preferences.clearApiKey() }
+        ) { preferences.clearCredentials() }
 
         ListPreference(screen.context).apply {
             key = MEDIALIB_KEY
@@ -689,7 +688,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                 mediaLibraries = client.newCall(
                     GET("$baseUrl/Users/$userId/Items"),
                 ).execute().parseAs<ItemListDto>().items.filter {
-                    it.collectionType in ALLOWED_LIBRARIES
+                    it.collectionType !in LIBRARY_BLACKLIST
                 }.map {
                     Pair(it.name, it.id)
                 }

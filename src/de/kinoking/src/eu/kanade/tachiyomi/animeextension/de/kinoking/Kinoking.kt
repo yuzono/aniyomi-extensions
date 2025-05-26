@@ -89,7 +89,7 @@ class Kinoking : DooPlay(
             link.contains("https://dood") && hosterSelection.contains("dood") -> {
                 val quality = "Doodstream"
                 val redirect = !link.contains("https://doodstream")
-                doodExtractor.videosFromUrl(link, quality, redirect)
+                doodExtractor.videosFromUrl(link, quality)
             }
             link.contains("https://voe.sx") && hosterSelection.contains("voe") -> {
                 voeExtractor.videosFromUrl(link)

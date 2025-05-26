@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
-import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
@@ -14,6 +13,7 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
@@ -58,7 +58,7 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeSelector(): String = "div.Container ul.ListAnimes li article"
 
-    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/browse?order=rating&page=$page")
+    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/browse?order=rating&page=$page", headers)
 
     override fun popularAnimeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
@@ -109,18 +109,19 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val okruExtractor by lazy { OkruExtractor(client) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers.newBuilder().add("Referer", "$baseUrl/").build()) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
         val jsonString = document.selectFirst("script:containsData(var videos = {)")?.data() ?: return emptyList()
         val responseString = jsonString.substringAfter("var videos =").substringBefore(";").trim()
-        return json.decodeFromString<ServerModel>(responseString).sub.parallelCatchingFlatMapBlocking {
+        return json.decodeFromString<ServerModel>(responseString).sub.parallelCatchingFlatMapBlocking { it ->
             when (it.title) {
                 "Stape" -> listOf(streamTapeExtractor.videoFromUrl(it.url ?: it.code)!!)
                 "Okru" -> okruExtractor.videosFromUrl(it.url ?: it.code)
                 "YourUpload" -> yourUploadExtractor.videoFromUrl(it.url ?: it.code, headers = headers)
                 "SW" -> streamWishExtractor.videosFromUrl(it.url ?: it.code, videoNameGen = { "StreamWish:$it" })
-                else -> emptyList()
+                else -> universalExtractor.videosFromUrl(it.url ?: it.code, headers)
             }
         }
     }
@@ -132,116 +133,15 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val filterList = if (filters.isEmpty()) getFilterList() else filters
-        val genreFilter = filterList.find { it is GenreFilter } as GenreFilter
-        val stateFilter = filterList.find { it is StateFilter } as StateFilter
-        val typeFilter = filterList.find { it is TypeFilter } as TypeFilter
-        val orderByFilter = filterList.find { it is OrderByFilter } as OrderByFilter
-        var uri = "$baseUrl/browse?"
-        uri += if (query.isNotBlank()) "&q=$query" else ""
-        uri += if (genreFilter.state != 0) "&genre[]=${genreFilter.toUriPart()}" else ""
-        uri += if (stateFilter.state != 0) "&status[]=${stateFilter.toUriPart()}" else ""
-        uri += if (typeFilter.state != 0) "&type[]=${typeFilter.toUriPart()}" else ""
-        uri += "&order=${orderByFilter.toUriPart()}"
-        uri += "&page=$page"
+        val params = AnimeFlvFilters.getSearchParameters(filters)
         return when {
-            query.isNotBlank() || genreFilter.state != 0 || stateFilter.state != 0 || orderByFilter.state != 0 || typeFilter.state != 0 -> GET(uri)
-            else -> GET("$baseUrl/browse?page=$page&order=rating")
+            query.isNotBlank() -> GET("$baseUrl/browse?q=$query&page=$page")
+            params.filter.isNotBlank() -> GET("$baseUrl/browse${params.getQuery()}&page=$page")
+            else -> popularAnimeRequest(page)
         }
     }
 
-    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
-        AnimeFilter.Header("La busqueda por texto ignora el filtro"),
-        GenreFilter(),
-        StateFilter(),
-        TypeFilter(),
-        OrderByFilter(),
-    )
-
-    private class GenreFilter : UriPartFilter(
-        "Géneros",
-        arrayOf(
-            Pair("<Selecionar>", "all"),
-            Pair("Todo", "all"),
-            Pair("Acción", "accion"),
-            Pair("Artes Marciales", "artes_marciales"),
-            Pair("Aventuras", "aventura"),
-            Pair("Carreras", "carreras"),
-            Pair("Ciencia Ficción", "ciencia_ficcion"),
-            Pair("Comedia", "comedia"),
-            Pair("Demencia", "demencia"),
-            Pair("Demonios", "demonios"),
-            Pair("Deportes", "deportes"),
-            Pair("Drama", "drama"),
-            Pair("Ecchi", "ecchi"),
-            Pair("Escolares", "escolares"),
-            Pair("Espacial", "espacial"),
-            Pair("Fantasía", "fantasia"),
-            Pair("Harem", "harem"),
-            Pair("Historico", "historico"),
-            Pair("Infantil", "infantil"),
-            Pair("Josei", "josei"),
-            Pair("Juegos", "juegos"),
-            Pair("Magia", "magia"),
-            Pair("Mecha", "mecha"),
-            Pair("Militar", "militar"),
-            Pair("Misterio", "misterio"),
-            Pair("Música", "musica"),
-            Pair("Parodia", "parodia"),
-            Pair("Policía", "policia"),
-            Pair("Psicológico", "psicologico"),
-            Pair("Recuentos de la vida", "recuentos_de_la_vida"),
-            Pair("Romance", "romance"),
-            Pair("Samurai", "samurai"),
-            Pair("Seinen", "seinen"),
-            Pair("Shoujo", "shoujo"),
-            Pair("Shounen", "shounen"),
-            Pair("Sobrenatural", "sobrenatural"),
-            Pair("Superpoderes", "superpoderes"),
-            Pair("Suspenso", "suspenso"),
-            Pair("Terror", "terror"),
-            Pair("Vampiros", "vampiros"),
-            Pair("Yaoi", "yaoi"),
-            Pair("Yuri", "yuri"),
-        ),
-    )
-
-    private class StateFilter : UriPartFilter(
-        "Estado",
-        arrayOf(
-            Pair("<Seleccionar>", ""),
-            Pair("En emisión", "1"),
-            Pair("Finalizado", "2"),
-            Pair("Próximamente", "3"),
-        ),
-    )
-
-    private class TypeFilter : UriPartFilter(
-        "Tipo",
-        arrayOf(
-            Pair("<Seleccionar>", ""),
-            Pair("TV", "tv"),
-            Pair("Película", "movie"),
-            Pair("Especial", "special"),
-            Pair("OVA", "ova"),
-        ),
-    )
-
-    private class OrderByFilter : UriPartFilter(
-        "Ordenar Por",
-        arrayOf(
-            Pair("Por defecto", "default"),
-            Pair("Recientemente Actualizados", "updated"),
-            Pair("Recientemente Agregados", "added"),
-            Pair("Nombre A-Z", "title"),
-            Pair("Calificación", "rating"),
-        ),
-    )
-
-    private open class UriPartFilter(displayName: String, val vals: Array<Pair<String, String>>) :
-        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
-        fun toUriPart() = vals[state].second
-    }
+    override fun getFilterList(): AnimeFilterList = AnimeFlvFilters.FILTER_LIST
 
     override fun searchAnimeFromElement(element: Element) = popularAnimeFromElement(element)
 
@@ -267,13 +167,19 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
+    override fun latestUpdatesRequest(page: Int) = GET(baseUrl, headers)
 
-    override fun latestUpdatesFromElement(element: Element) = popularAnimeFromElement(element)
+    override fun latestUpdatesNextPageSelector() = null
 
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/browse?order=added&page=$page")
+    override fun latestUpdatesSelector() = "div.Container ul.ListEpisodios li a.fa-play"
 
-    override fun latestUpdatesSelector() = popularAnimeSelector()
+    override fun latestUpdatesFromElement(element: Element): SAnime {
+        val anime = SAnime.create()
+        anime.setUrlWithoutDomain(element.select("a").attr("abs:href").replace("/ver/", "/anime/").substringBeforeLast("-"))
+        anime.title = element.select("strong.Title").text()
+        anime.thumbnail_url = element.select("span.Image img").attr("abs:src").replace("thumbs", "covers")
+        return anime
+    }
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!

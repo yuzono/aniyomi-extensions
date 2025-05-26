@@ -6,9 +6,9 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.Headers
 import okhttp3.OkHttpClient
-import okhttp3.internal.EMPTY_HEADERS
+import okhttp3.internal.commonEmptyHeaders
 
-class VidMolyExtractor(private val client: OkHttpClient, headers: Headers = EMPTY_HEADERS) {
+class VidMolyExtractor(private val client: OkHttpClient, headers: Headers = commonEmptyHeaders) {
 
     private val baseUrl = "https://vidmoly.to"
 

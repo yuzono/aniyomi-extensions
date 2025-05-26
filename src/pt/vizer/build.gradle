@@ -1,13 +1,7 @@
 ext {
     extName = 'Vizer.tv'
     extClass = '.Vizer'
-    extVersionCode = 16
+    extVersionCode = 19
     isNsfw = true
 }
 
-apply from: "$rootDir/common.gradle"
-
-dependencies {
-    implementation(project(':lib:mixdrop-extractor'))
-    implementation(project(':lib:streamtape-extractor'))
-}
