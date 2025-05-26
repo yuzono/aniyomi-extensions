@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'PutLocker'
     extClass = '.PutLocker'
-    extVersionCode = 10
+    extVersionCode = 9
 }
 
 apply from: "$rootDir/common.gradle"

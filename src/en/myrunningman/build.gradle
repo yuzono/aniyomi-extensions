@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'My Running Man'
     extClass = '.MyRunningMan'
-    extVersionCode = 8
+    extVersionCode = 7
 }
 
 apply from: "$rootDir/common.gradle"

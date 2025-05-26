@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'StreamCloud'
     extClass = '.StreamCloud'
-    extVersionCode = 12
+    extVersionCode = 10
 }
 
 apply from: "$rootDir/common.gradle"

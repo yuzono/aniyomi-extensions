@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 0
     extName = 'StreamingCommunity'
     extClass = '.StreamingCommunity'
-    extVersionCode = 7
+    extVersionCode = 5
 }
 
 apply from: "$rootDir/common.gradle"

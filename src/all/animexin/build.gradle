@@ -4,7 +4,7 @@ ext {
     extClass = '.AnimeXin'
     themePkg = 'animestream'
     baseUrl = 'https://animexin.vip'
-    overrideVersionCode = 12
+    overrideVersionCode = 10
 }
 
 apply from: "$rootDir/common.gradle"

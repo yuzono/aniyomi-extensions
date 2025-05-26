@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 2
     extName = 'YoMovies'
     extClass = '.YoMovies'
-    extVersionCode = 21
+    extVersionCode = 22
     isNsfw = true
 }
 

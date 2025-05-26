@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 0
     extName = 'Hikari'
     extClass = '.Hikari'
-    extVersionCode = 15
+    extVersionCode = 16
 }
 
 apply from: "$rootDir/common.gradle"

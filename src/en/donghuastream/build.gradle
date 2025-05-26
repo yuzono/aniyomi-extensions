@@ -4,7 +4,7 @@ ext {
     extClass = '.DonghuaStream'
     themePkg = 'animestream'
     baseUrl = 'https://donghuastream.org'
-    overrideVersionCode = 9
+    overrideVersionCode = 8
 }
 
 apply from: "$rootDir/common.gradle"
