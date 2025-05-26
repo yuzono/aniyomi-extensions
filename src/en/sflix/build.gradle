@@ -4,7 +4,7 @@ ext {
     extClass = '.SFlix'
     themePkg = 'dopeflix'
     baseUrl = 'https://sflix.to'
-    overrideVersionCode = 12
+    overrideVersionCode = 9
 }
 
 apply from: "$rootDir/common.gradle"

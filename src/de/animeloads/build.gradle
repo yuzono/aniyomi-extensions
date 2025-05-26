@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 1
     extName = 'Anime-Loads'
     extClass = '.AnimeLoads'
-    extVersionCode = 20
+    extVersionCode = 17
     isNsfw = true
 }
 
