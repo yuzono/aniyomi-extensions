@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelFlatMapBlocking
 import eu.kanade.tachiyomi.util.parallelMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -36,8 +37,6 @@ import java.util.Locale
 class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "Aniwave.se"
-
-    override val id: Long = 98855593379717478
 
     override val baseUrl by lazy {
         val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
@@ -66,7 +65,14 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================== Popular ===============================
 
-    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/filter?sort=trending&page=$page", refererHeaders)
+    override fun popularAnimeRequest(page: Int): Request = GET(
+        baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("trending-anime")
+            addPathSegment("")
+            addQueryParameter("page", page.toString())
+        }.build(),
+        refererHeaders,
+    )
 
     override fun popularAnimeSelector(): String = "div.ani.items > div.item"
 
@@ -83,7 +89,14 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // =============================== Latest ===============================
 
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/filter?sort=recently_updated&page=$page", refererHeaders)
+    override fun latestUpdatesRequest(page: Int): Request = GET(
+        baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("anime-list")
+            addPathSegment("")
+            addQueryParameter("page", page.toString())
+        }.build(),
+        refererHeaders,
+    )
 
     override fun latestUpdatesSelector(): String = popularAnimeSelector()
 
@@ -353,6 +366,8 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     companion object {
+        private const val DOMAIN = "aniwave.se"
+
         private val SOFTSUB_REGEX by lazy { Regex("""\bsoftsub\b""", RegexOption.IGNORE_CASE) }
         private val RELEASE_REGEX by lazy { Regex("""Release: (\d+\/\d+\/\d+ \d+:\d+)""") }
 
@@ -361,7 +376,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
 
         private const val PREF_DOMAIN_KEY = "preferred_domain"
-        private const val PREF_DOMAIN_DEFAULT = "https://aniwave.to"
+        private const val PREF_DOMAIN_DEFAULT = "https://$DOMAIN"
 
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
 
@@ -412,8 +427,8 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         ListPreference(screen.context).apply {
             key = PREF_DOMAIN_KEY
             title = "Preferred domain"
-            entries = arrayOf("aniwave.to", "aniwavetv.to (unofficial)")
-            entryValues = arrayOf("https://aniwave.to", "https://aniwavetv.to")
+            entries = arrayOf("$DOMAIN")
+            entryValues = arrayOf("https://$DOMAIN")
             setDefaultValue(PREF_DOMAIN_DEFAULT)
             summary = "%s"
 
@@ -421,7 +436,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
-                Toast.makeText(screen.context, "Restart Aniyomi to apply changes", Toast.LENGTH_LONG).show()
+                Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
                 preferences.edit().putString(key, entry).commit()
             }
         }.also(screen::addPreference)
@@ -479,7 +494,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             title = "Mark filler episodes"
             setDefaultValue(PREF_MARK_FILLERS_DEFAULT)
             setOnPreferenceChangeListener { _, newValue ->
-                Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                 preferences.edit().putBoolean(key, newValue as Boolean).commit()
             }
         }.also(screen::addPreference)
@@ -525,11 +540,11 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val newDomain = newValue as String
                 if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
                     summary = "Restart to apply changes"
-                    Toast.makeText(screen.context, "Restart Aniyomi to apply changes", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
                     preferences.edit().putString(key, newDomain).apply()
                     true
                 } else {
-                    Toast.makeText(screen.context, "Invalid url. Url example: https://aniwave.to", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Invalid url. Url example: https://$DOMAIN", Toast.LENGTH_LONG).show()
                     false
                 }
             }
