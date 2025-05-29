@@ -315,7 +315,8 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // sources:[{"file":"https://hlsx3cdn.echovideo.to/one-piece/1128/master.m3u8","quality":"default"},{"file":"https://hlsx3cdn.echovideo.to/one-piece/1128/master.m3u8","quality":"default"}]
     // sources:[{"file":"https://hlsx112cdn.echovideo.to/embed-2/3326505230727/11262573528/1/1/0f37b1b5b55ea4d35fab74f86f8768aba2cc09a5/master.m3u8","quality":"default"}],tracks:[{"file":"https://s.megastatics.com/subtitle/c1c05d1df7016a987f7f0277170a602f/c1c05d1df7016a987f7f0277170a602f.vtt","label":"English","kind":"captions","default":true}]
-    private val episodePlaylistRegex = Regex("""sources:\[\{"file":"([^"]+)"(.*?tracks:\[\{"file":"([^"]+)".*?"label":"([^"]+)","kind":"captions")?""")
+    private val playlistRegex = Regex("""sources:\[\{"file":"([^"]+)"(.*tracks:.*)?""")
+    private val subtitlesRegex = Regex("""\{"file":"([^"]+)","label":"([^"]+)","kind":"captions"""")
 
     private fun videosFromUrl(
         embedLink: String,
@@ -350,34 +351,21 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         val data = response.body.string()
 
-        val playlist = episodePlaylistRegex.find(data)
-            ?.groupValues?.let {
-                val playlistUrl = it[1]
-                val trackFile = it.getOrNull(3)
-                val trackLabel = it.getOrNull(4)
-
-                if (trackFile != null && trackLabel != null) {
-                    // If subtitle track is present, return with subtitles
-                    return@let Pair(playlistUrl, Pair(trackFile, trackLabel))
-                }
-                // If no subtitle track, just return the playlist URL
-                Pair(playlistUrl, null)
-            }
+        val sources = playlistRegex.find(data)?.groupValues
             ?: throw Exception("Playlist URL not found in response: $data")
+        val playlistUrl = sources[1]
+
+        val subtitles = sources[2].let { tracks ->
+            subtitlesRegex.findAll(tracks)
+                .map { it.groupValues.drop(1) }
+                .map { Pair(it[0], it[1]) }
+        }
 
         return playlistUtils.extractFromHls(
-            playlistUrl = playlist.first,
+            playlistUrl = playlistUrl,
             referer = "https://$baseUrl/",
             videoNameGen = { q -> hosterName + (if (type.isBlank()) "" else " - $type") + " - $q" },
-            subtitleList = playlist.second
-                ?.let { (file, label) ->
-                    listOf(
-                        Track(
-                            url = file,
-                            lang = label,
-                        ),
-                    )
-                } ?: emptyList(),
+            subtitleList = subtitles.map { (file, label) -> Track(url = file, lang = label) }.toList(),
         )
     }
 
