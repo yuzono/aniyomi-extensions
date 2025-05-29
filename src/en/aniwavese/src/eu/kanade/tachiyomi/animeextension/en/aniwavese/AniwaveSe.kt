@@ -13,10 +13,12 @@ import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
+import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.vidsrcextractor.VidsrcExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -270,37 +272,113 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================= Utilities ==============================
 
+    private val playlistUtils by lazy { PlaylistUtils(client, headers) }
     private val vidsrcExtractor by lazy { VidsrcExtractor(client, headers) }
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
 
     private fun extractVideo(server: VideoData, epUrl: String): List<Video> {
-        val vrf = utils.vrfEncrypt(server.serverId)
-
-        val listHeaders = headers.newBuilder().apply {
-            add("Accept", "application/json, text/javascript, */*; q=0.01")
-            add("Referer", baseUrl + epUrl)
-            add("X-Requested-With", "XMLHttpRequest")
-        }.build()
-
-        val response = client.newCall(
-            GET("$baseUrl/ajax/server/${server.serverId}?vrf=$vrf", listHeaders),
-        ).execute()
-        if (response.code != 200) return emptyList()
+        /**
+         * Calling server script and return the encrypted JSON response here, will work on decrypting it later.
+         */
+//        val vrf = utils.vrfEncrypt(server.serverId)
+//
+//        val listHeaders = headers.newBuilder().apply {
+//            add("Accept", "application/json, text/javascript, */*; q=0.01")
+//            add("Referer", baseUrl + epUrl)
+//            add("X-Requested-With", "XMLHttpRequest")
+//        }.build()
+//
+//        val response = client.newCall(
+//            GET("$baseUrl/ajax/server/${server.serverId}?vrf=$vrf", listHeaders),
+//        ).execute()
+//        if (response.code != 200) return emptyList()
 
         return runCatching {
-            val parsed = response.parseAs<ServerResponse>()
-            val embedLink = utils.vrfDecrypt(parsed.result.url)
+//            val parsed = response.parseAs<ServerResponse>()
+//            val embedLink = utils.vrfDecrypt(parsed.result.url)
             when (server.serverName) {
-                "vidstream" -> vidsrcExtractor.videosFromUrl(embedLink, "Vidstream", server.type)
-                "megaf" -> vidsrcExtractor.videosFromUrl(embedLink, "MegaF", server.type)
-                "moonf" -> filemoonExtractor.videosFromUrl(embedLink, "MoonF - ${server.type} - ")
-                "streamtape" -> streamtapeExtractor.videoFromUrl(embedLink, "StreamTape - ${server.type}")?.let(::listOf) ?: emptyList()
-                "mp4u" -> mp4uploadExtractor.videosFromUrl(embedLink, headers, suffix = " - ${server.type}")
+                "f4 - noads" -> videosFromUrl(server.serverId, "F4 - Noads", server.type)
+//                "vidstream" -> vidsrcExtractor.videosFromUrl(embedLink, "Vidstream", server.type)
+//                "megaf" -> vidsrcExtractor.videosFromUrl(embedLink, "MegaF", server.type)
+//                "moonf" -> filemoonExtractor.videosFromUrl(embedLink, "MoonF - ${server.type} - ")
+//                "streamtape" -> streamtapeExtractor.videoFromUrl(embedLink, "StreamTape - ${server.type}")?.let(::listOf) ?: emptyList()
+//                "mp4u" -> mp4uploadExtractor.videosFromUrl(embedLink, headers, suffix = " - ${server.type}")
                 else -> emptyList()
             }
         }.getOrElse { emptyList() }
+    }
+
+    // one-piece-episode-1128-ep-id-1128-sv-id-41
+    private val episodeUrlRegex = Regex("""([\w-]+)-episode-(\d+)""")
+
+    // sources:[{"file":"https://hlsx3cdn.echovideo.to/one-piece/1128/master.m3u8","quality":"default"},{"file":"https://hlsx3cdn.echovideo.to/one-piece/1128/master.m3u8","quality":"default"}]
+    // sources:[{"file":"https://hlsx112cdn.echovideo.to/embed-2/3326505230727/11262573528/1/1/0f37b1b5b55ea4d35fab74f86f8768aba2cc09a5/master.m3u8","quality":"default"}],tracks:[{"file":"https://s.megastatics.com/subtitle/c1c05d1df7016a987f7f0277170a602f/c1c05d1df7016a987f7f0277170a602f.vtt","label":"English","kind":"captions","default":true}]
+    private val episodePlaylistRegex = Regex("""sources:\[\{"file":"([^"]+)"(.*?tracks:\[\{"file":"([^"]+)".*?"label":"([^"]+)","kind":"captions")?""")
+
+    private fun videosFromUrl(
+        embedLink: String,
+        hosterName: String,
+        type: String = "",
+    ): List<Video> {
+        val matchResult = episodeUrlRegex.find(embedLink)
+            ?: throw Exception("Episode ID not found in embed link: $embedLink")
+        val episodeId = matchResult.groupValues[0]
+        val animeName = matchResult.groupValues[1]
+        val episodeNumber = matchResult.groupValues[2]
+
+        // Should construct this link:
+        // $baseUrl/ajax/player/?ep=one-piece-episode-1280&dub=false&sn=one-piece&epn=1130&g=true&autostart=true
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("ajax")
+            addPathSegment("player")
+            addQueryParameter("ep", episodeId)
+            addQueryParameter("dub", (type.lowercase() == "dub").toString())
+            addQueryParameter("sn", animeName) // Might need to add "-dub" if type is "Dub"
+            if (type == "S-sub") {
+                addQueryParameter("svr", "z")
+            }
+            addQueryParameter("epn", episodeNumber)
+            addQueryParameter("g", "true")
+        }
+
+        val response = client.newCall(GET(url.build(), refererHeaders)).execute()
+        if (response.code != 200) {
+            throw Exception("Failed to fetch video links: ${response.message}")
+        }
+
+        val data = response.body.string()
+
+        val playlist = episodePlaylistRegex.find(data)
+            ?.groupValues?.let {
+                val playlistUrl = it[1]
+                val trackFile = it.getOrNull(3)
+                val trackLabel = it.getOrNull(4)
+
+                if (trackFile != null && trackLabel != null) {
+                    // If subtitle track is present, return with subtitles
+                    return@let Pair(playlistUrl, Pair(trackFile, trackLabel))
+                }
+                // If no subtitle track, just return the playlist URL
+                Pair(playlistUrl, null)
+            }
+            ?: throw Exception("Playlist URL not found in response: $data")
+
+        return playlistUtils.extractFromHls(
+            playlistUrl = playlist.first,
+            referer = "https://$baseUrl/",
+            videoNameGen = { q -> hosterName + (if (type.isBlank()) "" else " - $type") + " - $q" },
+            subtitleList = playlist.second
+                ?.let { (file, label) ->
+                    listOf(
+                        Track(
+                            url = file,
+                            lang = label,
+                        ),
+                    )
+                } ?: emptyList(),
+        )
     }
 
     private fun Int.toBoolean() = this == 1
@@ -369,7 +447,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val DOMAIN = "aniwave.se"
 
         private val SOFTSUB_REGEX by lazy { Regex("""\bsoftsub\b""", RegexOption.IGNORE_CASE) }
-        private val RELEASE_REGEX by lazy { Regex("""Release: (\d+\/\d+\/\d+ \d+:\d+)""") }
+        private val RELEASE_REGEX by lazy { Regex("""Release: (\d+/\d+/\d+ \d+:\d+)""") }
 
         private val DATE_FORMATTER by lazy {
             SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.ENGLISH)
@@ -394,6 +472,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         private const val PREF_HOSTER_KEY = "hoster_selection"
         private val HOSTERS = arrayOf(
+            "F4 - Noads",
             "Vidstream",
             "Megaf",
             "MoonF",
@@ -401,6 +480,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "MP4u",
         )
         private val HOSTERS_NAMES = arrayOf(
+            "f4 - noads",
             "vidstream",
             "megaf",
             "moonf",
@@ -410,7 +490,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private val PREF_HOSTER_DEFAULT = HOSTERS_NAMES.toSet()
 
         private const val PREF_TYPE_TOGGLE_KEY = "type_selection"
-        private val TYPES = arrayOf("Sub", "Softsub", "Dub")
+        private val TYPES = arrayOf("Sub", "S-sub", "Dub")
         private val PREF_TYPES_TOGGLE_DEFAULT = TYPES.toSet()
     }
 
@@ -427,7 +507,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         ListPreference(screen.context).apply {
             key = PREF_DOMAIN_KEY
             title = "Preferred domain"
-            entries = arrayOf("$DOMAIN")
+            entries = arrayOf(DOMAIN)
             entryValues = arrayOf("https://$DOMAIN")
             setDefaultValue(PREF_DOMAIN_DEFAULT)
             summary = "%s"
