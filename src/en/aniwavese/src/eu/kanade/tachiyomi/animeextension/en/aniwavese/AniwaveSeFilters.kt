@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animeextension.en.aniwavese
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import java.util.Calendar
 
 object AniwaveSeFilters {
     open class QueryPartFilter(
@@ -49,6 +50,12 @@ object AniwaveSeFilters {
 
     class SortFilter : QueryPartFilter("Sort order", NineAnimeFiltersData.SORT)
 
+    private class GenreModeFilter(state: Boolean = false) : AnimeFilter.CheckBox("Must have all selected genres", state) {
+        fun asQueryPart(): String {
+            return if (state) "&genre_mode=and" else ""
+        }
+    }
+
     class GenreFilter : CheckBoxFilterList(
         "Genre",
         NineAnimeFiltersData.GENRE.map { CheckBoxVal(it.first, false) },
@@ -90,9 +97,10 @@ object AniwaveSeFilters {
     )
 
     val FILTER_LIST get() = AnimeFilterList(
-        SortFilter(),
-        AnimeFilter.Separator(),
+        // SortFilter(),
         GenreFilter(),
+        GenreModeFilter(),
+        AnimeFilter.Separator(),
         CountryFilter(),
         SeasonFilter(),
         YearFilter(),
@@ -104,6 +112,7 @@ object AniwaveSeFilters {
 
     data class FilterSearchParams(
         val sort: String = "",
+        val genreMode: String = "",
         val genre: String = "",
         val country: String = "",
         val season: String = "",
@@ -119,6 +128,7 @@ object AniwaveSeFilters {
 
         return FilterSearchParams(
             filters.asQueryPart<SortFilter>(),
+            filters.filterIsInstance<GenreModeFilter>().firstOrNull()?.asQueryPart() ?: "",
             filters.parseCheckbox<GenreFilter>(NineAnimeFiltersData.GENRE, "genre"),
             filters.parseCheckbox<CountryFilter>(NineAnimeFiltersData.COUNTRY, "country"),
             filters.parseCheckbox<SeasonFilter>(NineAnimeFiltersData.SEASON, "season"),
@@ -202,40 +212,22 @@ object AniwaveSeFilters {
             Pair("Unknown", "unknown"),
         )
 
-        val YEAR = arrayOf(
-            Pair("2024", "2024"),
-            Pair("2023", "2023"),
-            Pair("2022", "2022"),
-            Pair("2021", "2021"),
-            Pair("2020", "2020"),
-            Pair("2019", "2019"),
-            Pair("2018", "2018"),
-            Pair("2017", "2017"),
-            Pair("2016", "2016"),
-            Pair("2015", "2015"),
-            Pair("2014", "2014"),
-            Pair("2013", "2013"),
-            Pair("2012", "2012"),
-            Pair("2011", "2011"),
-            Pair("2010", "2010"),
-            Pair("2009", "2009"),
-            Pair("2008", "2008"),
-            Pair("2007", "2007"),
-            Pair("2006", "2006"),
-            Pair("2005", "2005"),
-            Pair("2004", "2004"),
-            Pair("2003", "2003"),
-            Pair("2000s", "2000s"),
-            Pair("1990s", "1990s"),
-            Pair("1980s", "1980s"),
-            Pair("1970s", "1970s"),
-            Pair("1960s", "1960s"),
-            Pair("1950s", "1950s"),
-            Pair("1940s", "1940s"),
-            Pair("1930s", "1930s"),
-            Pair("1920s", "1920s"),
-            Pair("1910s", "1910s"),
-        )
+        val YEAR = (Calendar.getInstance().get(Calendar.YEAR) downTo 2003)
+            .map {
+                Pair(it.toString(), it.toString())
+            }.toTypedArray() +
+            arrayOf(
+                Pair("2000s", "2000s"),
+                Pair("1990s", "1990s"),
+                Pair("1980s", "1980s"),
+                Pair("1970s", "1970s"),
+                Pair("1960s", "1960s"),
+                Pair("1950s", "1950s"),
+                Pair("1940s", "1940s"),
+                Pair("1930s", "1930s"),
+                Pair("1920s", "1920s"),
+                Pair("1910s", "1910s"),
+            )
 
         val TYPE = arrayOf(
             Pair("Movie", "movie"),
@@ -255,6 +247,7 @@ object AniwaveSeFilters {
         val LANGUAGE = arrayOf(
             Pair("Sub and Dub", "subdub"),
             Pair("Sub", "sub"),
+            Pair("S-Sub", "s-sub"),
             Pair("Dub", "dub"),
         )
 

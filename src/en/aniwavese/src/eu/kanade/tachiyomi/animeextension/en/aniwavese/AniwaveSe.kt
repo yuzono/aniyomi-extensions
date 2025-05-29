@@ -115,6 +115,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         var url = "$baseUrl/filter?keyword=$query"
 
         if (filters.genre.isNotBlank()) url += filters.genre
+        if (filters.genreMode.isNotBlank()) url += filters.genreMode
         if (filters.country.isNotBlank()) url += filters.country
         if (filters.season.isNotBlank()) url += filters.season
         if (filters.year.isNotBlank()) url += filters.year
@@ -122,8 +123,9 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         if (filters.status.isNotBlank()) url += filters.status
         if (filters.language.isNotBlank()) url += filters.language
         if (filters.rating.isNotBlank()) url += filters.rating
+        if (filters.sort.isNotBlank()) url += "&sort=${filters.sort}"
 
-        return GET("$url&sort=${filters.sort}&page=$page&vrf=$vrf", refererHeaders)
+        return GET("$url&page=$page&vrf=$vrf", refererHeaders)
     }
 
     override fun searchAnimeSelector(): String = popularAnimeSelector()
