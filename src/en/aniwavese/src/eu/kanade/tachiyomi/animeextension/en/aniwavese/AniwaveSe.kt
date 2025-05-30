@@ -397,7 +397,8 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun parseStatus(statusString: String): Int {
         return when (statusString) {
-            "Releasing" -> SAnime.ONGOING
+            "Ongoing Anime" -> SAnime.ONGOING
+            "Finished Airing" -> SAnime.COMPLETED
             "Completed" -> SAnime.COMPLETED
             else -> SAnime.UNKNOWN
         }
