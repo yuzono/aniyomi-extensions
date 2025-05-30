@@ -42,8 +42,8 @@ data class MediaResponseBody(
 ) {
     @Serializable
     data class Result(
-        val sources: ArrayList<Source>,
-        val tracks: ArrayList<SubTrack> = ArrayList(),
+        val sources: List<Source>,
+        val tracks: List<SubTrack> = emptyList(),
     ) {
         @Serializable
         data class Source(

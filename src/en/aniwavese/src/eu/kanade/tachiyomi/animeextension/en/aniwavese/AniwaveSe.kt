@@ -142,7 +142,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun animeDetailsParse(document: Document): SAnime {
         val anime = SAnime.create()
-        val newDocument = resolveSearchAnime(anime, document)
+        val newDocument = resolveSearchAnime(document)
         anime.apply {
             title = newDocument.select("h1.title").text()
             genre = newDocument.select("div:contains(Genre) > span > a").joinToString { it.text() }
@@ -168,8 +168,9 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun episodeListRequest(anime: SAnime): Request {
         val response = client.newCall(GET(baseUrl + anime.url)).execute()
         var document = response.asJsoup()
-        document = resolveSearchAnime(anime, document)
-        val id = document.selectFirst("div[data-id]")?.attr("data-id") ?: throw Exception("ID not found")
+        document = resolveSearchAnime(document)
+        val id = document.selectFirst("div[data-id]")?.attr("data-id")
+            ?: throw IllegalStateException("ID not found")
 
         val vrf = utils.vrfEncrypt(id)
 
@@ -199,8 +200,8 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         val epNum = element.attr("data-num")
         val ids = element.attr("data-ids")
-        val sub = if (element.attr("data-sub").toInt().toBoolean()) "Sub" else ""
-        val dub = if (element.attr("data-dub").toInt().toBoolean()) "Dub" else ""
+        val sub = if (element.attr("data-sub").toInt() == 1) "Sub" else ""
+        val dub = if (element.attr("data-dub").toInt() == 1) "Dub" else ""
         val softSub = if (SOFTSUB_REGEX.find(title) != null) "SoftSub" else ""
 
         val extraInfo = if (element.hasClass("filler") && markFiller) {
@@ -326,7 +327,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         type: String = "",
     ): List<Video> {
         val matchResult = episodeUrlRegex.find(embedLink)
-            ?: throw Exception("Episode ID not found in embed link: $embedLink")
+            ?: throw IllegalStateException("Episode ID not found in embed link: $embedLink")
         val episodeId = matchResult.groupValues[0]
         val animeName = matchResult.groupValues[1]
         val episodeNumber = matchResult.groupValues[2]
@@ -348,13 +349,13 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         val response = client.newCall(GET(url.build(), refererHeaders)).execute()
         if (response.code != 200) {
-            throw Exception("Failed to fetch video links: ${response.message}")
+            throw IllegalStateException("Failed to fetch video links: ${response.message}")
         }
 
         val data = response.body.string()
 
         val sources = playlistRegex.find(data)?.groupValues
-            ?: throw Exception("Playlist URL not found in response: $data")
+            ?: throw IllegalStateException("Playlist URL not found in response: $data")
         val playlistUrl = sources[1]
 
         val subtitles = sources[2].let { tracks ->
@@ -365,13 +366,11 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         return playlistUtils.extractFromHls(
             playlistUrl = playlistUrl,
-            referer = "https://$baseUrl/",
+            referer = "$baseUrl/",
             videoNameGen = { q -> hosterName + (if (type.isBlank()) "" else " - $type") + " - $q" },
             subtitleList = subtitles.map { (file, label) -> Track(url = file, lang = label) }.toList(),
         )
     }
-
-    private fun Int.toBoolean() = this == 1
 
     private fun Set<String>.contains(s: String, ignoreCase: Boolean): Boolean {
         return any { it.equals(s, ignoreCase) }
@@ -404,12 +403,11 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    private fun resolveSearchAnime(anime: SAnime, document: Document): Document {
+    private fun resolveSearchAnime(document: Document): Document {
         if (document.location().startsWith("$baseUrl/filter?keyword=")) { // redirected to search
             val element = document.selectFirst(searchAnimeSelector())
             val foundAnimePath = element?.selectFirst("a[href]")?.attr("href")
-                ?: throw Exception("Search element not found (resolveSearch)")
-            anime.url = foundAnimePath // probably doesn't work as intended
+                ?: throw IllegalStateException("Search element not found (resolveSearch)")
             return client.newCall(GET(baseUrl + foundAnimePath)).execute().asJsoup()
         }
         return document
