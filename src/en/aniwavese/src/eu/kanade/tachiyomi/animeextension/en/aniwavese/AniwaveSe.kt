@@ -112,7 +112,10 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val filters = AniwaveSeFilters.getSearchParameters(filters)
 
         val vrf = if (query.isNotBlank()) utils.vrfEncrypt(query) else ""
-        var url = "$baseUrl/filter?keyword=$query"
+        var url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("filter")
+            addQueryParameter("keyword", query)
+        }.build().toString()
 
         if (filters.genre.isNotBlank()) url += filters.genre
         if (filters.genreMode.isNotBlank()) url += filters.genreMode
