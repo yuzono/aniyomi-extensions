@@ -9,3 +9,10 @@ Checklist:
 - [ ] Have tested the modifications by compiling and running the extension through Android Studio
 - [ ] Have removed `web_hi_res_512.png` when adding a new extension
 - [ ] Have made sure all the icons are in png format
+
+---
+
+Add a :+1: [reaction] to [pull requests you find important].
+
+[reaction]: https://github.blog/2016-03-10-add-reactions-to-pull-requests-issues-and-comments/
+[pull requests you find important]: https://github.com/yuzono/aniyomi-extensions/pulls?q=is%3Aopen+sort%3Areactions-%2B1-desc
