@@ -69,7 +69,7 @@ body:
       description: |
         **Please do not modify this text area!**
 
-        This template let users to vote with a :+1: reaction if they find it important.
+        This template lets users to vote with a :+1: reaction if they find it important.
         This is not a guarantee that highly-requested issues will be fixed first, but it helps us to figure out what's important to users. Please react on other users' issues if you find them important.
       value: |
         Add a :+1: [reaction] to [issues you find important].
