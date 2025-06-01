@@ -513,7 +513,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
 
                 setDefaultValue(EXTRA_SOURCES_COUNT_DEFAULT)
                 setOnPreferenceChangeListener { _, _ ->
-                    Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                     true
                 }
             }.also(screen::addPreference)

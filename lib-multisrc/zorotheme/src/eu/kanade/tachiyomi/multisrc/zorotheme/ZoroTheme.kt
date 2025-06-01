@@ -353,7 +353,7 @@ abstract class ZoroTheme(
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
-                Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                 preferences.edit().putString(key, entry).commit()
             }
         }.also(screen::addPreference)
@@ -363,7 +363,7 @@ abstract class ZoroTheme(
             title = "Mark filler episodes"
             setDefaultValue(MARK_FILLERS_DEFAULT)
             setOnPreferenceChangeListener { _, newValue ->
-                Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                 preferences.edit().putBoolean(key, newValue as Boolean).commit()
             }
         }.also(screen::addPreference)

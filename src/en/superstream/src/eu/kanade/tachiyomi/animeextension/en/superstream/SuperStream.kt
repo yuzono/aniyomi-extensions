@@ -216,7 +216,7 @@ class SuperStream : ConfigurableAnimeSource, AnimeHttpSource() {
 
             setOnPreferenceChangeListener { _, newValue ->
                 val new = newValue as Boolean
-                Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                 preferences.edit().putBoolean(key, new).commit()
             }
         }.also(screen::addPreference)

@@ -704,7 +704,7 @@ class GoogleDriveIndex : ConfigurableAnimeSource, AnimeHttpSource() {
             setOnPreferenceChangeListener { _, newValue ->
                 try {
                     val res = preferences.edit().putString(DOMAIN_PREF_KEY, newValue as String).commit()
-                    Toast.makeText(screen.context, "Restart Aniyomi to apply changes", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
                     res
                 } catch (e: java.lang.Exception) {
                     e.printStackTrace()

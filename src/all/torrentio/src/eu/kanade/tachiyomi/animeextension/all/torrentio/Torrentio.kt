@@ -492,7 +492,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             setOnPreferenceChangeListener { _, newValue ->
                 runCatching {
                     val value = (newValue as String).trim().ifBlank { PREF_TOKEN_DEFAULT }
-                    Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                     preferences.edit().putString(key, value).commit()
                 }.getOrDefault(false)
             }

@@ -444,7 +444,7 @@ class AniPlay : AniListAnimeHttpSource(), ConfigurableAnimeSource {
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
-                Toast.makeText(screen.context, "Restart Aniyomi to apply changes", Toast.LENGTH_LONG).show()
+                Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
                 preferences.edit().putString(key, entry).commit()
             }
         }.also(screen::addPreference)

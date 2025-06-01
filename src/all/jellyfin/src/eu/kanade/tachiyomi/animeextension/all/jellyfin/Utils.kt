@@ -109,7 +109,7 @@ fun PreferenceScreen.addEditTextPreference(
                 val result = text.isBlank() || validate?.invoke(text) ?: true
 
                 if (restartRequired && result) {
-                    Toast.makeText(context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                 }
 
                 onComplete()

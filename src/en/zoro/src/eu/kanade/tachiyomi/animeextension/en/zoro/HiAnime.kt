@@ -81,7 +81,7 @@ class HiAnime : ZoroTheme(
                     val entry = entryValues[index] as String
                     Toast.makeText(
                         screen.context,
-                        "Restart Aniyomi to apply changes",
+                        "Restart App to apply changes",
                         Toast.LENGTH_LONG,
                     ).show()
                     preferences.edit().putString(key, entry).commit()
