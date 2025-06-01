@@ -39,7 +39,7 @@ It might also be good to read our [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 ## Disclaimer
 
 This project does not have any affiliation with the content providers available.
-This project is not affiliated with Aniyomi.
-Don't ask for help about these extensions at the official support means of Aniyomi.
+This project is not affiliated with Anikku or Aniyomi.
+Don't ask for help about these extensions at the official support means of Anikku or Aniyomi.
 
 All credits to the codebase goes to the original contributors.

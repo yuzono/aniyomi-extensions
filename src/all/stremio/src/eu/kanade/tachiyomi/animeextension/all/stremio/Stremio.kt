@@ -691,7 +691,7 @@ class Stremio : ConfigurableAnimeSource, AnimeHttpSource() {
                 preferences.clearCredentials()
                 preferences.clearLogin()
 
-                Toast.makeText(screen.context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_SHORT).show()
 
                 false
             }

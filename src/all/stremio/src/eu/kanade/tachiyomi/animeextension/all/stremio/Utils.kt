@@ -107,7 +107,7 @@ fun PreferenceScreen.addEditTextPreference(
 
                 if (result) {
                     if (restartRequired) {
-                        Toast.makeText(context, "Restart Aniyomi to apply new setting.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
                     }
 
                     this.summary = getSummary(newValue)
