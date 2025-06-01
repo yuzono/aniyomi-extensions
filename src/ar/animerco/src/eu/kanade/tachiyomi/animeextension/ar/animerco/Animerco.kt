@@ -40,14 +40,14 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val lang = "ar"
 
-    override val supportsLatest = false
+    override val supportsLatest = true
 
     private val preferences: SharedPreferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
     // ============================== Popular ===============================
-    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/animes/page/$page/")
+    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/trending/page/$page/")
 
     override fun popularAnimeSelector() = "div.media-block > div > a.image"
 
@@ -57,13 +57,13 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         title = element.attr("title")
     }
 
-    override fun popularAnimeNextPageSelector() = "ul.pagination li a:has(i.fa-left-long)"
+    override fun popularAnimeNextPageSelector() = "ul.pagination li:last-child a:has(svg)"
 
     // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
-    override fun latestUpdatesSelector(): String = throw UnsupportedOperationException()
-    override fun latestUpdatesFromElement(element: Element): SAnime = throw UnsupportedOperationException()
-    override fun latestUpdatesNextPageSelector(): String = throw UnsupportedOperationException()
+    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/page/$page/?s=")
+    override fun latestUpdatesSelector(): String = popularAnimeSelector()
+    override fun latestUpdatesFromElement(element: Element) = popularAnimeFromElement(element)
+    override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
 
     // =============================== Search ===============================
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList) = GET("$baseUrl/page/$page/?s=$query")
