@@ -36,7 +36,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "WCOStream"
 
-    override val baseUrl = "https://m.wcostream.tv/"
+    override val baseUrl = "https://www.wcostream.tv"
 
     override val lang = "en"
 
