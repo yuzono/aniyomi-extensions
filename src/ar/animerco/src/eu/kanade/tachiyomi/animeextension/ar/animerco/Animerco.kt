@@ -25,7 +25,6 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import okhttp3.FormBody
-import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -113,7 +112,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     // ============================== Episodes ==============================
-    override fun episodeListSelector() = "ul.chapters-list li a:has(h3)"
+    override fun episodeListSelector() = "ul.episodes-lists li a:has(h3)"
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
@@ -122,7 +121,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 SEpisode.create().apply {
                     setUrlWithoutDomain(document.location())
                     episode_number = 1F
-                    name = "Movie"
+                    name = "فيلم" // Movie
                 },
             )
         }
@@ -141,7 +140,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private fun episodeFromElement(element: Element, seasonName: String, seasonNum: Int) = SEpisode.create().apply {
         setUrlWithoutDomain(element.attr("href"))
         val epText = element.selectFirst("h3")!!.ownText()
-        name = "$seasonName: " + epText
+        name = "$epText - $seasonName"
         val epNum = epText.filter(Char::isDigit)
         // good luck trying to track this xD
         episode_number = "$seasonNum.${epNum.padStart(3, '0')}".toFloatOrNull() ?: 1F
@@ -156,7 +155,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return players.parallelCatchingFlatMapBlocking(::getPlayerVideos)
     }
 
-    override fun videoListSelector() = "li.dooplay_player_option" // ul#playeroptionsul
+    override fun videoListSelector() = "ul.server-list > li > a"
 
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val gdrivePlayerExtractor by lazy { GdrivePlayerExtractor(client) }
@@ -171,7 +170,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun getPlayerVideos(player: Element): List<Video> {
         val url = getPlayerUrl(player) ?: return emptyList()
-        val name = player.selectFirst("span.title")!!.text().lowercase()
+        val name = player.selectFirst("span.server")!!.text().lowercase()
         return when {
             "ok.ru" in url -> okruExtractor.videosFromUrl(url)
             "mp4upload" in url -> mp4uploadExtractor.videosFromUrl(url, headers)
@@ -192,7 +191,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun getPlayerUrl(player: Element): String? {
         val body = FormBody.Builder()
-            .add("action", "doo_player_ajax")
+            .add("action", "player_ajax")
             .add("post", player.attr("data-post"))
             .add("nume", player.attr("data-nume"))
             .add("type", player.attr("data-type"))
