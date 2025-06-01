@@ -670,7 +670,7 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
                         preferences.edit().putString(DOMAIN_PREF_KEY, newValue as String).commit()
                     Toast.makeText(
                         screen.context,
-                        "Restart Aniyomi to apply changes",
+                        "Restart App to apply changes",
                         Toast.LENGTH_LONG,
                     ).show()
                     res

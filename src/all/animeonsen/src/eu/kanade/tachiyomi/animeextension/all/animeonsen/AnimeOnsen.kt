@@ -176,7 +176,7 @@ class AnimeOnsen : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 }
 
-const val AO_USER_AGENT = "Aniyomi/app (mobile)"
+const val AO_USER_AGENT = "Aniyomi/App (mobile)"
 private const val PREF_SUB_KEY = "preferred_subLang"
 private const val PREF_SUB_TITLE = "Preferred sub language"
 const val PREF_SUB_DEFAULT = "en-US"
