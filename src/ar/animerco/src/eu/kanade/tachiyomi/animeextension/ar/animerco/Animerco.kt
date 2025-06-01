@@ -6,6 +6,7 @@ import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.ar.animerco.extractors.SharedExtractor
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
@@ -25,6 +26,8 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -59,13 +62,35 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun popularAnimeNextPageSelector() = "ul.pagination li:last-child a:has(svg)"
 
     // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/page/$page/?s=")
+    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/page/$page?s=")
     override fun latestUpdatesSelector(): String = popularAnimeSelector()
     override fun latestUpdatesFromElement(element: Element) = popularAnimeFromElement(element)
     override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
 
     // =============================== Search ===============================
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList) = GET("$baseUrl/page/$page/?s=$query")
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val builder = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("page")
+            addPathSegment(page.toString())
+            addQueryParameter("s", query)
+            filters.forEach { filter ->
+                when (filter) {
+                    is GenreFilter -> {
+                        if (filter.toUriPart().isNotBlank()) {
+                            addQueryParameter("genres", filter.toUriPart())
+                        }
+                    }
+                    is YearFilter -> {
+                        if (filter.state.isNotBlank()) {
+                            addQueryParameter("dtyear", filter.state)
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        }
+        return GET(builder.build())
+    }
 
     override fun searchAnimeSelector() = popularAnimeSelector()
     override fun searchAnimeFromElement(element: Element) = popularAnimeFromElement(element)
@@ -219,6 +244,76 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             compareBy { it.quality.contains(quality) },
         ).reversed()
     }
+
+    // ============================== Filters ===============================
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+        GenreFilter(GenresList),
+        YearFilter(),
+    )
+
+    private class GenreFilter(val vals: Array<Pair<String, String>>) :
+        AnimeFilter.Select<String>("التصنيفات", vals.map { it.first }.toTypedArray()) {
+        fun toUriPart() = vals[state].second
+    }
+
+    class YearFilter : AnimeFilter.Text("السنوات") // Years
+
+    private val GenresList = arrayOf(
+        "التصنيفات" to "",
+        "أكشن" to "action",
+        "أوفا" to "ova",
+        "إثارة" to "thriller",
+        "إيتشي" to "ecchi",
+        "السفر عبر الزمن" to "time-travel",
+        "بوليسي" to "police",
+        "تاريخي" to "historical",
+        "تحقيقات" to "detective",
+        "تشويق" to "suspense",
+        "جريمة" to "crime",
+        "جنون" to "dementia",
+        "جوسي" to "josei",
+        "حريم" to "harem",
+        "حياة العمل" to "work-life",
+        "خارق للطبيعة" to "supernatural",
+        "خيال" to "fantasy",
+        "خيال علمي" to "science-fiction",
+        "خيال علمي وفانتازيا" to "sci-fi-fantasy",
+        "دراما" to "drama",
+        "دموي" to "gore",
+        "ذواق" to "gourmet",
+        "رعب" to "horror",
+        "رومانسي" to "romance",
+        "رياضي" to "sports",
+        "ساخر" to "parody",
+        "ساموراي" to "samurai",
+        "سباق" to "racing",
+        "سحر" to "magic",
+        "سينين" to "seinen",
+        "شريحة من الحياة" to "slice-of-life",
+        "شوجو" to "shoujo",
+        "شونين" to "shounen",
+        "شونين آي" to "shounen-ai",
+        "شياطين" to "demons",
+        "طبي" to "medical",
+        "طليعية" to "avant-garde",
+        "عسكري" to "military",
+        "غموض" to "mystery",
+        "فضاء" to "space",
+        "فنون تعبيرية" to "performing-arts",
+        "فنون تمثيلية" to "performing-arts-2",
+        "فنون قتالية" to "martial-arts",
+        "قوة خارقة" to "super-power",
+        "كوميدي" to "comedy",
+        "لعبة" to "game",
+        "لعبة استراتيجية" to "strategy-game",
+        "مدرسي" to "school",
+        "مصاصي دماء" to "vampire",
+        "مغامرة" to "adventure",
+        "موسيقي" to "music",
+        "ميثولوجيا" to "mythology",
+        "ميكا" to "mecha",
+        "نفسي" to "psychological",
+    )
 
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
