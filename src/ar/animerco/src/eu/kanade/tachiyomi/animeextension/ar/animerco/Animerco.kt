@@ -33,6 +33,7 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import kotlin.math.roundToInt
 
 class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -119,6 +120,9 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             .joinToString()
 
         description = buildString {
+            document.selectFirst(".media-rating .score")?.let {
+                append(fancyScore(it.text()))
+            }
             document.selectFirst("div.media-story p")?.also {
                 append(it.text())
             }
@@ -137,6 +141,17 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 }
             }
     }
+
+    private fun fancyScore(score: String): String =
+        score.toFloatOrNull()?.div(2f)
+            ?.roundToInt()
+            ?.let {
+                buildString {
+                    append("★".repeat(it))
+                    if (it < 5) append("☆".repeat(5 - it))
+                    append(" $score\n")
+                }
+            } ?: ""
 
     // ============================== Episodes ==============================
     override fun episodeListSelector() = "ul.episodes-lists li a:has(h3)"
