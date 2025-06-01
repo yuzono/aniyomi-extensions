@@ -105,13 +105,15 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
 
-        val infosDiv = document.selectFirst("ul.media-info")!!
-        author = infosDiv.select("li:contains(الشبكات) a").eachText()
-            .joinToString()
-            .takeIf(String::isNotBlank)
-        artist = infosDiv.select("li:contains(الأستوديو) a").eachText()
-            .joinToString()
-            .takeIf(String::isNotBlank)
+        val infosDiv = document.selectFirst("ul.media-info")
+        author = infosDiv?.select("li:contains(الشبكات) a")
+            ?.eachText()
+            ?.joinToString()
+            ?.takeIf(String::isNotBlank)
+        artist = infosDiv?.select("li:contains(الأستوديو) a")
+            ?.eachText()
+            ?.joinToString()
+            ?.takeIf(String::isNotBlank)
         genre = document.select("nav.Nvgnrs a, ul.media-info li:contains(النوع) a")
             .eachText()
             .joinToString()
@@ -154,7 +156,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return document.select(episodeListSelector()).flatMap { el ->
             val doc = client.newCall(GET(el.attr("abs:href"), headers)).execute()
                 .asJsoup()
-            val seasonName = doc.selectFirst("div.media-title h1")!!.text()
+            val seasonName = doc.selectFirst("div.media-title h1")?.text() ?: "Season"
             val seasonNum = seasonName.substringAfterLast(" ").toIntOrNull() ?: 1
             doc.select(episodeListSelector()).map {
                 episodeFromElement(it, seasonName, seasonNum)
@@ -164,7 +166,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun episodeFromElement(element: Element, seasonName: String, seasonNum: Int) = SEpisode.create().apply {
         setUrlWithoutDomain(element.attr("href"))
-        val epText = element.selectFirst("h3")!!.ownText()
+        val epText = element.selectFirst("h3")?.ownText() ?: "Episode"
         name = "$epText - $seasonName"
         val epNum = epText.filter(Char::isDigit)
         // good luck trying to track this xD
@@ -195,7 +197,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun getPlayerVideos(player: Element): List<Video> {
         val url = getPlayerUrl(player) ?: return emptyList()
-        val name = player.selectFirst("span.server")!!.text().lowercase()
+        val name = player.selectFirst("span.server")?.text()?.lowercase() ?: "Unknown"
         return when {
             "ok.ru" in url -> okruExtractor.videosFromUrl(url)
             "mp4upload" in url -> mp4uploadExtractor.videosFromUrl(url, headers)
@@ -224,7 +226,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         return client.newCall(POST("$baseUrl/wp-admin/admin-ajax.php", headers, body))
             .execute()
-            .let { response ->
+            .use { response ->
                 response.body.string()
                     .substringAfter("\"embed_url\":\"")
                     .substringBefore("\",")
