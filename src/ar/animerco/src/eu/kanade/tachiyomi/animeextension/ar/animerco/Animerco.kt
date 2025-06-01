@@ -63,7 +63,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun popularAnimeNextPageSelector() = "ul.pagination li:last-child a:has(svg)"
 
     // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/page/$page?s=")
+    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/page/$page/?s=")
     override fun latestUpdatesSelector(): String = popularAnimeSelector()
     override fun latestUpdatesFromElement(element: Element) = popularAnimeFromElement(element)
     override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
@@ -73,6 +73,7 @@ class Animerco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val builder = baseUrl.toHttpUrl().newBuilder().apply {
             addPathSegment("page")
             addPathSegment(page.toString())
+            addPathSegment("")
             addQueryParameter("s", query)
             filters.forEach { filter ->
                 when (filter) {
