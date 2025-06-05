@@ -60,16 +60,17 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeRequest(page: Int): Request = GET(baseUrl, headers)
 
-    override fun popularAnimeFromElement(element: Element): SAnime = latestUpdatesFromElement(element)
+    override fun popularAnimeFromElement(element: Element): SAnime {
+        return SAnime.create().apply {
+            setUrlWithoutDomain(element.attr("abs:href"))
+            title = element.ownText()
+            thumbnail_url = "$baseUrl/wp-content/themes/animewp78712/images/logo.gif"
+        }
+    }
 
     override fun popularAnimeNextPageSelector(): String? = null
 
     // episodes
-
-    override fun episodeListRequest(anime: SAnime): Request {
-        val parsed = json.decodeFromString<LinkData>(anime.url)
-        return GET(baseUrl + parsed.url, headers = headers)
-    }
 
     override fun episodeListSelector() = "div#catlist-listview > ul > li, table:has(> tbody > tr > td > h3:contains(Episode List)) div.menustyle > ul > li"
 
@@ -207,12 +208,11 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // Search
 
     override fun searchAnimeFromElement(element: Element): SAnime {
-        val anime = SAnime.create()
-        val url = element.select("a").attr("href").replace("watch", "anime").substringBefore("-episode")
-        anime.thumbnail_url = element.select("img").attr("src")
-        anime.title = element.select("a").attr("title")
-        anime.setUrlWithoutDomain(LinkData(anime.title, url, anime.thumbnail_url!!).toJsonString())
-        return anime
+        return SAnime.create().apply {
+            setUrlWithoutDomain(element.select("a").attr("href").replace("watch", "anime").substringBefore("-episode"))
+            title = element.select("a").attr("title")
+            thumbnail_url = element.select("img").attr("abs:src")
+        }
     }
 
     override fun searchAnimeNextPageSelector(): String = "ul.pagination li.page-item a[rel=next]"
@@ -234,26 +234,13 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // Details
 
-    override suspend fun getAnimeDetails(anime: SAnime): SAnime {
-        val parsed = json.decodeFromString<LinkData>(anime.url)
-        return client.newCall(GET(baseUrl + parsed.url, headers = headers))
-            .awaitSuccess()
-            .let { response ->
-                animeDetailsParse(response, parsed.title, parsed.thumbnailUrl).apply { initialized = true }
-            }
+    override fun animeDetailsParse(document: Document): SAnime {
+        return SAnime.create().apply {
+            genre = document.select("div#cat-genre > div.wcobtn").joinToString(", ") { it.text() }
+            description = document.select("div#content div.katcont div.iltext p").text()
+            thumbnail_url = document.select("#cat-img-desc img").attr("abs:src")
+        }
     }
-
-    private fun animeDetailsParse(response: Response, title: String, thumbnailUrl: String): SAnime {
-        val document = response.asJsoup()
-        val anime = SAnime.create()
-        anime.thumbnail_url = thumbnailUrl
-        anime.title = title
-        anime.genre = document.select("div#cat-genre > div.wcobtn").joinToString(", ") { it.text() }
-        anime.description = document.select("div#content div.katcont div.iltext p").text()
-        return anime
-    }
-
-    override fun animeDetailsParse(document: Document): SAnime = throw UnsupportedOperationException()
 
     // Latest
 
@@ -262,33 +249,19 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl, headers)
 
     override fun latestUpdatesFromElement(element: Element): SAnime {
-        val anime = SAnime.create()
-        val url = element.select("a").attr("href").toHttpUrl().encodedPath
-        val thumbnailUrl = element.select("img[src]").attr("src")
-        anime.thumbnail_url = if (thumbnailUrl.startsWith("http")) {
-            thumbnailUrl
-        } else {
-            "https:$thumbnailUrl"
+        return SAnime.create().apply {
+            val url = element.select("a").attr("abs:href")
+                .substringBefore("-episode-")
+                .substringAfter("/")
+            setUrlWithoutDomain("$baseUrl/anime/$url")
+            title = element.select("div.recent-release-episodes > a").text().substringBefore(" Episode")
+            thumbnail_url = element.select("img[src]").attr("abs:src")
         }
-        anime.title = element.select("div.recent-release-episodes > a").text().substringBefore(" Episode")
-        anime.setUrlWithoutDomain(LinkData(anime.title, url, anime.thumbnail_url!!).toJsonString())
-        return anime
     }
 
     override fun latestUpdatesNextPageSelector(): String? = null
 
     // Settings
-
-    @Serializable
-    data class LinkData(
-        val title: String,
-        val url: String,
-        val thumbnailUrl: String,
-    )
-
-    private fun LinkData.toJsonString(): String {
-        return json.encodeToString(this)
-    }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val videoQualityPref = ListPreference(screen.context).apply {
