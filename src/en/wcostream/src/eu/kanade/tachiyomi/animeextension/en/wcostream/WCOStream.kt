@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.animeextension.en.wcostream
 
 import android.app.Application
 import android.content.SharedPreferences
-import android.util.Base64
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -13,11 +12,8 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -25,7 +21,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
@@ -99,15 +94,8 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
         val videoList = mutableListOf<Video>()
-        val script = document.selectFirst("script:containsData(decodeURIComponent)")!!.data()
-        val stringList = json.decodeFromString<List<String>>("[${script.substringAfter("[").substringBefore("]")}]")
-        val shiftNumber = script.substringAfterLast("- ").substringBefore(");").toInt()
-        val iframeStuff = stringList.joinToString("") {
-            (String(Base64.decode(it, Base64.DEFAULT)).replace("""\D""".toRegex(), "").toInt() - shiftNumber).toChar().toString()
-        }
-        val iframeUrl = Jsoup.parse(
-            iframeStuff,
-        ).selectFirst("iframe")!!.attr("src")
+        val iframeUrl = document.selectFirst("iframe")?.attr("src")
+            ?: throw Exception("No iframe found in the episode page")
 
         val iframeHeaders = Headers.headersOf(
             "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -153,25 +141,25 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         )
         videoList.add(Video(videoUrl, "Video 480p", videoUrl, headers = videoHeaders))
 
-        if (parsed.hd != null && parsed.hd.isNotEmpty()) {
-            val videoUrl = "${parsed.server}/getvid?evid=${parsed.hd}"
+        if (!parsed.hd.isNullOrEmpty()) {
+            val videoHdUrl = "${parsed.server}/getvid?evid=${parsed.hd}"
             videoList.add(
                 Video(
-                    videoUrl,
+                    videoHdUrl,
                     "Video 720p",
-                    videoUrl,
+                    videoHdUrl,
                     headers = videoHeaders,
                 ),
             )
         }
 
-        if (parsed.fhd != null && parsed.fhd.isNotEmpty()) {
-            val videoUrl = "${parsed.server}/getvid?evid=${parsed.fhd}"
+        if (!parsed.fhd.isNullOrEmpty()) {
+            val videoFhdUrl = "${parsed.server}/getvid?evid=${parsed.fhd}"
             videoList.add(
                 Video(
-                    videoUrl,
+                    videoFhdUrl,
                     "Video 1080p",
-                    videoUrl,
+                    videoFhdUrl,
                     headers = videoHeaders,
                 ),
             )
