@@ -49,15 +49,16 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     override fun headersBuilder(): Headers.Builder {
-        return super.headersBuilder()
-            .add("Referer", "https://wcostream.tv/")
+        return Headers.Builder()
+            .add("User-Agent", DESKTOP_USER_AGENT)
+            .add("Referer", "$baseUrl/")
     }
 
     // Popular Anime
 
-    override fun popularAnimeSelector(): String = "div#content > div > div:has(div.recent-release:contains(Recent Releases)) > div > ul > li"
+    override fun popularAnimeSelector(): String = "div#content div.menu ul > li > a"
 
-    override fun popularAnimeRequest(page: Int): Request = GET(baseUrl)
+    override fun popularAnimeRequest(page: Int): Request = GET(baseUrl, headers)
 
     override fun popularAnimeFromElement(element: Element): SAnime = latestUpdatesFromElement(element)
 
@@ -116,7 +117,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "Sec-Fetch-Mode", "navigate",
             "Sec-Fetch-Site", "cross-site",
             "Upgrade-Insecure-Requests", "1",
-            "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63",
+            "User-Agent", DESKTOP_USER_AGENT,
         )
         val iframeSoup = client.newCall(
             GET(iframeUrl, headers = iframeHeaders),
@@ -128,7 +129,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "Accept", "application/json, text/javascript, */*; q=0.01",
             "Host", iframeUrl.toHttpUrl().host,
             "Referer", iframeUrl,
-            "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63",
+            "User-Agent", DESKTOP_USER_AGENT,
             "X-Requested-With", "XMLHttpRequest",
         )
 
@@ -147,7 +148,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "Referer",
             iframeUrl.toHttpUrl().host,
             "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63",
+            DESKTOP_USER_AGENT,
         )
         videoList.add(Video(videoUrl, "Video 480p", videoUrl, headers = videoHeaders))
 
@@ -223,10 +224,10 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val headers = Headers.headersOf(
             "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Content-Type", "application/x-www-form-urlencoded",
-            "Host", baseUrl.substringAfter("https://"),
+            "Host", baseUrl.toHttpUrl().host,
             "Origin", baseUrl,
             "Referer", "$baseUrl/search",
-            "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0",
+            "User-Agent", DESKTOP_USER_AGENT,
         )
         return POST("$baseUrl/search", body = body, headers = headers)
     }
@@ -258,7 +259,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun latestUpdatesSelector(): String = "div#content > div > div:has(div.recent-release:contains(Recent Releases)) > div > ul > li"
 
-    override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl)
+    override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl, headers)
 
     override fun latestUpdatesFromElement(element: Element): SAnime {
         val anime = SAnime.create()
@@ -306,5 +307,9 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
         screen.addPreference(videoQualityPref)
+    }
+
+    companion object {
+        private const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63"
     }
 }
