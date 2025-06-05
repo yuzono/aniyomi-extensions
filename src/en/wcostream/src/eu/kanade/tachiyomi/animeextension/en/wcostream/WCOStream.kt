@@ -238,10 +238,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun latestUpdatesFromElement(element: Element): SAnime {
         return SAnime.create().apply {
-            val url = element.select("a").attr("abs:href")
-                .substringBefore("-episode-")
-                .substringAfter("/")
-            setUrlWithoutDomain("$baseUrl/anime/$url")
+            setUrlWithoutDomain(element.select("a").attr("abs:href"))
             title = element.select("div.recent-release-episodes > a").text().substringBefore(" Episode")
             thumbnail_url = element.select("img[src]").attr("abs:src")
         }
