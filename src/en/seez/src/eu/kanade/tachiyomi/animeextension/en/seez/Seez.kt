@@ -13,7 +13,6 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
-import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.vidsrcextractor.VidsrcExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
@@ -39,7 +38,9 @@ class Seez : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Seez"
 
-    override val baseUrl = "https://seez.su"
+    // https://fmovies24-to.com/ (vidsrc, vidfast, vidlink, videasy)
+    // https://moviesjoytv.to/home (upcloud, megacloud)
+    override val baseUrl = "https://seez-su.lol"
 
     private val embedUrl = "https://vidsrc.to"
 
@@ -295,7 +296,6 @@ class Seez : ConfigurableAnimeSource, AnimeHttpSource() {
     // ============================ Video Links =============================
 
     private val vidsrcExtractor by lazy { VidsrcExtractor(client, headers) }
-    private val filemoonExtractor by lazy { FilemoonExtractor(client) }
 
     override fun videoListRequest(episode: SEpisode): Request {
         val docHeaders = headers.newBuilder().apply {
@@ -335,7 +335,6 @@ class Seez : ConfigurableAnimeSource, AnimeHttpSource() {
 
             when (val name = it.second) {
                 "Vidplay" -> vidsrcExtractor.videosFromUrl(url, name)
-                "Filemoon" -> filemoonExtractor.videosFromUrl(url)
                 else -> emptyList()
             }
         }
@@ -418,8 +417,8 @@ class Seez : ConfigurableAnimeSource, AnimeHttpSource() {
         ListPreference(screen.context).apply {
             key = PREF_SERVER_KEY
             title = "Preferred server"
-            entries = arrayOf("Vidplay", "Filemoon")
-            entryValues = arrayOf("Vidplay", "Filemoon")
+            entries = arrayOf("Vidplay")
+            entryValues = arrayOf("Vidplay")
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
 
