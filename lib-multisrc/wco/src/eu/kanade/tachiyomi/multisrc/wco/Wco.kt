@@ -64,8 +64,8 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun latestUpdatesFromElement(element: Element): SAnime {
         return SAnime.create().apply {
-            setUrlWithoutDomain(element.select("a").attr("abs:href"))
-            title = element.selectFirst("div.recent-release-episodes > a")!!.ownText().substringBefore(" Episode")
+            setUrlWithoutDomain(element.selectFirst("a")!!.attr("href"))
+            title = element.text().substringBefore(" Episode")
             thumbnail_url = element.select("img[src]").attr("abs:src")
         }
     }
@@ -81,15 +81,9 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return POST("$baseUrl/search", headers, body = formBody)
     }
 
-    override fun searchAnimeSelector() = "div#sidebar_right2 li div.img a"
+    override fun searchAnimeSelector() = "div#sidebar_right2 li"
 
-    override fun searchAnimeFromElement(element: Element) = SAnime.create().apply {
-        setUrlWithoutDomain(element.attr("href"))
-        element.selectFirst("img")!!.run {
-            thumbnail_url = attr("src")
-            title = attr("alt")
-        }
-    }
+    override fun searchAnimeFromElement(element: Element) = latestUpdatesFromElement(element)
 
     override fun searchAnimeNextPageSelector() = null
 
@@ -102,13 +96,13 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     // ============================== Episodes ==============================
-    override fun episodeListSelector() = "div.cat-eps a"
+    override fun episodeListSelector() = "div.cat-eps"
 
     private val episodeTitleRegex by lazy { Regex("(Season (\\d+) )?Episode (\\d+) (.*)") }
 
     override fun episodeFromElement(element: Element) = SEpisode.create().apply {
-        setUrlWithoutDomain(element.attr("href"))
-        val title = element.attr("title")
+        setUrlWithoutDomain(element.selectFirst("a")!!.attr("href"))
+        val title = element.text()
         val (name, _) = episodeTitleFromElement(title)
         this.name = name
     }
@@ -156,17 +150,21 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        val iframeLink = document.selectFirst("div.pcat-jwplayer iframe")!!.attr("src")
+
+        val iframeLink = document.selectFirst("iframe")?.attr("src")
+            ?: throw Exception("No iframe found in the episode page")
+
+        val iframeSoup = client.newCall(GET(iframeLink, headers))
+            .execute().asJsoup()
+
+        val getVideoLinkScript = iframeSoup.selectFirst("script:containsData(getJSON)")!!.data()
+        val getVideoLink = getVideoLinkScript.substringAfter("\$.getJSON(\"").substringBefore("\"")
+
         val iframeDomain = "https://" + iframeLink.toHttpUrl().host
-
-        val playerHtml = client.newCall(GET(iframeLink, headers)).execute()
-            .body.string()
-
-        val getVideoLink = playerHtml.substringAfter("\$.getJSON(\"").substringBefore("\"")
-
         val requestUrl = iframeDomain + getVideoLink
+
         val requestHeaders = headersBuilder()
-            .add("x-requested-with", "XMLHttpRequest")
+            .add("X-Requested-With", "XMLHttpRequest")
             .set("Referer", requestUrl)
             .set("Origin", iframeDomain)
             .build()
