@@ -1,5 +1,5 @@
 ext {
-    extKmkVersionCode = 1
+    extKmkVersionCode = 2
     extName = 'AniSama'
     extClass = '.AniSama'
     extVersionCode = 13
@@ -14,4 +14,5 @@ dependencies {
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:dood-extractor'))
     implementation(project(':lib:streamhidevid-extractor'))
+    implementation(project(":utils"))
 }
