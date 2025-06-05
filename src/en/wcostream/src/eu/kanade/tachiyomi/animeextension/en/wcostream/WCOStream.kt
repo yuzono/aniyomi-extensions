@@ -59,7 +59,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return SAnime.create().apply {
             setUrlWithoutDomain(element.attr("abs:href"))
             title = element.ownText()
-            thumbnail_url = "$baseUrl/wp-content/themes/animewp78712/images/logo.gif"
+            thumbnail_url = "$baseUrl/favicon.ico"
         }
     }
 
@@ -86,10 +86,6 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     // Video Extractor
-
-    override fun videoListRequest(episode: SEpisode): Request {
-        return GET(baseUrl + episode.url, headers)
-    }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
@@ -197,7 +193,7 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun searchAnimeFromElement(element: Element): SAnime {
         return SAnime.create().apply {
-            setUrlWithoutDomain(element.select("a").attr("href").replace("watch", "anime").substringBefore("-episode"))
+            setUrlWithoutDomain(element.select("a").attr("href"))
             title = element.select("a").attr("title")
             thumbnail_url = element.select("img").attr("abs:src")
         }
