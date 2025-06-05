@@ -14,5 +14,4 @@ dependencies {
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:dood-extractor'))
     implementation(project(':lib:streamhidevid-extractor'))
-    implementation(project(":utils"))
 }
