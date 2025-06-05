@@ -1,5 +1,5 @@
 ext {
-    extKmkVersionCode = 3
+    extKmkVersionCode = 4
     extName = 'AniPlay'
     extClass = '.AniPlay'
     themePkg = 'anilist'
