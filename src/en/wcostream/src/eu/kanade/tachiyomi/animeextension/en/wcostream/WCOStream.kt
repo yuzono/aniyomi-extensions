@@ -249,6 +249,8 @@ class WCOStream : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun latestUpdatesNextPageSelector(): String? = null
 
+    override val supportsRelatedAnimes = false
+
     // Settings
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
