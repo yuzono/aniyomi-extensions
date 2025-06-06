@@ -1,0 +1,10 @@
+ext {
+    extKmkVersionCode = 0
+    extName = 'Watch Cartoon Online'
+    extClass = '.Wco'
+    themePkg = 'wcotheme'
+    baseUrl = 'https://www.wco.tv'
+    overrideVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
