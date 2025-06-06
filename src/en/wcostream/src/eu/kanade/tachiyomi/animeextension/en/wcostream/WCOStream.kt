@@ -2,10 +2,10 @@ package eu.kanade.tachiyomi.animeextension.en.wcostream
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
-import eu.kanade.tachiyomi.multisrc.wco.Wco
+import eu.kanade.tachiyomi.multisrc.wcotheme.WcoTheme
 import org.jsoup.nodes.Document
 
-class WCOStream : Wco() {
+class WCOStream : WcoTheme() {
 
     override val name = "WCOStream"
 

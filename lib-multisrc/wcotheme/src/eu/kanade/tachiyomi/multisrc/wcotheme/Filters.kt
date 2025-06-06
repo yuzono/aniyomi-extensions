@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.multisrc.wco
+package eu.kanade.tachiyomi.multisrc.wcotheme
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 

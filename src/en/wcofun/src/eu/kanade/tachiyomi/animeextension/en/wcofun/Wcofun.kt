@@ -2,11 +2,11 @@ package eu.kanade.tachiyomi.animeextension.en.wcofun
 
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SEpisode
-import eu.kanade.tachiyomi.multisrc.wco.Wco
+import eu.kanade.tachiyomi.multisrc.wcotheme.WcoTheme
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.Response
 
-class Wcofun : Wco() {
+class Wcofun : WcoTheme() {
 
     override val name = "Wcofun"
 

@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.multisrc.wco
+package eu.kanade.tachiyomi.multisrc.wcotheme
 
 import android.app.Application
 import androidx.preference.ListPreference
@@ -28,7 +28,7 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
-abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
+abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val lang = "en"
 

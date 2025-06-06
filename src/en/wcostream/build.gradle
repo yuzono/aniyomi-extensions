@@ -2,7 +2,7 @@ ext {
     extKmkVersionCode = 0
     extName = 'WCOStream'
     extClass = '.WCOStream'
-    themePkg = 'wco'
+    themePkg = 'wcotheme'
     baseUrl = 'https://www.wcostream.tv'
     overrideVersionCode = 6
 }
