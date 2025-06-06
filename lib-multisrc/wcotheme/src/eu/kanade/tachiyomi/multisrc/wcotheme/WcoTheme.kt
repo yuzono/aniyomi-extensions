@@ -218,28 +218,40 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
 
-        val iframeLink = document.selectFirst("iframe")?.attr("src")
-            ?: throw Exception("No iframe found in the episode page")
+        return document.select("iframe")
+            .ifEmpty { throw Exception("No iframe found in the episode page") }
+            .map {
+                val iframeLink = it.attr("abs:src")
+                if (iframeLink.contains("embed.watchanimesub")) {
+                    // Dub or Hard-sub
+                    val iframeSoup = client.newCall(GET(iframeLink, headers))
+                        .execute().asJsoup()
 
-        val iframeSoup = client.newCall(GET(iframeLink, headers))
-            .execute().asJsoup()
+                    val getVideoLinkScript =
+                        iframeSoup.selectFirst("script:containsData(getJSON)")!!.data()
+                    val getVideoLink =
+                        getVideoLinkScript.substringAfter("\$.getJSON(\"").substringBefore("\"")
 
-        val getVideoLinkScript = iframeSoup.selectFirst("script:containsData(getJSON)")!!.data()
-        val getVideoLink = getVideoLinkScript.substringAfter("\$.getJSON(\"").substringBefore("\"")
+                    val iframeDomain = "https://" + iframeLink.toHttpUrl().host
+                    val requestUrl = iframeDomain + getVideoLink
 
-        val iframeDomain = "https://" + iframeLink.toHttpUrl().host
-        val requestUrl = iframeDomain + getVideoLink
+                    val requestHeaders = headersBuilder()
+                        .add("X-Requested-With", "XMLHttpRequest")
+                        .set("Referer", requestUrl)
+                        .set("Origin", iframeDomain)
+                        .build()
 
-        val requestHeaders = headersBuilder()
-            .add("X-Requested-With", "XMLHttpRequest")
-            .set("Referer", requestUrl)
-            .set("Origin", iframeDomain)
-            .build()
+                    val videoData = client.newCall(GET(requestUrl, requestHeaders)).execute()
+                        .parseAs<VideoResponseDto>()
 
-        val videoData = client.newCall(GET(requestUrl, requestHeaders)).execute()
-            .parseAs<VideoResponseDto>()
-
-        return videoData.videos
+                    videoData.videos
+                } else if (iframeLink.contains("vhs.watchanimesub")) {
+                    // Soft-sub with audio tracks
+                    emptyList()
+                } else {
+                    emptyList()
+                }
+            }.flatten()
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()
