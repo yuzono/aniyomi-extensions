@@ -66,12 +66,31 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun latestUpdatesFromElement(element: Element): SAnime {
         return SAnime.create().apply {
             setUrlWithoutDomain(element.selectFirst("a")!!.attr("href"))
-            title = element.text().substringBefore(" Episode")
+            title = element.text()
             thumbnail_url = element.select("img[src]").attr("abs:src")
         }
     }
 
-    override fun latestUpdatesNextPageSelector() = null
+    override suspend fun getLatestUpdates(page: Int): AnimesPage {
+        return client.newCall(latestUpdatesRequest(page))
+            .execute()
+            .use { response ->
+                if (page == 1) {
+                    latestUpdatesParse(response)
+                } else {
+                    val document = response.asJsoup()
+
+                    val animes = document.select(latestUpdatesNextPageSelector())
+                        .map { element ->
+                            latestUpdatesFromElement(element)
+                        }
+
+                    return AnimesPage(animes, false)
+                }
+            }
+    }
+
+    override fun latestUpdatesNextPageSelector() = "div.recent-release:contains(Recently Added) + div > ul > li"
 
     // =============================== Search ===============================
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -128,6 +147,23 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================== Episodes ==============================
     override fun episodeListSelector() = "div.cat-eps"
+
+    override fun episodeListParse(response: Response): List<SEpisode> {
+        val document = response.asJsoup()
+        return document.select(episodeListSelector()).map { episodeFromElement(it) }
+            // If opening an episode link instead of anime link, there is no episode list available.
+            // So we return the same episode with the title from the page.
+            .ifEmpty {
+                listOf(
+                    SEpisode.create().apply {
+                        setUrlWithoutDomain(response.request.url.toString())
+                        val title = document.select(".video-title").text()
+                        val (name, _) = episodeTitleFromElement(title)
+                        this.name = name
+                    },
+                )
+            }
+    }
 
     private val episodeTitleRegex by lazy { Regex("(Season (\\d+) )?Episode (\\d+) (.*)") }
 
