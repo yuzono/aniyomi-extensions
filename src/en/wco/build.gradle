@@ -1,6 +1,6 @@
 ext {
     extKmkVersionCode = 0
-    extName = 'Watch Cartoon Online'
+    extName = 'WCO'
     extClass = '.Wco'
     themePkg = 'wcotheme'
     baseUrl = 'https://www.wco.tv'

@@ -5,4 +5,6 @@ import eu.kanade.tachiyomi.multisrc.wcotheme.WcoTheme
 class Wco : WcoTheme() {
     override val name = "Watch Cartoon Online"
     override val baseUrl = "https://www.wco.tv"
+
+    override val useOldIframeExtractor = true
 }
