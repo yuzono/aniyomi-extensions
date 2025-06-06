@@ -216,7 +216,7 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return sortedWith(
             compareBy(
                 { it.quality.contains(quality) },
-                { it.quality.contains("720") },
+                { it.quality.contains("HD") },
             ),
         ).reversed()
     }
