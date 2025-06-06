@@ -55,7 +55,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun popularAnimeSelector() = "div.sidebar-titles > ul > li > a"
 
     override fun popularAnimeFromElement(element: Element) = SAnime.create().apply {
-        setUrlWithoutDomain(element.attr("abs:href"))
+        setUrlWithoutDomain(element.attr("href"))
         title = element.ownText()
         thumbnail_url = "$baseUrl/favicon.ico"
     }
@@ -240,7 +240,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val stringList = json.decodeFromString<List<String>>(
             "[${script.substringAfter("[")
                 .substringBefore("]")
-                // Some stupid entries have a trailing comma with new line
+                // Handle trailing commas in entries with new lines
                 .trim()
                 .removeSuffix(",")}]",
         )
@@ -280,7 +280,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
             videoData.videos
         } else if (iframeLink.contains("vhs.watchanimesub")) {
-            // Soft-sub with audio tracks
+            // Premium videos with high quality, soft-sub and audio tracks
             val body = client.newCall(GET(iframeLink, headers))
                 .execute().body.string()
 

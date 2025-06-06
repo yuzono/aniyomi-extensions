@@ -14,6 +14,7 @@ class Wco : WcoTheme() {
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
         return document.select(popularAnimeSelector()).map { popularAnimeFromElement(it) }
+            // Remove entries that have no URL
             .filterNot { it.url == "/" }
             .let { AnimesPage(it, false) }
     }

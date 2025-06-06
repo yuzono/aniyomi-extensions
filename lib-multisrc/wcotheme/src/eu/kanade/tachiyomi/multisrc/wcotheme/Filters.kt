@@ -180,7 +180,6 @@ object Filters {
     open class UriPartFilter(displayName: String, private val vals: Array<Pair<String, String>>) :
         AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
         fun toUriPart() = vals[state].second
-        fun isEmpty() = vals[state].second == ""
         fun isDefault() = state == 0
     }
 }
