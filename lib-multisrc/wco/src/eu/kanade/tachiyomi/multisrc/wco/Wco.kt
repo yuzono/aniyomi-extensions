@@ -5,6 +5,7 @@ import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -74,16 +75,46 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // =============================== Search ===============================
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val formBody = FormBody.Builder()
-            .add("catara", query)
-            .add("konuara", "series")
-            .build()
-        return POST("$baseUrl/search", headers, body = formBody)
+        val genresFilter = filters.filterIsInstance<Filters.GenresFilter>().firstOrNull()
+
+        if (query.isNotBlank()) {
+            val formBody = FormBody.Builder()
+                .add("catara", query)
+                .add("konuara", "series")
+                .build()
+            return POST("$baseUrl/search", headers, body = formBody)
+        } else if (genresFilter != null && !genresFilter.isDefault()) {
+            val url = "$baseUrl/search-by-genre/page/${genresFilter.toUriPart()}"
+            return GET(url, headers)
+        } else {
+            return popularAnimeRequest(page)
+        }
+    }
+
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        val searchUrl = response.request.url.toString()
+
+        if (searchUrl.contains("/search-by-genre/")) {
+            // If the response is from a genre search, use the genre selector
+            val document = response.asJsoup()
+            return document.select(genreAnimeSelector()).map { genreAnimeFromElement(it) }
+                .let { AnimesPage(it, false) }
+        }
+        if (searchUrl.contains("/search")) {
+            val document = response.asJsoup()
+            return document.select(searchAnimeSelector()).map { searchAnimeFromElement(it) }
+                .let { AnimesPage(it, false) }
+        }
+        return popularAnimeParse(response)
     }
 
     override fun searchAnimeSelector() = "div#sidebar_right2 li"
 
+    open fun genreAnimeSelector() = "div#sidebar_right4 .ddmcc li a"
+
     override fun searchAnimeFromElement(element: Element) = latestUpdatesFromElement(element)
+
+    open fun genreAnimeFromElement(element: Element) = popularAnimeFromElement(element)
 
     override fun searchAnimeNextPageSelector() = null
 
@@ -189,6 +220,11 @@ abstract class Wco : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             ),
         ).reversed()
     }
+
+    // ============================== Filters ===============================
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+        Filters.GenresFilter(),
+    )
 
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {

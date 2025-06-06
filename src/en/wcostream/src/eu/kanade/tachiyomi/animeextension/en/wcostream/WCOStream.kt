@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.wcostream
 
+import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.multisrc.wco.Wco
 import org.jsoup.nodes.Document
@@ -23,4 +24,6 @@ class WCOStream : Wco() {
         description = document.select("div#content div.katcont div.iltext p").text()
         thumbnail_url = document.select("#cat-img-desc img").attr("abs:src")
     }
+
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList()
 }
