@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.multisrc.wcotheme
 
 import android.app.Application
+import android.util.Base64
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -22,6 +23,7 @@ import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.Injekt
@@ -39,7 +41,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         .add("Referer", "$baseUrl/")
         .add("Origin", baseUrl)
 
-    private val json: Json by injectLazy()
+    val json: Json by injectLazy()
 
     private val preferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
@@ -215,43 +217,73 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
+    open val useOldIframeExtractor = false
+
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
+        return if (useOldIframeExtractor) iframeOldExtractor(document) else iframeExtractor(document)
+    }
 
-        return document.select("iframe")
-            .ifEmpty { throw Exception("No iframe found in the episode page") }
-            .map {
-                val iframeLink = it.attr("abs:src")
-                if (iframeLink.contains("embed.watchanimesub")) {
-                    // Dub or Hard-sub
-                    val iframeSoup = client.newCall(GET(iframeLink, headers))
-                        .execute().asJsoup()
+    open fun iframeExtractor(document: Document) = document.select("iframe")
+        .ifEmpty { throw Exception("No iframe found in the episode page") }
+        .map {
+            val iframeLink = it.attr("abs:src")
+            iframeParse(iframeLink)
+        }.flatten()
 
-                    val getVideoLinkScript =
-                        iframeSoup.selectFirst("script:containsData(getJSON)")!!.data()
-                    val getVideoLink =
-                        getVideoLinkScript.substringAfter("\$.getJSON(\"").substringBefore("\"")
+    open fun iframeOldExtractor(document: Document): List<Video> {
+        val script = document.selectFirst("script:containsData(decodeURIComponent)")?.data()
+            ?: throw Exception("No script found in the episode page")
 
-                    val iframeDomain = "https://" + iframeLink.toHttpUrl().host
-                    val requestUrl = iframeDomain + getVideoLink
+        val stringList = json.decodeFromString<List<String>>(
+            "[${script.substringAfter("[")
+                .substringBefore("]")
+                // Some stupid entries have a trailing comma with new line
+                .trim()
+                .removeSuffix(",")}]",
+        )
+        val shiftNumber = script.substringAfterLast("- ").substringBefore(");").toInt()
+        val iframeStuff = stringList.joinToString("") {
+            (String(Base64.decode(it, Base64.DEFAULT)).replace("""\D""".toRegex(), "").toInt() - shiftNumber).toChar().toString()
+        }
+        val iframeUrl = Jsoup.parse(
+            iframeStuff,
+        ).selectFirst("iframe")?.attr("src")
+            ?: throw Exception("No iframe found in the episode page")
 
-                    val requestHeaders = headersBuilder()
-                        .add("X-Requested-With", "XMLHttpRequest")
-                        .set("Referer", requestUrl)
-                        .set("Origin", iframeDomain)
-                        .build()
+        return iframeParse(iframeUrl)
+    }
 
-                    val videoData = client.newCall(GET(requestUrl, requestHeaders)).execute()
-                        .parseAs<VideoResponseDto>()
+    open fun iframeParse(iframeLink: String): List<Video> {
+        return if (iframeLink.contains("embed.watchanimesub")) {
+            // Dub or Hard-sub
+            val iframeSoup = client.newCall(GET(iframeLink, headers))
+                .execute().asJsoup()
 
-                    videoData.videos
-                } else if (iframeLink.contains("vhs.watchanimesub")) {
-                    // Soft-sub with audio tracks
-                    emptyList()
-                } else {
-                    emptyList()
-                }
-            }.flatten()
+            val getVideoLinkScript =
+                iframeSoup.selectFirst("script:containsData(getJSON)")!!.data()
+            val getVideoLink =
+                getVideoLinkScript.substringAfter("\$.getJSON(\"").substringBefore("\"")
+
+            val iframeDomain = "https://" + iframeLink.toHttpUrl().host
+            val requestUrl = iframeDomain + getVideoLink
+
+            val requestHeaders = headersBuilder()
+                .add("X-Requested-With", "XMLHttpRequest")
+                .set("Referer", requestUrl)
+                .set("Origin", iframeDomain)
+                .build()
+
+            val videoData = client.newCall(GET(requestUrl, requestHeaders)).execute()
+                .parseAs<VideoResponseDto>()
+
+            videoData.videos
+        } else if (iframeLink.contains("vhs.watchanimesub")) {
+            // Soft-sub with audio tracks
+            emptyList()
+        } else {
+            emptyList()
+        }
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()
