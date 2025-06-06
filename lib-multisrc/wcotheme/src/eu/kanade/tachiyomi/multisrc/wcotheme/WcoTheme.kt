@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
+import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
@@ -41,9 +42,10 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         .add("Referer", "$baseUrl/")
         .add("Origin", baseUrl)
 
-    val json: Json by injectLazy()
+    open val json: Json by injectLazy()
+    open val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
-    private val preferences by lazy {
+    open val preferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
@@ -167,7 +169,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
     }
 
-    private val episodeTitleRegex by lazy { Regex("(Season (\\d+) )?Episode (\\d+) (.*)") }
+    open val episodeTitleRegex by lazy { Regex("(Season (\\d+) )?Episode (\\d+) (.*)") }
 
     override fun episodeFromElement(element: Element) = SEpisode.create().apply {
         setUrlWithoutDomain(element.selectFirst("a")!!.attr("href"))
@@ -207,9 +209,9 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     ) {
         val videos by lazy {
             listOfNotNull(
-                sd?.takeIf(String::isNotBlank)?.let { Pair("SD", it) },
-                hd?.takeIf(String::isNotBlank)?.let { Pair("HD", it) },
-                fhd?.takeIf(String::isNotBlank)?.let { Pair("FHD", it) },
+                sd?.takeIf(String::isNotBlank)?.let { Pair("480p", it) },
+                hd?.takeIf(String::isNotBlank)?.let { Pair("720p", it) },
+                fhd?.takeIf(String::isNotBlank)?.let { Pair("1080p", it) },
             ).map {
                 val videoUrl = "$server/getvid?evid=" + it.second
                 Video(videoUrl, it.first, videoUrl)
@@ -246,9 +248,8 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val iframeStuff = stringList.joinToString("") {
             (String(Base64.decode(it, Base64.DEFAULT)).replace("""\D""".toRegex(), "").toInt() - shiftNumber).toChar().toString()
         }
-        val iframeUrl = Jsoup.parse(
-            iframeStuff,
-        ).selectFirst("iframe")?.attr("src")
+        val iframeUrl = Jsoup.parse(iframeStuff)
+            .selectFirst("iframe")?.attr("src")
             ?: throw Exception("No iframe found in the episode page")
 
         return iframeParse(iframeUrl)
@@ -280,7 +281,20 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             videoData.videos
         } else if (iframeLink.contains("vhs.watchanimesub")) {
             // Soft-sub with audio tracks
-            emptyList()
+            val body = client.newCall(GET(iframeLink, headers))
+                .execute().body.string()
+
+            val matchResult = Regex("""getRedirectedUrl\("(https://[\w-/.]+/index\.m3u8)"""").find(body)
+            if (matchResult != null) {
+                val playlistUrl = matchResult.groupValues[1]
+                playlistUtils.extractFromHls(
+                    playlistUrl = playlistUrl,
+                    referer = "$iframeLink/",
+                    videoNameGen = { quality -> "Premium - $quality" },
+                )
+            } else {
+                emptyList()
+            }
         } else {
             emptyList()
         }
@@ -296,7 +310,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return sortedWith(
             compareBy(
                 { it.quality.contains(quality) },
-                { it.quality.contains("HD") },
+                { it.quality.contains("720") },
             ),
         ).reversed()
     }
@@ -329,12 +343,12 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================= Utilities ==============================
 
     companion object {
-        private const val PREF_QUALITY_KEY = "preferred_quality"
-        private const val PREF_QUALITY_TITLE = "Preferred quality"
-        private const val PREF_QUALITY_DEFAULT = "HD"
-        private val PREF_QUALITY_ENTRIES = arrayOf("FHD", "HD", "SD")
-        private val PREF_QUALITY_VALUES = PREF_QUALITY_ENTRIES
+        const val PREF_QUALITY_KEY = "preferred_quality"
+        const val PREF_QUALITY_TITLE = "Preferred quality"
+        const val PREF_QUALITY_DEFAULT = "720"
+        val PREF_QUALITY_ENTRIES = arrayOf("1080p", "720p", "480p")
+        val PREF_QUALITY_VALUES = arrayOf("1080", "720", "480")
 
-        private const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63"
+        const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63"
     }
 }
