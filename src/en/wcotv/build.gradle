@@ -1,7 +1,7 @@
 ext {
     extKmkVersionCode = 0
-    extName = 'WCO'
-    extClass = '.Wco'
+    extName = 'WcoTv'
+    extClass = '.WcoTv'
     themePkg = 'wcotheme'
     baseUrl = 'https://www.wco.tv'
     overrideVersionCode = 1
