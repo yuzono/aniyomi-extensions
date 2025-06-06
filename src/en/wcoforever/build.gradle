@@ -1,0 +1,10 @@
+ext {
+    extKmkVersionCode = 0
+    extName = 'WcoForever'
+    extClass = '.WcoForever'
+    themePkg = 'wcotheme'
+    baseUrl = 'https://www.wcoforever.net'
+    overrideVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
