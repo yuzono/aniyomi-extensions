@@ -4,6 +4,8 @@
 |--------------------|-------------------|--------|
 | [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20this%20repo-blue&style=flat)](https://intradeus.github.io/http-protocol-redirector/?r=aniyomi://add-repo?url=https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json) | [![Install](https://img.shields.io/badge/Click%20here%20to%20install%20repo-gray?style=flat&labelColor=red)](https://intradeus.github.io/http-protocol-redirector/?r=anikku://add-repo?url=https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json) | ![CI](https://github.com/yuzono/aniyomi-extensions/actions/workflows/build_push.yml/badge.svg) |
 
+[![Sponsor me on GitHub](https://custom-icon-badges.demolab.com/badge/-Sponsor-ea4aaa?style=for-the-badge&logo=heart&logoColor=white)](https://github.com/sponsors/cuong-tran "Sponsor me on GitHub")
+
 ![Visitor Count](https://count.getloli.com/get/@yuzono?theme=capoo-2)
 </div>
 
