@@ -75,8 +75,13 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
             genre = document.select("div.anime-genre ul li").joinToString { it.text() }
             val synonyms = document.selectFirst("div.col-sm-4.anime-info p:contains(Synonyms:)")
                 ?.text()
-            description = document.select("div.anime-summary").text() +
-                if (synonyms.isNullOrEmpty()) "" else "\n\n$synonyms"
+            val externalLinks = document.select("div.col-sm-4.anime-info p:contains(External Links:) a")
+                .joinToString { "[${it.ownText()}](${it.attr("abs:href")})" }
+            description = StringBuilder().apply {
+                append(document.select("div.anime-summary").text())
+                if (!synonyms.isNullOrBlank()) append("\n\n$synonyms")
+                if (externalLinks.isNotBlank()) append("\n\n*External Links:* $externalLinks")
+            }.toString()
         }
     }
 
