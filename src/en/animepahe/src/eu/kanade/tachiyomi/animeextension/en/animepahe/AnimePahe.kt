@@ -22,7 +22,6 @@ import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
@@ -53,11 +52,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val lang = "en"
 
-    override val supportsLatest = true
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
+    override val supportsLatest = false
 
     // =========================== Anime Details ============================
     /**
@@ -96,10 +91,10 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/api?m=airing&page=$page")
+    // ============================== Popular ===============================
+    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/api?m=airing&page=$page")
 
-    override fun latestUpdatesParse(response: Response): AnimesPage {
+    override fun popularAnimeParse(response: Response): AnimesPage {
         val latestData = response.parseAs<ResponseDto<LatestAnimeDto>>()
         val hasNextPage = latestData.currentPage < latestData.lastPage
         val animeList = latestData.items.map { anime ->
@@ -131,12 +126,12 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         return AnimesPage(animeList, false)
     }
 
-    // ============================== Popular ===============================
-    // This source doesnt have a popular animes page,
+    // ============================== Latest ===============================
+    // This source doesn't have a popular animes page,
     // so we use latest animes page instead.
-    override suspend fun getPopularAnime(page: Int) = getLatestUpdates(page)
-    override fun popularAnimeParse(response: Response): AnimesPage = TODO()
-    override fun popularAnimeRequest(page: Int): Request = TODO()
+    override suspend fun getLatestUpdates(page: Int) = throw UnsupportedOperationException()
+    override fun latestUpdatesParse(response: Response) = throw UnsupportedOperationException()
+    override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
 
     // ============================== Episodes ==============================
     /**
