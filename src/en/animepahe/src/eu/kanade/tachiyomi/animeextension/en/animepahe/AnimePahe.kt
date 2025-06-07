@@ -59,8 +59,9 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
      * @see episodeListRequest
      */
     override fun animeDetailsRequest(anime: SAnime): Request {
-        val animeId = anime.getId()
-        return GET("$baseUrl/a/$animeId")
+        return anime.getId()
+            ?.let { GET("$baseUrl/a/$it") }
+            ?: GET("$baseUrl${anime.url}")
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -127,6 +128,25 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesParse(response: Response) = throw UnsupportedOperationException()
     override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
 
+    // =============================== Relation/Suggestions ===============================
+    override fun relatedAnimeListRequest(anime: SAnime) = animeDetailsRequest(anime)
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        val relationAnimes = document.select("div.anime-content div.anime-relation .mx-n1")
+        val recommendationAnimes = document.select("div.anime-content div.anime-recommendation .mx-n1")
+        return (relationAnimes + recommendationAnimes).mapNotNull { entry ->
+            entry.selectFirst("h5 > a")?.let {
+                SAnime.create().apply {
+                    // Related animes URL using sessionId, it doesn't come with animeId
+                    setUrlWithoutDomain(it.attr("href"))
+                    title = it.ownText()
+                    thumbnail_url = entry.selectFirst("img")?.attr("abs:data-src")
+                }
+            }
+        }
+    }
+
     // ============================== Episodes ==============================
     /**
      * This override is necessary because AnimePahe does not provide permanent
@@ -135,10 +155,13 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
      * @see animeDetailsRequest
      */
     override fun episodeListRequest(anime: SAnime): Request {
-        val session = fetchSession(anime.getId())
+        val session = anime.getId()?.let { fetchSession(it) }
+            ?: sessionIdRegex.find(anime.url)?.groupValues?.get(1)
+            ?: throw IllegalStateException("Anime session not found")
         return GET("$baseUrl/api?m=release&id=$session&sort=episode_asc&page=1")
     }
 
+    private val sessionIdRegex by lazy { Regex("""/anime/([\w-]+)""") }
     private val animeSessionRegex by lazy { Regex("""&id=([\w-]+)&""") }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
@@ -331,11 +354,8 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
     private val newAnimeIdRegex by lazy { Regex("""/a/(\d+)""") }
     private val oldAnimeIdRegex by lazy { Regex("""\?anime_id=(\d+)""") }
 
-    private fun SAnime.getId() = newAnimeIdRegex.find(url)
-        ?.let { it.groupValues[1] }
-        ?: oldAnimeIdRegex.find(url)
-            ?.let { it.groupValues[1] }
-        ?: throw IllegalStateException("Anime ID not found in URL: $url")
+    private fun SAnime.getId() = newAnimeIdRegex.find(url)?.let { it.groupValues[1] }
+        ?: oldAnimeIdRegex.find(url)?.let { it.groupValues[1] }
 
     private fun String.toDate(): Long {
         return runCatching {
