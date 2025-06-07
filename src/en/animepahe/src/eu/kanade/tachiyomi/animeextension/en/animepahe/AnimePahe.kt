@@ -19,9 +19,6 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
@@ -63,15 +60,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
      */
     override fun animeDetailsRequest(anime: SAnime): Request {
         val animeId = anime.getId()
-        // We're using coroutines here to run it inside another thread and
-        // prevent android.os.NetworkOnMainThreadException when trying to open
-        // webview or share it.
-        val session = runBlocking {
-            withContext(Dispatchers.IO) {
-                fetchSession(animeId)
-            }
-        }
-        return GET("$baseUrl/anime/$session")
+        return GET("$baseUrl/a/$animeId")
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -102,7 +91,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                 title = anime.title
                 thumbnail_url = anime.snapshot
                 val animeId = anime.id
-                setUrlWithoutDomain("/anime/?anime_id=$animeId")
+                setUrlWithoutDomain("/a/$animeId")
                 artist = anime.fansub
             }
         }
@@ -120,7 +109,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                 title = anime.title
                 thumbnail_url = anime.poster
                 val animeId = anime.id
-                setUrlWithoutDomain("/anime/?anime_id=$animeId")
+                setUrlWithoutDomain("/a/$animeId")
             }
         }
         return AnimesPage(animeList, false)
@@ -145,9 +134,12 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         return GET("$baseUrl/api?m=release&id=$session&sort=episode_asc&page=1")
     }
 
+    private val animeSessionRegex by lazy { Regex("""&id=([\w-]+)&""") }
+
     override fun episodeListParse(response: Response): List<SEpisode> {
         val url = response.request.url.toString()
-        val session = url.substringAfter("&id=").substringBefore("&")
+        val session = animeSessionRegex.find(url)?.groupValues?.get(1)
+            ?: throw IllegalStateException("Anime session not found in URL: $url")
         val episodeList = recursivePages(response, session)
 
         return episodeList
@@ -313,6 +305,10 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================= Utilities ==============================
+    /**
+     * AnimePahe does not provide permanent URLs to its animes,
+     * so we need to fetch the anime session every time.
+     */
     private fun fetchSession(animeId: String): String {
         val resolveAnimeRequest = client.newCall(GET("$baseUrl/a/$animeId")).execute()
         val sessionId = resolveAnimeRequest.request.url.pathSegments.last()
@@ -327,7 +323,14 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    private fun SAnime.getId() = url.substringAfterLast("?anime_id=").substringBefore("\"")
+    private val newAnimeIdRegex by lazy { Regex("""/a/(\d+)""") }
+    private val oldAnimeIdRegex by lazy { Regex("""\?anime_id=(\d+)""") }
+
+    private fun SAnime.getId() = newAnimeIdRegex.find(url)
+        ?.let { it.groupValues[1] }
+        ?: oldAnimeIdRegex.find(url)
+            ?.let { it.groupValues[1] }
+        ?: throw IllegalStateException("Anime ID not found in URL: $url")
 
     private fun String.toDate(): Long {
         return runCatching {
@@ -350,7 +353,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         private const val PREF_DOMAIN_DEFAULT = "https://animepahe.ru"
         private val PREF_DOMAIN_ENTRIES = arrayOf("animepahe.ru", "animepahe.com", "animepahe.org")
         private val PREF_DOMAIN_VALUES by lazy {
-            PREF_DOMAIN_ENTRIES.map { "https://" + it }.toTypedArray()
+            PREF_DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
         }
 
         private const val PREF_SUB_KEY = "preffered_sub"
