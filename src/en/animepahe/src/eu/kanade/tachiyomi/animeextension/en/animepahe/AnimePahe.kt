@@ -147,7 +147,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
      */
     override fun episodeListRequest(anime: SAnime): Request {
         val session = fetchSession(anime.getId())
-        return GET("$baseUrl/api?m=release&id=$session&sort=episode_desc&page=1")
+        return GET("$baseUrl/api?m=release&id=$session&sort=episode_asc&page=1")
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
@@ -156,11 +156,10 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         val episodeList = recursivePages(response, session)
 
         return episodeList
-            .sortedBy { it.date_upload } // Optional, makes sure it's in correct order
             .mapIndexed { index, episode ->
-                episode.episode_number = (index + 1).toFloat()
-                episode.name = "Episode ${index + 1}"
-                episode
+                episode.apply {
+                    episode_number = (index + 1).toFloat()
+                }
             }
             .reversed()
     }
