@@ -44,7 +44,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     override val name = "StreamingUnity (${showType.replaceFirstChar { it.uppercaseChar() }})"
 
-    private val homepage = "https://streamingunity.bid"
+    private val homepage = "https://streamingunity.art"
     override val baseUrl = "$homepage/$lang"
     private val apiUrl = "$homepage/api"
 
