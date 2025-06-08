@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.animeextension.en.animepahe.dto.LatestAnimeDto
 import eu.kanade.tachiyomi.animeextension.en.animepahe.dto.ResponseDto
 import eu.kanade.tachiyomi.animeextension.en.animepahe.dto.SearchResultDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -20,6 +21,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.Injekt
@@ -29,6 +31,7 @@ import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 
+/* API: https://gist.github.com/Ellivers/f7716b6b6895802058c367963f3a2c51 */
 class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val preferences: SharedPreferences by lazy {
@@ -73,15 +76,30 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                 ?.replace("Studio: ", "")
             status = parseStatus(document.selectFirst("div.col-sm-4.anime-info p:contains(Status:) a")!!.text())
             thumbnail_url = document.selectFirst("div.anime-poster a")!!.attr("href")
-            genre = document.select("div.anime-genre ul li").joinToString { it.text() }
-            val synonyms = document.selectFirst("div.col-sm-4.anime-info p:contains(Synonyms:)")
-                ?.text()
-            val externalLinks = document.select("div.col-sm-4.anime-info p:contains(External Links:) a")
-                .joinToString { "[${it.ownText()}](${it.attr("abs:href")})" }
+            genre = document.select(
+                "div.anime-genre ul li, " +
+                    "div.col-sm-4.anime-info p:contains(Demographic:) a, " +
+                    "div.col-sm-4.anime-info p:contains(Theme:) a",
+            )
+                .joinToString { it.text() }
             description = StringBuilder().apply {
                 append(document.select("div.anime-summary").text())
-                if (!synonyms.isNullOrBlank()) append("\n\n$synonyms")
-                if (externalLinks.isNotBlank()) append("\n\n*External Links:* $externalLinks")
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Synonyms:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Japanese:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Aired:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Season:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.select("div.col-sm-4.anime-info p:contains(External Links:) a")
+                    .joinToString { "[${it.ownText()}](${it.attr("abs:href")})" }
+                    .takeIf { it.isNotBlank() }
+                    ?.let { append("\n\n*External Links:* $it") }
             }.toString()
         }
     }
@@ -105,20 +123,90 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // =============================== Search ===============================
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request =
-        GET("$baseUrl/api?m=search&l=8&q=$query")
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val genresFilter = filters.filterIsInstance<Filters.GenresFilter>().firstOrNull()
+        val demographicFilter = filters.filterIsInstance<Filters.DemographicFilter>().firstOrNull()
+        val themeFilter = filters.filterIsInstance<Filters.ThemeFilter>().firstOrNull()
+        val yearFilter = filters.filterIsInstance<Filters.YearFilter>().firstOrNull()
+        val seasonFilter = filters.filterIsInstance<Filters.SeasonFilter>().firstOrNull()
 
-    override fun searchAnimeParse(response: Response): AnimesPage {
-        val searchData = response.parseAs<ResponseDto<SearchResultDto>>()
-        val animeList = searchData.items.map { anime ->
-            SAnime.create().apply {
-                title = anime.title
-                thumbnail_url = anime.poster
-                val animeId = anime.id
-                setUrlWithoutDomain("/a/$animeId")
+        return if (query.isNotBlank()) {
+            val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                addPathSegment("api")
+                addQueryParameter("m", "search")
+                addQueryParameter("q", query)
+            }
+            GET(urlBuilder.build())
+        } else {
+            when {
+                genresFilter != null && !genresFilter.isDefault() -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("genre")
+                        addPathSegment(genresFilter.toUriPart())
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                demographicFilter != null && !demographicFilter.isDefault() -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("demographic")
+                        addPathSegment(demographicFilter.toUriPart())
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                themeFilter != null && !themeFilter.isDefault() -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("theme")
+                        addPathSegment(themeFilter.toUriPart())
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                yearFilter != null && !yearFilter.isDefault() && seasonFilter != null -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("season")
+                        addPathSegment("${seasonFilter.toUriPart()}-${yearFilter.toUriPart()}")
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                else -> popularAnimeRequest(page)
             }
         }
-        return AnimesPage(animeList, false)
+    }
+
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        val url = response.request.url
+        if (url.pathSegments.contains("api") && url.queryParameter("m") == "search") {
+            val searchData = response.parseAs<ResponseDto<SearchResultDto>>()
+            val animeList = searchData.items.map { anime ->
+                SAnime.create().apply {
+                    title = anime.title
+                    thumbnail_url = anime.poster
+                    val animeId = anime.id
+                    setUrlWithoutDomain("/a/$animeId")
+                }
+            }
+            return AnimesPage(animeList, false)
+        } else if (url.pathSegments.contains("anime")) {
+            val document = response.asJsoup()
+            val entries = document.select("div.index div > a").mapNotNull { a ->
+                a.attr("href").takeIf { it.isNotBlank() }
+                    ?.let {
+                        SAnime.create().apply {
+                            setUrlWithoutDomain(it)
+                            title = a.ownText()
+                        }
+                    }
+            }
+            return AnimesPage(entries, false)
+        }
+        return AnimesPage(emptyList(), false)
     }
 
     // ============================== Latest ===============================
@@ -255,6 +343,18 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
             ),
         ).reversed()
     }
+
+    // ============================== Filters ===============================
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+        Filters.GenresFilter(),
+        AnimeFilter.Separator(),
+        Filters.DemographicFilter(),
+        AnimeFilter.Separator(),
+        Filters.ThemeFilter(),
+        AnimeFilter.Separator(),
+        Filters.YearFilter(),
+        Filters.SeasonFilter(),
+    )
 
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
