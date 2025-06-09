@@ -531,11 +531,11 @@ class StreamingCommunity(override val lang: String, private val showType: String
             summary = "Domain: \"$currentValue\".\nLeave blank to disable. Overrides any domain preferences!"
 
             setOnPreferenceChangeListener { _, newValue ->
-                val newDomain = newValue.toString().trim()
+                val newDomain = newValue.toString().trim().removeSuffix("/")
                 if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
                     summary = "Restart to apply changes"
                     Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
-                    preferences.edit().putString(key, newDomain.removeSuffix("/")).apply()
+                    preferences.edit().putString(key, newDomain).apply()
                     true
                 } else {
                     Toast.makeText(screen.context, "Invalid URL. Example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
