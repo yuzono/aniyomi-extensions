@@ -48,7 +48,7 @@ body:
           required: true
         - label: I have written a title with source name.
           required: true
-        - label: I have checked that the extension does not already exist on the [website extensions list](https://anikku-app.github.io/extensions/) or the app.
+        - label: I have checked that the extension does not already exist on the [website extensions list](https://yuzono.github.io/extensions-aniyomi/) or the app.
           required: true
         - label: I have checked that the extension does not already exist by searching the [GitHub repository](https://github.com/yuzono/aniyomi-extensions/) and verified it does not appear in the code base.
           required: true
