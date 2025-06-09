@@ -446,7 +446,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
     }
 
     companion object {
-        private const val DOMAIN_DEFAULT = "https://streamingunity.bid"
+        private const val DOMAIN_DEFAULT = "https://streamingunity.art"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
 
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
@@ -518,14 +518,14 @@ class StreamingCommunity(override val lang: String, private val showType: String
             }
 
             setOnPreferenceChangeListener { _, newValue ->
-                val newDomain = (newValue as String).trim()
+                val newDomain = newValue.toString().trim()
                 if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
                     summary = "Restart to apply changes"
                     Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
                     preferences.edit().putString(key, newDomain.removeSuffix("/")).apply()
                     true
                 } else {
-                    Toast.makeText(screen.context, "Invalid url. Url example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Invalid URL. Example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
                     false
                 }
             }

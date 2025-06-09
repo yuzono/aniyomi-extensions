@@ -609,7 +609,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
 
             setOnPreferenceChangeListener { _, newValue ->
-                val newDomain = (newValue as String).trim()
+                val newDomain = newValue.toString().trim()
                 if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
                     summary = "Restart to apply changes"
                     Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
