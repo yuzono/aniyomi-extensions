@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.animeextension.en.animepahe.dto.LatestAnimeDto
 import eu.kanade.tachiyomi.animeextension.en.animepahe.dto.ResponseDto
 import eu.kanade.tachiyomi.animeextension.en.animepahe.dto.SearchResultDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -19,11 +20,8 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.Injekt
@@ -33,6 +31,7 @@ import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 
+/* API: https://gist.github.com/Ellivers/f7716b6b6895802058c367963f3a2c51 */
 class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val preferences: SharedPreferences by lazy {
@@ -53,11 +52,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val lang = "en"
 
-    override val supportsLatest = true
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
+    override val supportsLatest = false
 
     // =========================== Anime Details ============================
     /**
@@ -67,16 +62,9 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
      * @see episodeListRequest
      */
     override fun animeDetailsRequest(anime: SAnime): Request {
-        val animeId = anime.getId()
-        // We're using coroutines here to run it inside another thread and
-        // prevent android.os.NetworkOnMainThreadException when trying to open
-        // webview or share it.
-        val session = runBlocking {
-            withContext(Dispatchers.IO) {
-                fetchSession(animeId)
-            }
-        }
-        return GET("$baseUrl/anime/$session")
+        return anime.getId()
+            ?.let { GET("$baseUrl/a/$it") }
+            ?: GET("$baseUrl${anime.url}")
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -88,18 +76,38 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                 ?.replace("Studio: ", "")
             status = parseStatus(document.selectFirst("div.col-sm-4.anime-info p:contains(Status:) a")!!.text())
             thumbnail_url = document.selectFirst("div.anime-poster a")!!.attr("href")
-            genre = document.select("div.anime-genre ul li").joinToString { it.text() }
-            val synonyms = document.selectFirst("div.col-sm-4.anime-info p:contains(Synonyms:)")
-                ?.text()
-            description = document.select("div.anime-summary").text() +
-                if (synonyms.isNullOrEmpty()) "" else "\n\n$synonyms"
+            genre = document.select(
+                "div.anime-genre ul li, " +
+                    "div.col-sm-4.anime-info p:contains(Demographic:) a, " +
+                    "div.col-sm-4.anime-info p:contains(Theme:) a",
+            )
+                .joinToString { it.text() }
+            description = StringBuilder().apply {
+                append(document.select("div.anime-summary").text())
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Synonyms:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Japanese:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Aired:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.selectFirst("div.col-sm-4.anime-info p:contains(Season:)")?.text()
+                    .takeIf { !it.isNullOrBlank() }
+                    ?.let { append("\n\n$it") }
+                document.select("div.col-sm-4.anime-info p:contains(External Links:) a")
+                    .joinToString { "[${it.ownText()}](${it.attr("abs:href")})" }
+                    .takeIf { it.isNotBlank() }
+                    ?.let { append("\n\n*External Links:* $it") }
+            }.toString()
         }
     }
 
-    // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/api?m=airing&page=$page")
+    // ============================== Popular ===============================
+    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/api?m=airing&page=$page")
 
-    override fun latestUpdatesParse(response: Response): AnimesPage {
+    override fun popularAnimeParse(response: Response): AnimesPage {
         val latestData = response.parseAs<ResponseDto<LatestAnimeDto>>()
         val hasNextPage = latestData.currentPage < latestData.lastPage
         val animeList = latestData.items.map { anime ->
@@ -107,7 +115,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                 title = anime.title
                 thumbnail_url = anime.snapshot
                 val animeId = anime.id
-                setUrlWithoutDomain("/anime/?anime_id=$animeId")
+                setUrlWithoutDomain("/a/$animeId")
                 artist = anime.fansub
             }
         }
@@ -115,28 +123,117 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // =============================== Search ===============================
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request =
-        GET("$baseUrl/api?m=search&l=8&q=$query")
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val genresFilter = filters.filterIsInstance<Filters.GenresFilter>().firstOrNull()
+        val demographicFilter = filters.filterIsInstance<Filters.DemographicFilter>().firstOrNull()
+        val themeFilter = filters.filterIsInstance<Filters.ThemeFilter>().firstOrNull()
+        val yearFilter = filters.filterIsInstance<Filters.YearFilter>().firstOrNull()
+        val seasonFilter = filters.filterIsInstance<Filters.SeasonFilter>().firstOrNull()
 
-    override fun searchAnimeParse(response: Response): AnimesPage {
-        val searchData = response.parseAs<ResponseDto<SearchResultDto>>()
-        val animeList = searchData.items.map { anime ->
-            SAnime.create().apply {
-                title = anime.title
-                thumbnail_url = anime.poster
-                val animeId = anime.id
-                setUrlWithoutDomain("/anime/?anime_id=$animeId")
+        return if (query.isNotBlank()) {
+            val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                addPathSegment("api")
+                addQueryParameter("m", "search")
+                addQueryParameter("q", query)
+            }
+            GET(urlBuilder.build())
+        } else {
+            when {
+                genresFilter != null && !genresFilter.isDefault() -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("genre")
+                        addPathSegment(genresFilter.toUriPart())
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                demographicFilter != null && !demographicFilter.isDefault() -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("demographic")
+                        addPathSegment(demographicFilter.toUriPart())
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                themeFilter != null && !themeFilter.isDefault() -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("theme")
+                        addPathSegment(themeFilter.toUriPart())
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                yearFilter != null && !yearFilter.isDefault() && seasonFilter != null -> {
+                    val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
+                        addPathSegment("anime")
+                        addPathSegment("season")
+                        addPathSegment("${seasonFilter.toUriPart()}-${yearFilter.toUriPart()}")
+                    }
+                    GET(urlBuilder.build())
+                }
+
+                else -> popularAnimeRequest(page)
             }
         }
-        return AnimesPage(animeList, false)
     }
 
-    // ============================== Popular ===============================
-    // This source doesnt have a popular animes page,
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        val url = response.request.url
+        if (url.pathSegments.contains("api") && url.queryParameter("m") == "search") {
+            val searchData = response.parseAs<ResponseDto<SearchResultDto>>()
+            val animeList = searchData.items.map { anime ->
+                SAnime.create().apply {
+                    title = anime.title
+                    thumbnail_url = anime.poster
+                    val animeId = anime.id
+                    setUrlWithoutDomain("/a/$animeId")
+                }
+            }
+            return AnimesPage(animeList, false)
+        } else if (url.pathSegments.contains("anime")) {
+            val document = response.asJsoup()
+            val entries = document.select("div.index div > a").mapNotNull { a ->
+                a.attr("href").takeIf { it.isNotBlank() }
+                    ?.let {
+                        SAnime.create().apply {
+                            setUrlWithoutDomain(it)
+                            title = a.ownText()
+                        }
+                    }
+            }
+            return AnimesPage(entries, false)
+        }
+        return AnimesPage(emptyList(), false)
+    }
+
+    // ============================== Latest ===============================
+    // This source doesn't have a popular animes page,
     // so we use latest animes page instead.
-    override suspend fun getPopularAnime(page: Int) = getLatestUpdates(page)
-    override fun popularAnimeParse(response: Response): AnimesPage = TODO()
-    override fun popularAnimeRequest(page: Int): Request = TODO()
+    override suspend fun getLatestUpdates(page: Int) = throw UnsupportedOperationException()
+    override fun latestUpdatesParse(response: Response) = throw UnsupportedOperationException()
+    override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
+
+    // =============================== Relation/Suggestions ===============================
+    override fun relatedAnimeListRequest(anime: SAnime) = animeDetailsRequest(anime)
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        val relationAnimes = document.select("div.anime-content div.anime-relation .mx-n1")
+        val recommendationAnimes = document.select("div.anime-content div.anime-recommendation .mx-n1")
+        return (relationAnimes + recommendationAnimes).mapNotNull { entry ->
+            entry.selectFirst("h5 > a")?.let {
+                SAnime.create().apply {
+                    // Related animes URL using sessionId, it doesn't come with animeId
+                    setUrlWithoutDomain(it.attr("href"))
+                    title = it.ownText()
+                    thumbnail_url = entry.selectFirst("img")?.attr("abs:data-src")
+                }
+            }
+        }
+    }
 
     // ============================== Episodes ==============================
     /**
@@ -146,21 +243,26 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
      * @see animeDetailsRequest
      */
     override fun episodeListRequest(anime: SAnime): Request {
-        val session = fetchSession(anime.getId())
-        return GET("$baseUrl/api?m=release&id=$session&sort=episode_desc&page=1")
+        val session = anime.getId()?.let { fetchSession(it) }
+            ?: sessionIdRegex.find(anime.url)?.groupValues?.get(1)
+            ?: throw IllegalStateException("Anime session not found")
+        return GET("$baseUrl/api?m=release&id=$session&sort=episode_asc&page=1")
     }
+
+    private val sessionIdRegex by lazy { Regex("""/anime/([\w-]+)""") }
+    private val animeSessionRegex by lazy { Regex("""&id=([\w-]+)&""") }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val url = response.request.url.toString()
-        val session = url.substringAfter("&id=").substringBefore("&")
+        val session = animeSessionRegex.find(url)?.groupValues?.get(1)
+            ?: throw IllegalStateException("Anime session not found in URL: $url")
         val episodeList = recursivePages(response, session)
 
         return episodeList
-            .sortedBy { it.date_upload } // Optional, makes sure it's in correct order
             .mapIndexed { index, episode ->
-                episode.episode_number = (index + 1).toFloat()
-                episode.name = "Episode ${index + 1}"
-                episode
+                episode.apply {
+                    episode_number = (index + 1).toFloat()
+                }
             }
             .reversed()
     }
@@ -242,6 +344,18 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         ).reversed()
     }
 
+    // ============================== Filters ===============================
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+        Filters.GenresFilter(),
+        AnimeFilter.Separator(),
+        Filters.DemographicFilter(),
+        AnimeFilter.Separator(),
+        Filters.ThemeFilter(),
+        AnimeFilter.Separator(),
+        Filters.YearFilter(),
+        Filters.SeasonFilter(),
+    )
+
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val videoQualityPref = ListPreference(screen.context).apply {
@@ -319,6 +433,10 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================= Utilities ==============================
+    /**
+     * AnimePahe does not provide permanent URLs to its animes,
+     * so we need to fetch the anime session every time.
+     */
     private fun fetchSession(animeId: String): String {
         val resolveAnimeRequest = client.newCall(GET("$baseUrl/a/$animeId")).execute()
         val sessionId = resolveAnimeRequest.request.url.pathSegments.last()
@@ -333,7 +451,11 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    private fun SAnime.getId() = url.substringAfterLast("?anime_id=").substringBefore("\"")
+    private val newAnimeIdRegex by lazy { Regex("""/a/(\d+)""") }
+    private val oldAnimeIdRegex by lazy { Regex("""\?anime_id=(\d+)""") }
+
+    private fun SAnime.getId() = newAnimeIdRegex.find(url)?.let { it.groupValues[1] }
+        ?: oldAnimeIdRegex.find(url)?.let { it.groupValues[1] }
 
     private fun String.toDate(): Long {
         return runCatching {
@@ -353,10 +475,10 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_DOMAIN_KEY = "preffered_domain"
         private const val PREF_DOMAIN_TITLE = "Preferred domain (requires app restart)"
-        private const val PREF_DOMAIN_DEFAULT = "https://animepahe.com"
-        private val PREF_DOMAIN_ENTRIES = arrayOf("animepahe.com", "animepahe.ru", "animepahe.org")
+        private const val PREF_DOMAIN_DEFAULT = "https://animepahe.ru"
+        private val PREF_DOMAIN_ENTRIES = arrayOf("animepahe.ru", "animepahe.com", "animepahe.org")
         private val PREF_DOMAIN_VALUES by lazy {
-            PREF_DOMAIN_ENTRIES.map { "https://" + it }.toTypedArray()
+            PREF_DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
         }
 
         private const val PREF_SUB_KEY = "preffered_sub"
