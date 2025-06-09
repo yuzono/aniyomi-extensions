@@ -2,6 +2,10 @@ package eu.kanade.tachiyomi.animeextension.all.streamingcommunity
 
 import android.app.Application
 import android.content.SharedPreferences
+import android.util.Log
+import android.webkit.URLUtil
+import android.widget.Toast
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.streamingcommunity.Filters.AgeFilter
@@ -25,6 +29,7 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -44,9 +49,23 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     override val name = "StreamingUnity (${showType.replaceFirstChar { it.uppercaseChar() }})"
 
-    private val homepage = "https://streamingunity.bid"
-    override val baseUrl = "$homepage/$lang"
-    private val apiUrl = "$homepage/api"
+    private val preferences: SharedPreferences by lazy {
+        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    }
+
+    override val client: OkHttpClient = network.client
+
+    private val homepage by lazy {
+        val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
+        if (customDomain.isNullOrBlank()) {
+            DOMAIN_DEFAULT
+        } else {
+            customDomain
+        }
+    }
+
+    override val baseUrl by lazy { "$homepage/$lang" }
+    private val apiUrl by lazy { "$homepage/api" }
 
     override val supportsLatest = true
 
@@ -56,8 +75,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
         availableLanguages = setOf("en", "it"),
         classLoader = this::class.java.classLoader!!,
     )
-
-    override val client: OkHttpClient = network.client
 
     private val apiHeaders = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
@@ -76,10 +93,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
     private val json: Json by injectLazy()
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
-
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
 
     // ============================== Popular ===============================
 
@@ -256,21 +269,10 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
         if (data.title == null) return emptyList()
 
-        data.title.preview?.let {
-            episodeList.add(
-                SEpisode.create().apply {
-                    name = "Preview"
-                    episode_number = 0F
-                    url = it.embed_url
-                },
-            )
-        }
-
         if (data.loadedSeason == null) {
             episodeList.add(
                 SEpisode.create().apply {
                     name = "Film"
-                    episode_number = 1F
                     url = data.title.id.toString()
                     date_upload = with(data.title) {
                         (release_date ?: last_air_date)?.let(::parseDate)
@@ -320,7 +322,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
                     episodeList.add(
                         SEpisode.create().apply {
                             name = "$seasonIntl ${season.number} $episodeIntl ${episode.number} - ${episode.name}"
-                            episode_number = episode.number.toFloat()
                             url = "${data.title.id}?episode_id=${episode.id}&next_episode=1"
                             date_upload = season.release_date?.let(::parseDate)
                                 ?: (episode.created_at ?: episode.updated_at)?.let(::parseDateTime)
@@ -331,7 +332,22 @@ class StreamingCommunity(override val lang: String, private val showType: String
             }
         }
 
-        return episodeList.reversed()
+        val episodes = episodeList
+            .mapIndexed { index, episode ->
+                episode.apply {
+                    episode_number = (index + 1).toFloat()
+                }
+            }
+            .reversed()
+
+        return data.title.preview?.let {
+            episodes +
+                SEpisode.create().apply {
+                    name = "Preview"
+                    episode_number = 0F
+                    url = it.embed_url
+                }
+        } ?: episodes
     }
 
     // ============================ Video Links =============================
@@ -413,7 +429,40 @@ class StreamingCommunity(override val lang: String, private val showType: String
         ).reversed()
     }
 
+    private fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
+        return try {
+            runBlocking(Dispatchers.IO) {
+                val headRequest = GET(loadedDomain, headers).newBuilder().head().build()
+                client.newCall(headRequest).execute().use { response ->
+                    val redirectedDomain = response.request.url.run { "$scheme://$host" }
+                    if (redirectedDomain != loadedDomain) {
+                        preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            try {
+                                Toast.makeText(
+                                    screen.context,
+                                    "Domain updated, restart App to apply changes",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            } catch (e: SecurityException) {
+                                Log.e("StreamingCommunity", "Failed to show toast: ${e.message}")
+                            } catch (e: Exception) {
+                                Log.e("StreamingCommunity", "Unexpected error showing toast: ${e.message}")
+                            }
+                        }
+                    }
+                    redirectedDomain
+                }
+            }
+        } catch (e: Exception) {
+            loadedDomain
+        }
+    }
+
     companion object {
+        private const val DOMAIN_DEFAULT = "https://streamingunity.art"
+        private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
+
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
         private val PLAYLIST_URL_REGEX = Regex("""url: ?'(.*?)'""")
         private val EXPIRES_REGEX = Regex("""'expires': ?'(\d+)'""")
@@ -466,7 +515,32 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
+                preferences.edit().putString(key, entry).apply()
+                true
+            }
+        }.also(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = PREF_CUSTOM_DOMAIN_KEY
+            title = "Custom domain"
+            setDefaultValue(null)
+            val currentValue = resolveRedirectedDomain(
+                screen,
+                preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT,
+            )
+            summary = "Domain: \"$currentValue\".\nLeave blank to disable. Overrides any domain preferences!"
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val newDomain = newValue.toString().trim().removeSuffix("/")
+                if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
+                    summary = "Restart to apply changes"
+                    Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
+                    preferences.edit().putString(key, newDomain).apply()
+                    true
+                } else {
+                    Toast.makeText(screen.context, "Invalid URL. Example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
+                    false
+                }
             }
         }.also(screen::addPreference)
     }
