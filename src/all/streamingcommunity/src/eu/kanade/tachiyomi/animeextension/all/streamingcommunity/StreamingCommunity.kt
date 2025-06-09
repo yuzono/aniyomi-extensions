@@ -28,6 +28,7 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -51,17 +52,36 @@ class StreamingCommunity(override val lang: String, private val showType: String
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
+    override val client: OkHttpClient = network.client
+
     private val homepage by lazy {
         val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-        if (customDomain.isNullOrBlank()) {
+        val loadedDomain = if (customDomain.isNullOrBlank()) {
             DOMAIN_DEFAULT
         } else {
             customDomain
         }
+        resolveRedirectedDomain(loadedDomain)
     }
 
-    override val baseUrl = "$homepage/$lang"
-    private val apiUrl = "$homepage/api"
+    private fun resolveRedirectedDomain(loadedDomain: String): String {
+        return try {
+            runBlocking(Dispatchers.IO) {
+                client.newCall(GET(loadedDomain, headers)).execute().use { response ->
+                    val redirectedDomain = response.request.url.run { "$scheme://$host" }
+                    if (redirectedDomain != loadedDomain) {
+                        preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
+                    }
+                    redirectedDomain
+                }
+            }
+        } catch (e: Exception) {
+            loadedDomain
+        }
+    }
+
+    override val baseUrl by lazy { "$homepage/$lang" }
+    private val apiUrl by lazy { "$homepage/api" }
 
     override val supportsLatest = true
 
@@ -71,8 +91,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
         availableLanguages = setOf("en", "it"),
         classLoader = this::class.java.classLoader!!,
     )
-
-    override val client: OkHttpClient = network.client
 
     private val apiHeaders = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
