@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.animeextension.all.streamingcommunity
 
 import android.app.Application
 import android.content.SharedPreferences
+import android.webkit.URLUtil
+import android.widget.Toast
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.streamingcommunity.Filters.AgeFilter
@@ -44,7 +47,19 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     override val name = "StreamingUnity (${showType.replaceFirstChar { it.uppercaseChar() }})"
 
-    private val homepage = "https://streamingunity.bid"
+    private val preferences: SharedPreferences by lazy {
+        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    }
+
+    private val homepage by lazy {
+        val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
+        if (customDomain.isNullOrBlank()) {
+            DOMAIN_DEFAULT
+        } else {
+            customDomain
+        }
+    }
+
     override val baseUrl = "$homepage/$lang"
     private val apiUrl = "$homepage/api"
 
@@ -76,10 +91,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
     private val json: Json by injectLazy()
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
-
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
 
     // ============================== Popular ===============================
 
@@ -414,6 +425,9 @@ class StreamingCommunity(override val lang: String, private val showType: String
     }
 
     companion object {
+        private const val DOMAIN_DEFAULT = "https://streamingunity.bid"
+        private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
+
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
         private val PLAYLIST_URL_REGEX = Regex("""url: ?'(.*?)'""")
         private val EXPIRES_REGEX = Regex("""'expires': ?'(\d+)'""")
@@ -466,7 +480,33 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
+                preferences.edit().putString(key, entry).apply()
+                true
+            }
+        }.also(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = PREF_CUSTOM_DOMAIN_KEY
+            title = "Custom domain"
+            setDefaultValue(null)
+            val currentValue = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
+            summary = if (currentValue.isNullOrBlank()) {
+                "Custom domain of your choosing"
+            } else {
+                "Domain: \"$currentValue\". \nLeave blank to disable. Overrides any domain preferences!"
+            }
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val newDomain = (newValue as String).trim()
+                if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
+                    summary = "Restart to apply changes"
+                    Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
+                    preferences.edit().putString(key, newDomain.removeSuffix("/")).apply()
+                    true
+                } else {
+                    Toast.makeText(screen.context, "Invalid url. Url example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
+                    false
+                }
             }
         }.also(screen::addPreference)
     }
