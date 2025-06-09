@@ -38,11 +38,11 @@ class MegaCloudExtractor(
 
     companion object {
         private val SERVER_URL = arrayOf("https://megacloud.tv", "https://rapid-cloud.co")
-        private val SOURCES_URL = arrayOf("/embed-2/ajax/e-1/getSources?id=", "/ajax/embed-6-v2/getSources?id=")
+        private val SOURCES_URL = arrayOf("/embed-2/v2/e-1/getSources?id=", "/ajax/embed-6-v2/getSources?id=")
         private val SOURCES_SPLITTER = arrayOf("/e-1/", "/embed-6-v2/")
         private val SOURCES_KEY = arrayOf("1", "6")
-        private const val E1_SCRIPT_URL = "https://megacloud.tv/js/player/a/prod/e1-player.min.js"
-        private const val E6_SCRIPT_URL = "https://rapid-cloud.co/js/player/prod/e6-player-v2.min.js"
+        private const val E1_SCRIPT_URL = "https://megacloud.tv/js/player/a/e1-player.min.js"
+        private const val E6_SCRIPT_URL = "https://rapid-cloud.co/js/player/e6-player-v2.min.js"
         private val MUTEX = Mutex()
         private var shouldUpdateKey = false
         private const val PREF_KEY_KEY = "megacloud_key_"
@@ -149,9 +149,9 @@ class MegaCloudExtractor(
         val id = url.substringAfter(SOURCES_SPLITTER[type], "")
             .substringBefore("?", "").ifEmpty { throw Exception("I HATE THE ANTICHRIST") }
 
-        if (type == 0) {
-            return webViewResolver.getSources(id)!!
-        }
+//        if (type == 0) {
+//            return webViewResolver.getSources(id)!!
+//        }
 
         val srcRes = client.newCall(GET(SERVER_URL[type] + SOURCES_URL[type] + id))
             .execute()
