@@ -285,21 +285,10 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
         if (data.title == null) return emptyList()
 
-        data.title.preview?.let {
-            episodeList.add(
-                SEpisode.create().apply {
-                    name = "Preview"
-                    episode_number = 0F
-                    url = it.embed_url
-                },
-            )
-        }
-
         if (data.loadedSeason == null) {
             episodeList.add(
                 SEpisode.create().apply {
                     name = "Film"
-                    episode_number = 1F
                     url = data.title.id.toString()
                     date_upload = with(data.title) {
                         (release_date ?: last_air_date)?.let(::parseDate)
@@ -349,7 +338,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
                     episodeList.add(
                         SEpisode.create().apply {
                             name = "$seasonIntl ${season.number} $episodeIntl ${episode.number} - ${episode.name}"
-                            episode_number = episode.number.toFloat()
                             url = "${data.title.id}?episode_id=${episode.id}&next_episode=1"
                             date_upload = season.release_date?.let(::parseDate)
                                 ?: (episode.created_at ?: episode.updated_at)?.let(::parseDateTime)
@@ -360,7 +348,22 @@ class StreamingCommunity(override val lang: String, private val showType: String
             }
         }
 
-        return episodeList.reversed()
+        val episodes = episodeList
+            .mapIndexed { index, episode ->
+                episode.apply {
+                    episode_number = (index + 1).toFloat()
+                }
+            }
+            .reversed()
+
+        return data.title.preview?.let {
+            episodes +
+                SEpisode.create().apply {
+                    name = "Preview"
+                    episode_number = 0F
+                    url = it.embed_url
+                }
+        } ?: episodes
     }
 
     // ============================ Video Links =============================
