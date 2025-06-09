@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animeextension.all.streamingcommunity
 
 import android.app.Application
 import android.content.SharedPreferences
+import android.util.Log
 import android.webkit.URLUtil
 import android.widget.Toast
 import androidx.preference.EditTextPreference
@@ -56,27 +57,10 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     private val homepage by lazy {
         val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-        val loadedDomain = if (customDomain.isNullOrBlank()) {
+        if (customDomain.isNullOrBlank()) {
             DOMAIN_DEFAULT
         } else {
             customDomain
-        }
-        resolveRedirectedDomain(loadedDomain)
-    }
-
-    private fun resolveRedirectedDomain(loadedDomain: String): String {
-        return try {
-            runBlocking(Dispatchers.IO) {
-                client.newCall(GET(loadedDomain, headers)).execute().use { response ->
-                    val redirectedDomain = response.request.url.run { "$scheme://$host" }
-                    if (redirectedDomain != loadedDomain) {
-                        preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
-                    }
-                    redirectedDomain
-                }
-            }
-        } catch (e: Exception) {
-            loadedDomain
         }
     }
 
@@ -445,6 +429,36 @@ class StreamingCommunity(override val lang: String, private val showType: String
         ).reversed()
     }
 
+    private fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
+        return try {
+            runBlocking(Dispatchers.IO) {
+                val headRequest = GET(loadedDomain, headers).newBuilder().head().build()
+                client.newCall(headRequest).execute().use { response ->
+                    val redirectedDomain = response.request.url.run { "$scheme://$host" }
+                    if (redirectedDomain != loadedDomain) {
+                        preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            try {
+                                Toast.makeText(
+                                    screen.context,
+                                    "Domain updated, restart App to apply changes",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            } catch (e: SecurityException) {
+                                Log.e("StreamingCommunity", "Failed to show toast: ${e.message}")
+                            } catch (e: Exception) {
+                                Log.e("StreamingCommunity", "Unexpected error showing toast: ${e.message}")
+                            }
+                        }
+                    }
+                    redirectedDomain
+                }
+            }
+        } catch (e: Exception) {
+            loadedDomain
+        }
+    }
+
     companion object {
         private const val DOMAIN_DEFAULT = "https://streamingunity.art"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
@@ -510,12 +524,11 @@ class StreamingCommunity(override val lang: String, private val showType: String
             key = PREF_CUSTOM_DOMAIN_KEY
             title = "Custom domain"
             setDefaultValue(null)
-            val currentValue = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-            summary = if (currentValue.isNullOrBlank()) {
-                "Custom domain of your choosing"
-            } else {
-                "Domain: \"$currentValue\". \nLeave blank to disable. Overrides any domain preferences!"
-            }
+            val currentValue = resolveRedirectedDomain(
+                screen,
+                preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT,
+            )
+            summary = "Domain: \"$currentValue\".\nLeave blank to disable. Overrides any domain preferences!"
 
             setOnPreferenceChangeListener { _, newValue ->
                 val newDomain = newValue.toString().trim()
