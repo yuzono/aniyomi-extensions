@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.all.torrentioanime.dto
 
+import eu.kanade.tachiyomi.animesource.model.SAnime
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -80,6 +81,68 @@ data class AnilistMedia(
     val seasonYear: Int? = null,
     val countryOfOrigin: String? = null,
     val isAdult: Boolean = false,
+    val recommendations: AnilistRecommendations? = null,
+    val relations: AnilistRelations? = null,
+) {
+    fun toSAnime(userPreferredTitle: String?) = SAnime.create().apply {
+        url = id.toString()
+        title = when (userPreferredTitle) {
+            "romaji" -> this@AnilistMedia.title?.romaji.toString()
+            "english" -> (this@AnilistMedia.title?.english?.takeIf { it.isNotBlank() } ?: this@AnilistMedia.title?.romaji).toString()
+            "native" -> this@AnilistMedia.title?.native.toString()
+            else -> ""
+        }
+        thumbnail_url = coverImage?.extraLarge
+        description = description
+            ?.replace(Regex("<br><br>"), "\n")
+            ?.replace(Regex("<.*?>"), "")
+            ?: "No Description"
+
+        status = when (this@AnilistMedia.status) {
+            "RELEASING" -> SAnime.ONGOING
+            "FINISHED" -> SAnime.COMPLETED
+            "HIATUS" -> SAnime.ON_HIATUS
+            "NOT_YET_RELEASED" -> SAnime.LICENSED
+            else -> SAnime.UNKNOWN
+        }
+
+        // Extracting tags
+        val tagsList = tags?.mapNotNull { it.name }.orEmpty()
+        // Extracting genres
+        val genresList = genres.orEmpty()
+        genre = (tagsList + genresList).toSet().sorted().joinToString()
+
+        // Extracting studios
+        val studiosList = studios?.nodes?.mapNotNull { it.name }.orEmpty()
+        author = studiosList.sorted().joinToString()
+
+        initialized = true
+    }
+}
+
+@Serializable
+data class AnilistRelations(
+    val edges: List<AnilistRelationsEdge>,
+)
+
+@Serializable
+data class AnilistRelationsEdge(
+    val node: AnilistMedia?,
+)
+
+@Serializable
+data class AnilistRecommendations(
+    val edges: List<AnilistRecommendationEdge>,
+)
+
+@Serializable
+data class AnilistRecommendationEdge(
+    val node: MediaRecommendation,
+)
+
+@Serializable
+data class MediaRecommendation(
+    val mediaRecommendation: AnilistMedia?,
 )
 
 @Serializable

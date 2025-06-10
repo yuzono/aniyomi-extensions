@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.animeextension.all.torrentioanime
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
@@ -25,6 +26,8 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import extensions.utils.getPreferencesLazy
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
@@ -90,42 +93,8 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
 
         val animeList = mediaList
             .filterNot { (it?.countryOfOrigin == "CN" || it?.isAdult == true) && isLatestQuery }
-            .map { media ->
-                val anime = SAnime.create().apply {
-                    url = media?.id.toString()
-                    title = when (preferences.getString(PREF_TITLE_KEY, "romaji")) {
-                        "romaji" -> media?.title?.romaji.toString()
-                        "english" -> (media?.title?.english?.takeIf { it.isNotBlank() } ?: media?.title?.romaji).toString()
-                        "native" -> media?.title?.native.toString()
-                        else -> ""
-                    }
-                    thumbnail_url = media?.coverImage?.extraLarge
-                    description = media?.description
-                        ?.replace(Regex("<br><br>"), "\n")
-                        ?.replace(Regex("<.*?>"), "")
-                        ?: "No Description"
-
-                    status = when (media?.status) {
-                        "RELEASING" -> SAnime.ONGOING
-                        "FINISHED" -> SAnime.COMPLETED
-                        "HIATUS" -> SAnime.ON_HIATUS
-                        "NOT_YET_RELEASED" -> SAnime.LICENSED
-                        else -> SAnime.UNKNOWN
-                    }
-
-                    // Extracting tags
-                    val tagsList = media?.tags?.mapNotNull { it.name }.orEmpty()
-                    // Extracting genres
-                    val genresList = media?.genres.orEmpty()
-                    genre = (tagsList + genresList).toSet().sorted().joinToString()
-
-                    // Extracting studios
-                    val studiosList = media?.studios?.nodes?.mapNotNull { it.name }.orEmpty()
-                    author = studiosList.sorted().joinToString()
-
-                    initialized = true
-                }
-                anime
+            .mapNotNull { media ->
+                media?.toSAnime(preferences.getString(PREF_TITLE_KEY, "romaji"))
             }
 
         return AnimesPage(animeList, hasNextPage)
@@ -234,6 +203,75 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun searchAnimeParse(response: Response) = popularAnimeParse(response)
+
+    // ============================== Suggestions ===============================
+    override fun relatedAnimeListRequest(anime: SAnime): Request {
+        val variables = buildJsonObject {
+            put("id", anime.url)
+        }.toString()
+
+        return makeGraphQLRequest(getRelationsById(), variables)
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val jsonData = response.body.string()
+        val metaData = json.decodeFromString<AnilistMeta>(jsonData)
+        val mediaList = metaData.data?.page?.media
+            ?.mapNotNull { it.relations?.edges }?.flatten()
+            ?.mapNotNull { it.node }
+            ?: emptyList()
+
+        return mediaList
+            .filterNot { it.countryOfOrigin == "CN" || it.isAdult }
+            .map { media ->
+                media.toSAnime(preferences.getString(PREF_TITLE_KEY, "romaji"))
+            }
+    }
+
+    override suspend fun getRelatedAnimeListBySearch(
+        anime: SAnime,
+        pushResults: suspend (relatedAnime: Pair<String, List<SAnime>>, completed: Boolean) -> Unit,
+    ) {
+        coroutineScope {
+            (1..3).map { page ->
+                launch {
+                    runCatching {
+                        client.newCall(recommendationsRequest(anime, page))
+                            .awaitSuccess()
+                            .use(::recommendationsParse)
+                    }
+                        .onSuccess { if (it.isNotEmpty()) pushResults(Pair("${anime.title}-$page", it), false) }
+                        .onFailure { e ->
+                            Log.e(this::class.simpleName, "## getRelatedAnimeListBySearch: $e")
+                        }
+                }
+            }
+        }
+    }
+
+    private fun recommendationsRequest(anime: SAnime, page: Int): Request {
+        val variables = buildJsonObject {
+            put("id", anime.url)
+            put("page", page)
+        }.toString()
+
+        return makeGraphQLRequest(getRecommendationsById(), variables)
+    }
+
+    private fun recommendationsParse(response: Response): List<SAnime> {
+        val jsonData = response.body.string()
+        val metaData = json.decodeFromString<AnilistMeta>(jsonData)
+        val mediaList = metaData.data?.page?.media
+            ?.mapNotNull { it.recommendations?.edges }?.flatten()
+            ?.mapNotNull { it.node.mediaRecommendation }
+            ?: emptyList()
+
+        return mediaList
+            .filterNot { it.countryOfOrigin == "CN" || it.isAdult }
+            .map { media ->
+                media.toSAnime(preferences.getString(PREF_TITLE_KEY, "romaji"))
+            }
+    }
 
     // ============================== Filters ===============================
 
