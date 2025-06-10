@@ -102,6 +102,85 @@ fun anilistLatestQuery() = """
     }
 """.toQuery()
 
+// relations{edges{id relationType(version:2)node{id title{userPreferred}format type status(version:2)bannerImage coverImage{large}}}}
+fun getRelationsById() = """
+    query Relations(%id: Int!) {
+        Page {
+            media(id: %id, type: ANIME) {
+                relations {
+                    edges {
+                        node {
+                            id
+                            title {
+                                romaji
+                                english
+                                native
+                            }
+                            coverImage {
+                                extraLarge
+                                large
+                            }
+                            description
+                            status
+                            tags {
+                                name
+                            }
+                            genres
+                            studios {
+                                nodes {
+                                    name
+                                }
+                            }
+                            countryOfOrigin
+                            isAdult
+                        }
+                    }
+                }
+            }
+        }
+    }
+""".toQuery()
+
+fun getRecommendationsById() = """
+    query Recommendations(%id: Int!, %page: Int) {
+        Page {
+            media(id: %id, type: ANIME) {
+                recommendations(page:%page, sort:[RATING_DESC,ID]) {
+                    edges {
+                        node {
+                            mediaRecommendation {
+                                id
+                                title {
+                                    romaji
+                                    english
+                                    native
+                                }
+                                coverImage {
+                                    extraLarge
+                                    large
+                                }
+                                description
+                                status
+                                tags {
+                                    name
+                                }
+                                genres
+                                studios {
+                                    nodes {
+                                        name
+                                    }
+                                }
+                                countryOfOrigin
+                                isAdult
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+""".toQuery()
+
 fun getDetailsQuery() = """
 query media(%id: Int) {
   Media(id: %id, isAdult: false) {
