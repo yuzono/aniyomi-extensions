@@ -199,48 +199,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     }
 
     private fun AniListMedia.toSAnime(): SAnime {
-        val otherNames = when (getPreferredTitleLanguage()) {
-            TitleLanguage.ROMAJI -> listOfNotNull(title.english, title.native)
-            TitleLanguage.ENGLISH -> listOfNotNull(title.romaji, title.native)
-            TitleLanguage.NATIVE -> listOfNotNull(title.romaji, title.english)
-        }
-        val newDescription = buildString {
-            append(
-                description
-                    ?.replace("<br>\n<br>", "\n")
-                    ?.replace("<.*?>".toRegex(), ""),
-            )
-            if (otherNames.isNotEmpty()) {
-                appendLine()
-                appendLine()
-                append("Other name(s): ${otherNames.joinToString(", ")}")
-            }
-        }
-        val media = this
-
-        return SAnime.create().apply {
-            url = mapAnimeDetailUrl(media.id)
-            title = parseTitle(media.title)
-            author = media.studios.nodes.joinToString(", ") { it.name }
-            description = newDescription
-            genre = media.genres.joinToString(", ")
-            status = when (media.status) {
-                AniListMedia.Status.RELEASING -> SAnime.ONGOING
-                AniListMedia.Status.FINISHED -> SAnime.COMPLETED
-                AniListMedia.Status.NOT_YET_RELEASED -> SAnime.LICENSED
-                AniListMedia.Status.CANCELLED -> SAnime.CANCELLED
-                AniListMedia.Status.HIATUS -> SAnime.ON_HIATUS
-            }
-            thumbnail_url = media.coverImage.large
-        }
-    }
-
-    private fun parseTitle(title: AniListMedia.Title): String {
-        return when (getPreferredTitleLanguage()) {
-            TitleLanguage.ROMAJI -> title.romaji
-            TitleLanguage.ENGLISH -> title.english ?: title.romaji
-            TitleLanguage.NATIVE -> title.native ?: title.romaji
-        }
+        return toSAnime(getPreferredTitleLanguage(), ::mapAnimeDetailUrl)
     }
 
     companion object {
