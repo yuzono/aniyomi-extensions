@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -19,6 +20,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.Injekt
@@ -26,7 +28,19 @@ import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
 abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSource {
+
+    override val name = "AniList"
+    override val lang = "en"
+
     override val supportsLatest = true
+
+    open val apiUrl = "https://graphql.anilist.co"
+
+    open val networkBuilder = network.client.newBuilder()
+        .rateLimitHost("https://graphql.anilist.co".toHttpUrl(), 90)
+
+    override val client by lazy { networkBuilder.build() }
+
     val json by injectLazy<Json>()
 
     protected val preferences: SharedPreferences by lazy {
@@ -38,16 +52,20 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
 
     abstract fun mapAnimeId(animeDetailUrl: String): Int
 
-    open fun getPreferredTitleLanguage(): TitleLanguage {
-        val preferredLanguage = preferences.getString(PREF_TITLE_LANGUAGE_KEY, PREF_TITLE_LANGUAGE_DEFAULT)
+    open val SharedPreferences.preferredTitleLang: TitleLanguage
+        get() {
+            val preferredLanguage = preferences.getString(PREF_TITLE_LANGUAGE_KEY, PREF_TITLE_LANGUAGE_DEFAULT)
 
-        return when (preferredLanguage) {
-            "romaji" -> TitleLanguage.ROMAJI
-            "english" -> TitleLanguage.ENGLISH
-            "native" -> TitleLanguage.NATIVE
-            else -> TitleLanguage.ROMAJI
+            return when (preferredLanguage) {
+                "romaji" -> TitleLanguage.ROMAJI
+                "english" -> TitleLanguage.ENGLISH
+                "native" -> TitleLanguage.NATIVE
+                else -> TitleLanguage.ROMAJI
+            }
         }
-    }
+
+    open val SharedPreferences.allowAdult
+        get() = getBoolean(PREF_ALLOW_ADULT_KEY, PREF_ALLOW_ADULT_DEFAULT)
 
     /* ===================================== Popular Anime ===================================== */
     override fun popularAnimeRequest(page: Int): Request {
@@ -167,7 +185,8 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
                 Toast.makeText(screen.context, "Refresh your anime library to apply changes", Toast.LENGTH_LONG).show()
-                preferences.edit().putString(key, entry).commit()
+                preferences.edit().putString(key, entry).apply()
+                true
             }
         }.also(screen::addPreference)
     }
@@ -186,7 +205,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
             .add("variables", variables)
             .build()
 
-        return POST(url = "https://graphql.anilist.co", body = requestBody)
+        return POST(url = apiUrl, body = requestBody)
     }
 
     private fun parseAnimeListResponse(response: Response): AnimesPage {
@@ -198,8 +217,8 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
         )
     }
 
-    private fun AniListMedia.toSAnime(): SAnime {
-        return toSAnime(getPreferredTitleLanguage(), ::mapAnimeDetailUrl)
+    open fun AniListMedia.toSAnime(): SAnime {
+        return toSAnime(preferences.preferredTitleLang, ::mapAnimeDetailUrl)
     }
 
     companion object {
@@ -209,7 +228,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
             NATIVE,
         }
 
-        const val PREF_TITLE_LANGUAGE_KEY = "title_language"
+        const val PREF_TITLE_LANGUAGE_KEY = "preferred_title_lang"
         val PREF_TITLE_LANGUAGE_ENTRIES = arrayOf("Romaji", "English", "Native")
         val PREF_TITLE_LANGUAGE_ENTRY_VALUES = arrayOf("romaji", "english", "native")
         const val PREF_TITLE_LANGUAGE_DEFAULT = "romaji"

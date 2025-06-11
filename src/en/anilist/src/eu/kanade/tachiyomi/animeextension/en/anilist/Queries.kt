@@ -66,12 +66,11 @@ query media(%id: Int, %type: MediaType) {
         medium
     }
     description
-    season
-    seasonYear
-    format
     status(version: 2)
     genres
     episodes
+    season
+    seasonYear
     format
     studios {
       edges {

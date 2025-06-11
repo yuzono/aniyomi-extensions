@@ -32,8 +32,8 @@ import java.util.concurrent.locks.ReentrantLock
 
 @Suppress("unused")
 class AniPlay : AniListAnimeHttpSource() {
+
     override val name = "AniPlay"
-    override val lang = "en"
 
     override val baseUrl: String
         get() = "https://${preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)}"

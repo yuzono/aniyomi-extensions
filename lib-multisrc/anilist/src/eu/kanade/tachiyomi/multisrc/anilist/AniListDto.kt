@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 
 @Serializable
-internal data class AniListAnimeListResponse(val data: Data) {
+data class AniListAnimeListResponse(val data: Data) {
     @Serializable
     data class Data(@SerialName("Page") val page: Page) {
         @Serializable
@@ -22,13 +22,13 @@ internal data class AniListAnimeListResponse(val data: Data) {
 }
 
 @Serializable
-internal data class AniListAnimeDetailsResponse(val data: Data) {
+data class AniListAnimeDetailsResponse(val data: Data) {
     @Serializable
     data class Data(@SerialName("Media") val media: AniListMedia)
 }
 
 @Serializable
-internal data class AniListMedia(
+data class AniListMedia(
     val id: Int,
     val title: Title,
     val coverImage: CoverImage,
