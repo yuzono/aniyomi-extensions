@@ -1,5 +1,11 @@
 package eu.kanade.tachiyomi.multisrc.anilist
 
+import android.app.Application
+import android.content.SharedPreferences
+import android.widget.Toast
+import androidx.preference.ListPreference
+import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -15,11 +21,17 @@ import kotlinx.serialization.json.putJsonArray
 import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
-abstract class AniListAnimeHttpSource : AnimeHttpSource() {
+abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSource {
     override val supportsLatest = true
     val json by injectLazy<Json>()
+
+    protected val preferences: SharedPreferences by lazy {
+        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    }
 
     /* =============================== Mapping AniList <> Source =============================== */
     abstract fun mapAnimeDetailUrl(animeId: Int): String
@@ -27,7 +39,14 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource() {
     abstract fun mapAnimeId(animeDetailUrl: String): Int
 
     open fun getPreferredTitleLanguage(): TitleLanguage {
-        return TitleLanguage.ROMAJI
+        val preferredLanguage = preferences.getString(PREF_TITLE_LANGUAGE_KEY, PREF_TITLE_LANGUAGE_DEFAULT)
+
+        return when (preferredLanguage) {
+            "romaji" -> TitleLanguage.ROMAJI
+            "english" -> TitleLanguage.ENGLISH
+            "native" -> TitleLanguage.NATIVE
+            else -> TitleLanguage.ROMAJI
+        }
     }
 
     /* ===================================== Popular Anime ===================================== */
@@ -132,6 +151,27 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource() {
         return anime.url
     }
 
+    /* ====================================== Preferences ====================================== */
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        ListPreference(screen.context).apply {
+            key = PREF_TITLE_LANGUAGE_KEY
+            title = "Preferred title language"
+            entries = PREF_TITLE_LANGUAGE_ENTRIES
+            entryValues = PREF_TITLE_LANGUAGE_ENTRY_VALUES
+            setDefaultValue(PREF_TITLE_LANGUAGE_DEFAULT)
+            summary = "%s"
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val selected = newValue as String
+                val index = findIndexOfValue(selected)
+                val entry = entryValues[index] as String
+                Toast.makeText(screen.context, "Refresh your anime library to apply changes", Toast.LENGTH_LONG).show()
+                preferences.edit().putString(key, entry).commit()
+            }
+        }.also(screen::addPreference)
+    }
+
     /* ==================================== AniList Utility ==================================== */
     private fun buildAnimeListRequest(
         query: String,
@@ -203,9 +243,16 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource() {
         }
     }
 
-    enum class TitleLanguage {
-        ROMAJI,
-        ENGLISH,
-        NATIVE,
+    companion object {
+        enum class TitleLanguage {
+            ROMAJI,
+            ENGLISH,
+            NATIVE,
+        }
+
+        const val PREF_TITLE_LANGUAGE_KEY = "title_language"
+        val PREF_TITLE_LANGUAGE_ENTRIES = arrayOf("Romaji", "English", "Native")
+        val PREF_TITLE_LANGUAGE_ENTRY_VALUES = arrayOf("romaji", "english", "native")
+        const val PREF_TITLE_LANGUAGE_DEFAULT = "romaji"
     }
 }
