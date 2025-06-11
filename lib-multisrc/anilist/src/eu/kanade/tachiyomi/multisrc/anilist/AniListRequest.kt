@@ -70,6 +70,7 @@ query (
     %page: Int,
     %sort: [MediaSort],
     %search: String,
+    %isAdult: Boolean,
 ) {
     Page(page: %page, perPage: 30) {
         pageInfo {
@@ -81,7 +82,7 @@ query (
             search: %search,
             status_in: [RELEASING, FINISHED],
             countryOfOrigin: "JP",
-            isAdult: false,
+            isAdult: %isAdult,
         ) {
             $MEDIA
         }
@@ -94,6 +95,7 @@ query (
     %page: Int,
     %sort: [MediaSort],
     %search: String,
+    %isAdult: Boolean,
 ) {
     Page(page: %page, perPage: 30) {
         pageInfo {
@@ -105,7 +107,7 @@ query (
             search: %search,
             status_in: [RELEASING, FINISHED],
             countryOfOrigin: "JP",
-            isAdult: false,
+            isAdult: %isAdult,
             startDate_greater: 1,
             episodes_greater: 1,
         ) {
@@ -158,6 +160,7 @@ query (
 internal data class AnimeListVariables(
     val page: Int,
     val sort: MediaSort,
+    val isAdult: Boolean? = null,
     val search: String? = null,
     val genre: String? = null,
     val year: String? = null,
@@ -165,7 +168,6 @@ internal data class AnimeListVariables(
     val format: String? = null,
     val season: String? = null,
     val seasonYear: String? = null,
-    val isAdult: Boolean = false,
 ) {
     enum class MediaSort {
         TRENDING_DESC,

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -67,6 +68,9 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     open val SharedPreferences.allowAdult
         get() = getBoolean(PREF_ALLOW_ADULT_KEY, PREF_ALLOW_ADULT_DEFAULT)
 
+    open val SharedPreferences.isAdult
+        get() = false.takeUnless { allowAdult }
+
     /* ===================================== Popular Anime ===================================== */
     override fun popularAnimeRequest(page: Int): Request {
         return buildAnimeListRequest(
@@ -74,6 +78,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
             variables = AnimeListVariables(
                 page = page,
                 sort = AnimeListVariables.MediaSort.TRENDING_DESC,
+                isAdult = preferences.isAdult,
             ),
         )
     }
@@ -89,6 +94,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
             variables = AnimeListVariables(
                 page = page,
                 sort = AnimeListVariables.MediaSort.START_DATE_DESC,
+                isAdult = preferences.isAdult,
             ),
         )
     }
@@ -104,7 +110,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
         val variablesObject = buildJsonObject {
             put("page", page)
             put("perPage", 30)
-            put("isAdult", false)
+            put("isAdult", preferences.allowAdult)
             put("type", "ANIME")
             put("sort", params.sort)
             if (query.isNotBlank()) put("search", query)
@@ -189,6 +195,21 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
                 true
             }
         }.also(screen::addPreference)
+
+        SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_ALLOW_ADULT_KEY
+            title = "Allow adult content"
+            setDefaultValue(PREF_ALLOW_ADULT_DEFAULT)
+        }.also(screen::addPreference)
+    }
+
+    open fun addAdultPreferences(screen: PreferenceScreen) {
+        SwitchPreferenceCompat(screen.context).apply {
+            key = PREF_ALLOW_ADULT_KEY
+            title = "Allow adult content"
+            summary = "Enable to show anime with adult content"
+            setDefaultValue(PREF_ALLOW_ADULT_DEFAULT)
+        }.also(screen::addPreference)
     }
 
     /* ==================================== AniList Utility ==================================== */
@@ -232,5 +253,8 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
         val PREF_TITLE_LANGUAGE_ENTRIES = arrayOf("Romaji", "English", "Native")
         val PREF_TITLE_LANGUAGE_ENTRY_VALUES = arrayOf("romaji", "english", "native")
         const val PREF_TITLE_LANGUAGE_DEFAULT = "romaji"
+
+        const val PREF_ALLOW_ADULT_KEY = "preferred_allow_adult"
+        const val PREF_ALLOW_ADULT_DEFAULT = false
     }
 }

@@ -410,6 +410,8 @@ class AniList : AniListAnimeHttpSource() {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         super.setupPreferenceScreen(screen)
 
+        addAdultPreferences(screen)
+
         SwitchPreferenceCompat(screen.context).apply {
             key = MARK_FILLERS_KEY
             title = "Mark filler episodes"
