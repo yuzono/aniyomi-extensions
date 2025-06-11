@@ -4,7 +4,27 @@ import kotlinx.serialization.Serializable
 
 private fun String.toQuery() = this.trimIndent().replace("%", "$")
 
-internal const val MEDIA_QUERY = """
+private const val STUDIO_MAIN = """
+    studios(isMain: true) {
+        node {
+            name
+        }
+    }
+"""
+
+private const val STUDIOS = """
+    studios {
+        edges {
+            isMain
+            node {
+                id
+                name
+            }
+        }
+    }
+"""
+
+private const val MEDIA = """
     id
     title {
         romaji
@@ -12,17 +32,38 @@ internal const val MEDIA_QUERY = """
         native
     }
     coverImage {
+        extraLarge
         large
+        medium
     }
     description
-    status
+    status(version: 2)
     genres
-    studios(isMain: true) {
-        nodes {
-            name
+    episodes
+    season
+    seasonYear
+    format
+    $STUDIOS
+"""
+
+internal val ANIME_DETAILS_QUERY = """
+query (%id: Int) {
+    Media(id: %id) {
+        $MEDIA
+    }
+}
+""".toQuery()
+
+internal val EPISODES_QUERY = """
+query media(%id: Int, %type: MediaType) {
+    Media(id: %id, type: %type) {
+        episodes
+        nextAiringEpisode {
+            episode
         }
     }
-"""
+}
+""".toQuery()
 
 internal val ANIME_LIST_QUERY = """
 query (
@@ -42,7 +83,7 @@ query (
             countryOfOrigin: "JP",
             isAdult: false,
         ) {
-            $MEDIA_QUERY
+            $MEDIA
         }
     }
 }
@@ -68,16 +109,8 @@ query (
             startDate_greater: 1,
             episodes_greater: 1,
         ) {
-            $MEDIA_QUERY
+            $MEDIA
         }
-    }
-}
-""".toQuery()
-
-internal val ANIME_DETAILS_QUERY = """
-query (%id: Int) {
-    Media(id: %id) {
-        $MEDIA_QUERY
     }
 }
 """.toQuery()
@@ -95,7 +128,8 @@ query (
     %year: String,
     %seasonYear: Int,
     %season: MediaSeason,
-    %format: [MediaFormat]
+    %format: [MediaFormat],
+    %countryOfOrigin: CountryCode,
 ) {
     Page (page: %page, perPage: %perPage) {
         pageInfo {
@@ -111,26 +145,10 @@ query (
             startDate_like: %year,
             seasonYear: %seasonYear,
             season: %season,
-            format_in: %format
+            format_in: %format,
+            countryOfOrigin: %countryOfOrigin,
         ) {
-            id
-            title {
-                romaji
-                english
-                native
-            }
-            coverImage {
-                extraLarge
-                large
-                medium
-            }
-            status
-            genres
-            studios {
-                nodes {
-                    name
-                }
-            }
+            $MEDIA
         }
     }
 }
