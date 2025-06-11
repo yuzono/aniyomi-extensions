@@ -23,6 +23,7 @@ import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.math.ceil
@@ -175,7 +176,9 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    override fun searchAnimeParse(response: Response): AnimesPage {
+    override fun searchAnimeParse(response: Response) = searchAnimeParsePaging(response, 1)
+
+    private fun searchAnimeParsePaging(response: Response, page: Int): AnimesPage {
         val url = response.request.url
         if (url.pathSegments.contains("api") && url.queryParameter("m") == "search") {
             val searchData = response.parseAs<ResponseDto<SearchResultDto>>()
@@ -187,7 +190,9 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                     setUrlWithoutDomain("/a/$animeId")
                 }
             }
-            return AnimesPage(animeList, false)
+                .chunked(PAGE_SIZE)
+                .getOrElse(page - 1) { emptyList() }
+            return AnimesPage(animeList, animeList.size > page * PAGE_SIZE)
         } else if (url.pathSegments.contains("anime")) {
             val document = response.asJsoup()
             val entries = document.select("div.index div > a").mapNotNull { a ->
@@ -199,9 +204,20 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                         }
                     }
             }
-            return AnimesPage(entries, false)
+                .chunked(PAGE_SIZE)
+                .getOrElse(page - 1) { emptyList() }
+            return AnimesPage(entries, entries.size > page * PAGE_SIZE)
         }
         return AnimesPage(emptyList(), false)
+    }
+
+    override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
+        client.newCall(searchAnimeRequest(page, query, filters))
+            .execute()
+            .use { response ->
+                if (!response.isSuccessful) throw IOException("Failed to fetch search results: HTTP error code ${response.code}")
+                return searchAnimeParsePaging(response, page)
+            }
     }
 
     // ============================== Latest ===============================
@@ -500,5 +516,7 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
             |Turn off to never select av1 as preferred codec
             """.trimMargin()
         }
+
+        private const val PAGE_SIZE = 25
     }
 }
