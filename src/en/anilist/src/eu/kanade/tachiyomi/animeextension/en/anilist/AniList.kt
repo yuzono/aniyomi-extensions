@@ -2,23 +2,21 @@ package eu.kanade.tachiyomi.animeextension.en.anilist
 
 import android.content.SharedPreferences
 import android.util.Log
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
-import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
-import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeDetailsResponse
+import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeHttpSource
+import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeListResponse
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
-import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -27,32 +25,28 @@ import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 
-class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
-
-    override val name = "AniList"
+class AniList : AniListAnimeHttpSource() {
 
     override val baseUrl = "https://anilist.co"
 
-    private val apiUrl = "https://graphql.anilist.co"
-
-    override val lang = "en"
-
-    override val supportsLatest = true
-
-    override val client = network.client.newBuilder()
+    override val networkBuilder = super.networkBuilder
         .rateLimitHost("https://api.jikan.moe".toHttpUrl(), 1)
-        .build()
-
-    private val json: Json by injectLazy()
-
-    private val preferences by getPreferencesLazy()
 
     private val mappings by lazy {
         client.newCall(
             GET("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", headers),
         ).execute().parseAs<List<Mapping>>()
+    }
+
+    /* ================================= AniList configurations ================================= */
+
+    override fun mapAnimeDetailUrl(animeId: Int): String {
+        return animeId.toString()
+    }
+
+    override fun mapAnimeId(animeDetailUrl: String): Int {
+        return animeDetailUrl.toIntOrNull() ?: throw Exception("Invalid AniList anime ID: $animeDetailUrl")
     }
 
     // ============================== Popular ===============================
@@ -85,10 +79,9 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun popularAnimeParse(response: Response): AnimesPage {
-        val titleLang = preferences.titleLang
-        val page = response.parseAs<PagesResponse>().data.page
+        val page = response.parseAs<AniListAnimeListResponse>().data.page
         val hasNextPage = page.pageInfo.hasNextPage
-        val animeList = page.media.map { it.toSAnime(titleLang) }
+        val animeList = page.media.map { it.toSAnime() }
 
         return AnimesPage(animeList, hasNextPage)
     }
@@ -178,7 +171,7 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
         val currentTime = System.currentTimeMillis() / 1000L
-        val lastRefresh = lastRefreshed.getOrDefault(anime.url, 0L)
+        val lastRefresh = lastRefreshed[anime.url] ?: 0L
 
         val newAnime = if (currentTime - lastRefresh < refreshInterval) {
             anime.apply {
@@ -217,9 +210,8 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
     private val coverProviders by lazy { CoverProviders(client, headers) }
 
     override fun animeDetailsParse(response: Response): SAnime {
-        val titleLang = preferences.titleLang
-        val animeData = response.parseAs<DetailsResponse>().data.media
-        val anime = animeData.toSAnime(titleLang)
+        val animeData = response.parseAs<AniListAnimeDetailsResponse>().data.media
+        val anime = animeData.toSAnime()
 
         if (currentAnime != anime.url) {
             currentAnime = ""
@@ -248,10 +240,10 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         val currentTime = System.currentTimeMillis() / 1000L
-        val lastRefresh = lastRefreshed.getOrDefault(anime.url, 0L)
+        val lastRefresh = lastRefreshed[anime.url] ?: 0L
 
         val episodeList = if (currentTime - lastRefresh < refreshInterval) {
-            episodeListMap.getOrDefault(anime.url, emptyList())
+            episodeListMap[anime.url] ?: emptyList()
         } else {
             super.getEpisodeList(anime)
         }
@@ -408,47 +400,15 @@ class AniList : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val MARK_FILLERS_KEY = "preferred_mark_fillers"
         private const val MARK_FILLERS_DEFAULT = true
-
-        private const val PREF_ALLOW_ADULT_KEY = "preferred_allow_adult"
-        private const val PREF_ALLOW_ADULT_DEFAULT = false
-
-        private const val PREF_TITLE_LANG_KEY = "preferred_title"
-        private const val PREF_TITLE_LANG_DEFAULT = "romaji"
     }
 
     private val SharedPreferences.markFiller
         get() = getBoolean(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT)
 
-    private val SharedPreferences.allowAdult
-        get() = getBoolean(PREF_ALLOW_ADULT_KEY, PREF_ALLOW_ADULT_DEFAULT)
-
-    private val SharedPreferences.titleLang
-        get() = getString(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)!!
-
     // ============================== Settings ==============================
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        SwitchPreferenceCompat(screen.context).apply {
-            key = PREF_ALLOW_ADULT_KEY
-            title = "Allow adult content"
-            setDefaultValue(PREF_ALLOW_ADULT_DEFAULT)
-        }.also(screen::addPreference)
-
-        ListPreference(screen.context).apply {
-            key = PREF_TITLE_LANG_KEY
-            title = "Preferred title language"
-            entries = arrayOf("Romaji", "English", "Native")
-            entryValues = arrayOf("romaji", "english", "native")
-            setDefaultValue(PREF_TITLE_LANG_DEFAULT)
-            summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
+        super.setupPreferenceScreen(screen)
 
         SwitchPreferenceCompat(screen.context).apply {
             key = MARK_FILLERS_KEY
