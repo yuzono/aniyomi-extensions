@@ -52,7 +52,7 @@ object AniListQueries {
 
     internal val ANIME_DETAILS_QUERY = """
         query (%id: Int) {
-            Media(id: %id) { $MEDIA }
+            Media(id: %id, type: $MEDIA_TYPE) { $MEDIA }
         }
         """.toQuery()
 

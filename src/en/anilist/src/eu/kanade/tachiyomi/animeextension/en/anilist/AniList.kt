@@ -66,21 +66,6 @@ class AniList : AniListAnimeHttpSource() {
         return newAnime
     }
 
-    override fun animeDetailsRequest(anime: SAnime): Request {
-        val variablesObject = buildJsonObject {
-            put("id", anime.url.toInt())
-            put("type", "ANIME")
-        }
-        val variables = json.encodeToString(variablesObject)
-
-        val body = FormBody.Builder().apply {
-            add("query", getDetailsQuery())
-            add("variables", variables)
-        }.build()
-
-        return POST(apiUrl, body = body)
-    }
-
     private var coverList = emptyList<String>()
     private var coverIndex = 0
     private var currentAnime = ""
