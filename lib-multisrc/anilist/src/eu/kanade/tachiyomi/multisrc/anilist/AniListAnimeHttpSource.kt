@@ -11,15 +11,15 @@ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.multisrc.anilist.AniListQueries.ANIME_DETAILS_QUERY
+import eu.kanade.tachiyomi.multisrc.anilist.AniListQueries.SORT_QUERY
+import eu.kanade.tachiyomi.multisrc.anilist.AniListQueries.TRENDING_ANIME_LIST_QUERY
+import eu.kanade.tachiyomi.multisrc.anilist.AniListQueries.latestAnilistQuery
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -79,9 +79,9 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     override fun popularAnimeRequest(page: Int): Request {
         return buildAnimeListRequest(
             query = TRENDING_ANIME_LIST_QUERY,
-            variables = AnimeListVariables(
+            variables = AniListQueries.AnimeListVariables(
                 page = page,
-                sort = AnimeListVariables.MediaSort.TRENDING_DESC,
+                sort = AniListQueries.AnimeListVariables.MediaSort.TRENDING_DESC.toString(),
                 isAdult = preferences.isAdult,
                 countryOfOrigin = countryOfOrigin,
             ),
@@ -96,9 +96,9 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     override fun latestUpdatesRequest(page: Int): Request {
         return buildAnimeListRequest(
             query = latestAnilistQuery(extraLatestMediaFields),
-            variables = AnimeListVariables(
+            variables = AniListQueries.AnimeListVariables(
                 page = page,
-                sort = AnimeListVariables.MediaSort.START_DATE_DESC,
+                sort = AniListQueries.AnimeListVariables.MediaSort.START_DATE_DESC.toString(),
                 isAdult = preferences.isAdult,
                 countryOfOrigin = countryOfOrigin,
             ),
@@ -113,46 +113,24 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val params = AniListFilters.getSearchParameters(filters)
 
-        val variablesObject = buildJsonObject {
-            put("page", page)
-            put("perPage", 30)
-            put("isAdult", preferences.allowAdult)
-            put("type", "ANIME")
-            put("sort", params.sort)
-            if (query.isNotBlank()) put("search", query)
+        val variables = AniListQueries.AnimeListVariables(
+            page = page,
+            sort = params.sort,
+            isAdult = preferences.isAdult,
+            countryOfOrigin = params.country.takeIf { it.isNotBlank() },
+            search = query.takeIf { it.isNotBlank() },
+            genres = params.genres.takeIf { it.isNotEmpty() },
+            format = params.format.takeIf { it.isNotEmpty() },
+            year = params.year.takeIf { it.isNotBlank() && params.season.isBlank() }?.let { "$it%" },
+            season = params.season.takeIf { it.isNotBlank() && params.year.isNotBlank() },
+            seasonYear = params.year.takeIf { it.isNotBlank() && params.season.isNotBlank() },
+            status = params.status.takeIf { it.isNotBlank() },
+        )
 
-            if (params.genres.isNotEmpty()) {
-                putJsonArray("genres") {
-                    params.genres.forEach { add(it) }
-                }
-            }
-
-            if (params.format.isNotEmpty()) {
-                putJsonArray("format") {
-                    params.format.forEach { add(it) }
-                }
-            }
-
-            if (params.season.isBlank() && params.year.isNotBlank()) {
-                put("year", "${params.year}%")
-            }
-
-            if (params.season.isNotBlank() && params.year.isBlank()) {
-                throw Exception("Year cannot be blank if season is set")
-            }
-
-            if (params.season.isNotBlank() && params.year.isNotBlank()) {
-                put("season", params.season)
-                put("seasonYear", params.year)
-            }
-
-            if (params.status.isNotBlank()) {
-                put("status", params.status)
-            }
-        }
-        val variables = json.encodeToString(variablesObject)
-
-        return buildRequest(query = SORT_QUERY, variables = variables)
+        return buildAnimeListRequest(
+            query = SORT_QUERY,
+            variables = variables,
+        )
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
@@ -167,7 +145,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     override fun animeDetailsRequest(anime: SAnime): Request {
         return buildRequest(
             query = ANIME_DETAILS_QUERY,
-            variables = json.encodeToString(AnimeDetailsVariables(mapAnimeId(anime.url))),
+            variables = json.encodeToString(AniListQueries.AnimeDetailsVariables(mapAnimeId(anime.url))),
         )
     }
 
@@ -221,7 +199,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     /* ==================================== AniList Utility ==================================== */
     private fun buildAnimeListRequest(
         query: String,
-        variables: AnimeListVariables,
+        variables: AniListQueries.AnimeListVariables,
     ): Request {
         return buildRequest(query, json.encodeToString(variables))
     }

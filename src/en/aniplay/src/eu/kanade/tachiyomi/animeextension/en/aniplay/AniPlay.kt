@@ -7,12 +7,20 @@ import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
+import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeHttpSource
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.CountryFilter
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.FormatFilter
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.GenreFilter
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.SeasonFilter
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.SortFilter
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.StatusFilter
+import eu.kanade.tachiyomi.multisrc.anilist.AniListFilters.YearFilter
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parseAs
@@ -60,6 +68,18 @@ class AniPlay : AniListAnimeHttpSource() {
             startDate_greater: 1,
             episodes_greater: 1,
         """
+
+    // ============================== Filters ===============================
+
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+        GenreFilter(),
+        YearFilter(),
+        SeasonFilter(),
+        FormatFilter(),
+        StatusFilter(),
+        CountryFilter(COUNTRY_LIST),
+        SortFilter(),
+    )
 
     /* ====================================== Episode List ====================================== */
 
@@ -530,6 +550,14 @@ class AniPlay : AniListAnimeHttpSource() {
     }
 
     companion object {
+        val COUNTRY_LIST = arrayOf(
+            Pair("Japan", "JP"),
+            Pair("South Korea", "KR"),
+            Pair("China", "CN"),
+            Pair("Taiwan", "TW"),
+            Pair("<All countries>", ""),
+        )
+
         private const val PREF_DOMAIN_KEY = "domain"
         private val PREF_DOMAIN_ENTRIES = arrayOf("aniplaynow.live (default)", "aniplay.lol (backup/experimental)")
         private val PREF_DOMAIN_ENTRY_VALUES = arrayOf("aniplaynow.live", "aniplay.lol")

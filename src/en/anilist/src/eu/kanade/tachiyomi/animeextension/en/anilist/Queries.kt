@@ -2,55 +2,6 @@ package eu.kanade.tachiyomi.animeextension.en.anilist
 
 private fun String.toQuery() = this.trimIndent().replace("%", "$")
 
-fun getSortQuery() = """
-query (
-    %page: Int,
-    %perPage: Int,
-    %isAdult: Boolean,
-    %type: MediaType,
-    %sort: [MediaSort],
-    %status: MediaStatus,
-    %search: String,
-    %genres: [String],
-    %year: String,
-    %seasonYear: Int,
-    %season: MediaSeason,
-    %format: [MediaFormat],
-    %countryOfOrigin: CountryCode,
-) {
-    Page (page: %page, perPage: %perPage) {
-        pageInfo {
-            hasNextPage
-        }
-        media (
-            isAdult: %isAdult,
-            type: %type,
-            sort: %sort,
-            status: %status,
-            search: %search,
-            genre_in: %genres,
-            startDate_like: %year,
-            seasonYear: %seasonYear,
-            season: %season,
-            format_in: %format,
-            countryOfOrigin: %countryOfOrigin,
-        ) {
-            id
-            title {
-                romaji
-                english
-                native
-            }
-            coverImage {
-                extraLarge
-                large
-                medium
-            }
-        }
-    }
-}
-""".toQuery()
-
 fun getDetailsQuery() = """
 query media(%id: Int, %type: MediaType) {
   Media(id: %id, type: %type) {

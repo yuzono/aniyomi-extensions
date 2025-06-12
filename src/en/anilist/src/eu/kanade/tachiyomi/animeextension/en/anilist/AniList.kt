@@ -4,8 +4,6 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
-import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
-import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -16,10 +14,8 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -46,73 +42,6 @@ class AniList : AniListAnimeHttpSource() {
 
     override fun mapAnimeId(animeDetailUrl: String): Int {
         return animeDetailUrl.toIntOrNull() ?: throw Exception("Invalid AniList anime ID: $animeDetailUrl")
-    }
-
-    // =============================== Search ===============================
-
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val params = Filters.getSearchParameters(filters)
-
-        val variablesObject = buildJsonObject {
-            put("page", page)
-            put("perPage", PER_PAGE)
-            put("sort", params.sort)
-            if (query.isNotBlank()) put("search", query)
-
-            if (params.genres.isNotEmpty()) {
-                putJsonArray("genres") {
-                    params.genres.forEach { add(it) }
-                }
-            }
-
-            if (params.format.isNotEmpty()) {
-                putJsonArray("format") {
-                    params.format.forEach { add(it) }
-                }
-            }
-
-            if (params.season.isBlank() && params.year.isNotBlank()) {
-                put("year", "${params.year}%")
-            }
-
-            if (params.season.isNotBlank() && params.year.isBlank()) {
-                throw Exception("Year cannot be blank if season is set")
-            }
-
-            if (params.season.isNotBlank() && params.year.isNotBlank()) {
-                put("season", params.season)
-                put("seasonYear", params.year)
-            }
-
-            if (params.status.isNotBlank()) {
-                put("status", params.status)
-            }
-
-            if (params.country.isNotBlank()) {
-                put("countryOfOrigin", params.country)
-            }
-
-            put("type", "ANIME")
-            if (!preferences.allowAdult) put("isAdult", false)
-        }
-        val variables = json.encodeToString(variablesObject)
-
-        val body = FormBody.Builder().apply {
-            add("query", getSortQuery())
-            add("variables", variables)
-        }.build()
-
-        return POST(apiUrl, body = body)
-    }
-
-    override fun searchAnimeParse(response: Response): AnimesPage {
-        return popularAnimeParse(response)
-    }
-
-    // ============================== Filters ===============================
-
-    override fun getFilterList(): AnimeFilterList {
-        return Filters.FILTER_LIST
     }
 
     // =========================== Anime Details ============================
@@ -347,8 +276,6 @@ class AniList : AniListAnimeHttpSource() {
 
     companion object {
         private val SANITY_REGEX by lazy { Regex("""^Ep. \d+ - (Episode \d+)${'$'}""") }
-
-        private const val PER_PAGE = 20
 
         private const val MARK_FILLERS_KEY = "preferred_mark_fillers"
         private const val MARK_FILLERS_DEFAULT = true

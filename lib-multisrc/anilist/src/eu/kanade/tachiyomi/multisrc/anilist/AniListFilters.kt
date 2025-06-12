@@ -6,7 +6,7 @@ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 object AniListFilters {
     open class QueryPartFilter(
         displayName: String,
-        val vals: Array<Pair<String, String>>,
+        private val vals: Array<Pair<String, String>>,
     ) : AnimeFilter.Select<String>(
         displayName,
         vals.map { it.first }.toTypedArray(),
@@ -14,7 +14,7 @@ object AniListFilters {
         fun toQueryPart() = vals[state].second
     }
 
-    open class CheckBoxFilterList(name: String, val pairs: Array<Pair<String, String>>) :
+    open class CheckBoxFilterList(name: String, pairs: Array<Pair<String, String>>) :
         AnimeFilter.Group<AnimeFilter.CheckBox>(name, pairs.map { CheckBoxVal(it.first, false) })
 
     private class CheckBoxVal(name: String, state: Boolean = false) : AnimeFilter.CheckBox(name, state)
@@ -48,6 +48,7 @@ object AniListFilters {
     class SeasonFilter : QueryPartFilter("Season", AniListFiltersData.SEASON_LIST)
     class FormatFilter : CheckBoxFilterList("Format", AniListFiltersData.FORMAT_LIST)
     class StatusFilter : QueryPartFilter("Airing Status", AniListFiltersData.STATUS_LIST)
+    class CountryFilter(vals: Array<Pair<String, String>> = AniListFiltersData.COUNTRY_LIST) : QueryPartFilter("Country Of Origin", vals)
 
     class SortFilter : AnimeFilter.Sort(
         "Sort",
@@ -61,6 +62,7 @@ object AniListFilters {
         SeasonFilter(),
         FormatFilter(),
         StatusFilter(),
+        CountryFilter(),
         SortFilter(),
     )
 
@@ -70,6 +72,7 @@ object AniListFilters {
         val season: String = "",
         val format: List<String> = emptyList(),
         val status: String = "",
+        val country: String = "",
         val sort: String = "",
     )
 
@@ -82,6 +85,7 @@ object AniListFilters {
             filters.asQueryPart<SeasonFilter>(),
             filters.parseCheckboxList<FormatFilter>(AniListFiltersData.FORMAT_LIST),
             filters.asQueryPart<StatusFilter>(),
+            filters.asQueryPart<CountryFilter>(),
             filters.getSort<SortFilter>(),
         )
     }
@@ -201,10 +205,10 @@ object AniListFilters {
 
         val SEASON_LIST = arrayOf(
             Pair("<Select>", ""),
-            Pair("Winter", "WINTER"),
             Pair("Spring", "SPRING"),
             Pair("Summer", "SUMMER"),
             Pair("Fall", "FALL"),
+            Pair("Winter", "WINTER"),
         )
 
         val FORMAT_LIST = arrayOf(
@@ -223,6 +227,14 @@ object AniListFilters {
             Pair("Finished", "FINISHED"),
             Pair("Not Yet Aired", "NOT_YET_RELEASED"),
             Pair("Cancelled", "CANCELLED"),
+        )
+
+        val COUNTRY_LIST = arrayOf(
+            Pair("<Select>", ""),
+            Pair("Japan", "JP"),
+            Pair("South Korea", "KR"),
+            Pair("China", "CN"),
+            Pair("Taiwan", "TW"),
         )
 
         val SORT_LIST = arrayOf(
