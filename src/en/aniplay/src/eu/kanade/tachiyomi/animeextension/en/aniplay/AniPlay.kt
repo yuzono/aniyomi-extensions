@@ -54,6 +54,8 @@ class AniPlay : AniListAnimeHttpSource() {
 
     private val baseHost: String get() = "${preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)}"
 
+    override val countryOfOrigin = "JP"
+
     /* ====================================== Episode List ====================================== */
 
     override fun episodeListRequest(anime: SAnime): Request {

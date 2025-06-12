@@ -49,7 +49,7 @@ class AniList : AniListAnimeHttpSource() {
         return animeDetailUrl.toIntOrNull() ?: throw Exception("Invalid AniList anime ID: $animeDetailUrl")
     }
 
-    // ============================== Popular ===============================
+    // =============================== Latest ===============================
 
     private fun createSortRequest(
         sort: String,
@@ -73,20 +73,6 @@ class AniList : AniListAnimeHttpSource() {
 
         return POST(apiUrl, body = body)
     }
-
-    override fun popularAnimeRequest(page: Int): Request {
-        return createSortRequest("TRENDING_DESC", page)
-    }
-
-    override fun popularAnimeParse(response: Response): AnimesPage {
-        val page = response.parseAs<AniListAnimeListResponse>().data.page
-        val hasNextPage = page.pageInfo.hasNextPage
-        val animeList = page.media.map { it.toSAnime() }
-
-        return AnimesPage(animeList, hasNextPage)
-    }
-
-    // =============================== Latest ===============================
 
     override fun latestUpdatesRequest(page: Int): Request {
         return createSortRequest("START_DATE_DESC", page, Pair("status", "RELEASING"))

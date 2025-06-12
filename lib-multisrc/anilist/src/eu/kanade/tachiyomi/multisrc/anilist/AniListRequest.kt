@@ -4,16 +4,19 @@ import kotlinx.serialization.Serializable
 
 private fun String.toQuery() = this.trimIndent().replace("%", "$")
 
-private const val STUDIO_MAIN = """
-    studios(isMain: true) {
+private const val MEDIA_TYPE = "ANIME"
+private const val PER_PAGE = 25
+
+private const val STUDIO_MAIN =
+"""    studios(isMain: true) {
         node {
             name
         }
     }
 """
 
-private const val STUDIOS = """
-    studios {
+private const val STUDIOS =
+"""    studios {
         edges {
             isMain
             node {
@@ -48,9 +51,7 @@ private const val MEDIA = """
 
 internal val ANIME_DETAILS_QUERY = """
 query (%id: Int) {
-    Media(id: %id) {
-        $MEDIA
-    }
+    Media(id: %id) { $MEDIA }
 }
 """.toQuery()
 
@@ -65,27 +66,26 @@ query media(%id: Int, %type: MediaType) {
 }
 """.toQuery()
 
-internal val ANIME_LIST_QUERY = """
+internal val TRENDING_ANIME_LIST_QUERY = """
 query (
     %page: Int,
     %sort: [MediaSort],
     %search: String,
     %isAdult: Boolean,
+    %countryOfOrigin: CountryCode,
 ) {
-    Page(page: %page, perPage: 30) {
+    Page(page: %page, perPage: $PER_PAGE) {
         pageInfo {
             hasNextPage
         }
         media(
-            type: ANIME,
+            type: $MEDIA_TYPE,
             sort: %sort,
             search: %search,
             status_in: [RELEASING, FINISHED],
-            countryOfOrigin: "JP",
+            countryOfOrigin: %countryOfOrigin,
             isAdult: %isAdult,
-        ) {
-            $MEDIA
-        }
+        ) { $MEDIA }
     }
 }
 """.toQuery()
@@ -96,23 +96,22 @@ query (
     %sort: [MediaSort],
     %search: String,
     %isAdult: Boolean,
+    %countryOfOrigin: CountryCode,
 ) {
-    Page(page: %page, perPage: 30) {
+    Page(page: %page, perPage: $PER_PAGE) {
         pageInfo {
             hasNextPage
         }
         media(
-            type: ANIME,
+            type: $MEDIA_TYPE,
             sort: %sort,
             search: %search,
             status_in: [RELEASING, FINISHED],
-            countryOfOrigin: "JP",
+            countryOfOrigin: %countryOfOrigin,
             isAdult: %isAdult,
             startDate_greater: 1,
             episodes_greater: 1,
-        ) {
-            $MEDIA
-        }
+        ) { $MEDIA }
     }
 }
 """.toQuery()
@@ -149,9 +148,7 @@ query (
             season: %season,
             format_in: %format,
             countryOfOrigin: %countryOfOrigin,
-        ) {
-            $MEDIA
-        }
+        ) { $MEDIA }
     }
 }
 """.toQuery()
@@ -168,6 +165,7 @@ internal data class AnimeListVariables(
     val format: String? = null,
     val season: String? = null,
     val seasonYear: String? = null,
+    val countryOfOrigin: String? = null,
 ) {
     enum class MediaSort {
         TRENDING_DESC,
