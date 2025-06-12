@@ -71,14 +71,17 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     open val SharedPreferences.isAdult
         get() = false.takeUnless { allowAdult }
 
+    open val countryOfOrigin: String? = null
+
     /* ===================================== Popular Anime ===================================== */
     override fun popularAnimeRequest(page: Int): Request {
         return buildAnimeListRequest(
-            query = ANIME_LIST_QUERY,
+            query = TRENDING_ANIME_LIST_QUERY,
             variables = AnimeListVariables(
                 page = page,
                 sort = AnimeListVariables.MediaSort.TRENDING_DESC,
                 isAdult = preferences.isAdult,
+                countryOfOrigin = countryOfOrigin,
             ),
         )
     }
@@ -95,6 +98,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
                 page = page,
                 sort = AnimeListVariables.MediaSort.START_DATE_DESC,
                 isAdult = preferences.isAdult,
+                countryOfOrigin = countryOfOrigin,
             ),
         )
     }
