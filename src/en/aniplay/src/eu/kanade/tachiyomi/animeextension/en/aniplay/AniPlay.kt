@@ -56,6 +56,11 @@ class AniPlay : AniListAnimeHttpSource() {
 
     override val countryOfOrigin = "JP"
 
+    override val extraLatestMediaFields = """
+            startDate_greater: 1,
+            episodes_greater: 1,
+        """
+
     /* ====================================== Episode List ====================================== */
 
     override fun episodeListRequest(anime: SAnime): Request {

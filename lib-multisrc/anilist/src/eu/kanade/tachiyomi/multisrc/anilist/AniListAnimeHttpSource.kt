@@ -73,6 +73,8 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
 
     open val countryOfOrigin: String? = null
 
+    open val extraLatestMediaFields = ""
+
     /* ===================================== Popular Anime ===================================== */
     override fun popularAnimeRequest(page: Int): Request {
         return buildAnimeListRequest(
@@ -93,7 +95,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     /* ===================================== Latest Anime ===================================== */
     override fun latestUpdatesRequest(page: Int): Request {
         return buildAnimeListRequest(
-            query = LATEST_ANIME_LIST_QUERY,
+            query = latestAnilistQuery(extraLatestMediaFields),
             variables = AnimeListVariables(
                 page = page,
                 sort = AnimeListVariables.MediaSort.START_DATE_DESC,

@@ -90,7 +90,7 @@ query (
 }
 """.toQuery()
 
-internal val LATEST_ANIME_LIST_QUERY = """
+internal fun latestAnilistQuery(extraLatestMediaFields: String = "") = """
 query (
     %page: Int,
     %sort: [MediaSort],
@@ -109,8 +109,7 @@ query (
             status_in: [RELEASING, FINISHED],
             countryOfOrigin: %countryOfOrigin,
             isAdult: %isAdult,
-            startDate_greater: 1,
-            episodes_greater: 1,
+            $extraLatestMediaFields,
         ) { $MEDIA }
     }
 }
