@@ -11,7 +11,6 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeDetailsResponse
 import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeHttpSource
-import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeListResponse
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
@@ -47,39 +46,6 @@ class AniList : AniListAnimeHttpSource() {
 
     override fun mapAnimeId(animeDetailUrl: String): Int {
         return animeDetailUrl.toIntOrNull() ?: throw Exception("Invalid AniList anime ID: $animeDetailUrl")
-    }
-
-    // =============================== Latest ===============================
-
-    private fun createSortRequest(
-        sort: String,
-        page: Int,
-        extraVar: Pair<String, String>? = null,
-    ): Request {
-        val variablesObject = buildJsonObject {
-            put("page", page)
-            put("perPage", PER_PAGE)
-            put("sort", sort)
-            put("type", "ANIME")
-            extraVar?.let { put(extraVar.first, extraVar.second) }
-            if (!preferences.allowAdult) put("isAdult", false)
-        }
-        val variables = json.encodeToString(variablesObject)
-
-        val body = FormBody.Builder().apply {
-            add("query", getSortQuery())
-            add("variables", variables)
-        }.build()
-
-        return POST(apiUrl, body = body)
-    }
-
-    override fun latestUpdatesRequest(page: Int): Request {
-        return createSortRequest("START_DATE_DESC", page, Pair("status", "RELEASING"))
-    }
-
-    override fun latestUpdatesParse(response: Response): AnimesPage {
-        return popularAnimeParse(response)
     }
 
     // =============================== Search ===============================
