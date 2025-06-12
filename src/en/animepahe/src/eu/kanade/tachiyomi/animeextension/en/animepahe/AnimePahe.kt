@@ -176,13 +176,13 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    override fun searchAnimeParse(response: Response) = searchAnimeParsePaging(response, 1)
+    override fun searchAnimeParse(response: Response) = searchAnimeParsePaging(response, 1, "")
 
-    private fun searchAnimeParsePaging(response: Response, page: Int): AnimesPage {
+    private fun searchAnimeParsePaging(response: Response, page: Int, searchHash: String): AnimesPage {
         val url = response.request.url
         if (url.pathSegments.contains("api") && url.queryParameter("m") == "search") {
             val searchData = response.parseAs<ResponseDto<SearchResultDto>>()
-            val animeList = searchData.items.map { anime ->
+            val chunks = searchData.items.map { anime ->
                 SAnime.create().apply {
                     title = anime.title
                     thumbnail_url = anime.poster
@@ -191,11 +191,16 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                 }
             }
                 .chunked(PAGE_SIZE)
-                .getOrElse(page - 1) { emptyList() }
-            return AnimesPage(animeList, animeList.size > page * PAGE_SIZE)
+
+            setSearchResultCache(
+                searchHash = searchHash,
+                chunks = chunks,
+            )
+            val animeList = chunks.getOrElse(page - 1) { emptyList() }
+            return AnimesPage(animeList, page < chunks.size)
         } else if (url.pathSegments.contains("anime")) {
             val document = response.asJsoup()
-            val entries = document.select("div.index div > a").mapNotNull { a ->
+            val chunks = document.select("div.index div > a").mapNotNull { a ->
                 a.attr("href").takeIf { it.isNotBlank() }
                     ?.let {
                         SAnime.create().apply {
@@ -205,19 +210,52 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
             }
                 .chunked(PAGE_SIZE)
-                .getOrElse(page - 1) { emptyList() }
-            return AnimesPage(entries, entries.size > page * PAGE_SIZE)
+
+            setSearchResultCache(
+                searchHash = searchHash,
+                chunks = chunks,
+            )
+            val animeList = chunks.getOrElse(page - 1) { emptyList() }
+            return AnimesPage(animeList, page < chunks.size)
         }
         return AnimesPage(emptyList(), false)
     }
 
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
-        client.newCall(searchAnimeRequest(page, query, filters))
-            .execute()
-            .use { response ->
-                if (!response.isSuccessful) throw IOException("Failed to fetch search results: HTTP error code ${response.code}")
-                return searchAnimeParsePaging(response, page)
+        val request = searchAnimeRequest(page, query, filters)
+        val searchHash = searchHash(request.url.toString(), query, filters)
+        if (page == 1) {
+            client.newCall(request)
+                .execute()
+                .use { response ->
+                    if (!response.isSuccessful) throw IOException("Failed to fetch search results: HTTP error code ${response.code}")
+                    return searchAnimeParsePaging(response, page, searchHash)
+                }
+        } else {
+            return getSearchResultCache(
+                searchHash = searchHash,
+                page = page,
+            )
+        }
+    }
+
+    private var searchResultCache: MutableMap<String, List<List<SAnime>>> =
+        emptyMap<String, List<List<SAnime>>>().toMutableMap()
+
+    private fun searchHash(url: String, query: String, filters: AnimeFilterList): String {
+        return "$url|$query|${filters.joinToString { it.state.toString() }}"
+    }
+
+    private fun getSearchResultCache(searchHash: String, page: Int): AnimesPage {
+        return searchResultCache[searchHash]?.let { cache ->
+            cache.getOrNull(page - 1)?.let {
+                AnimesPage(it, page < cache.size)
             }
+        } ?: AnimesPage(emptyList(), false)
+    }
+
+    private fun setSearchResultCache(searchHash: String, chunks: List<List<SAnime>>) {
+        searchResultCache[searchHash] = chunks
     }
 
     // ============================== Latest ===============================
