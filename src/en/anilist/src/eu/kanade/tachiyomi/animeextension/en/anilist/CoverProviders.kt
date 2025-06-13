@@ -8,21 +8,31 @@ import okhttp3.OkHttpClient
 
 class CoverProviders(private val client: OkHttpClient, private val headers: Headers) {
     fun getMALCovers(malId: String): List<String> {
-        val picturesResponse = client.newCall(
-            GET("$JIKAN_API_URL/anime/$malId/pictures", headers),
-        ).execute().parseAs<MALPicturesDto>()
+        try {
+            val picturesResponse = client.newCall(
+                GET("$JIKAN_API_URL/anime/$malId/pictures", headers),
+            ).execute().use { it.parseAs<MALPicturesDto>() }
 
-        return picturesResponse.data.mapNotNull {
-                imgs ->
-            imgs.jpg.let { it.largeImageUrl ?: it.imageUrl ?: it.smallImageUrl }
+            return picturesResponse.data.mapNotNull { imgs ->
+                imgs.jpg.let { it.largeImageUrl ?: it.imageUrl ?: it.smallImageUrl }
+            }
+        } catch (e: Exception) {
+            return emptyList()
         }
     }
 
     fun getFanartCovers(tvdbId: String, type: String): List<String> {
-        val picturesResponse = client.newCall(
-            GET("https://webservice.fanart.tv/v3/$type/$tvdbId?api_key=184e1a2b1fe3b94935365411f919f638", headers),
-        ).execute()
+        try {
+            val fanArt = client.newCall(
+                GET(
+                    "https://webservice.fanart.tv/v3/$type/$tvdbId?api_key=184e1a2b1fe3b94935365411f919f638",
+                    headers,
+                ),
+            ).execute().use { it.parseAs<FanartDto>() }
 
-        return picturesResponse.parseAs<FanartDto>().tvposter?.map { it.url } ?: emptyList()
+            return fanArt.tvposter?.map { it.url } ?: emptyList()
+        } catch (e: Exception) {
+            return emptyList()
+        }
     }
 }
