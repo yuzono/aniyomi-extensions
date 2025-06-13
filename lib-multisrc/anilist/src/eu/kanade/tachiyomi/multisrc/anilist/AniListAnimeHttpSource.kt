@@ -197,14 +197,14 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     }
 
     /* ==================================== AniList Utility ==================================== */
-    private fun buildAnimeListRequest(
+    fun buildAnimeListRequest(
         query: String,
         variables: AniListQueries.AnimeListVariables,
     ): Request {
         return buildRequest(query, json.encodeToString(variables))
     }
 
-    private fun buildRequest(query: String, variables: String): Request {
+    fun buildRequest(query: String, variables: String): Request {
         val requestBody = FormBody.Builder()
             .add("query", query)
             .add("variables", variables)

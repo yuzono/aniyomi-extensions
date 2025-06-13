@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.anilist
 
+import eu.kanade.tachiyomi.animeextension.en.anilist.AniList.Companion.JIKAN_API_URL
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.parseAs
 import okhttp3.Headers
@@ -8,7 +9,7 @@ import okhttp3.OkHttpClient
 class CoverProviders(private val client: OkHttpClient, private val headers: Headers) {
     fun getMALCovers(malId: String): List<String> {
         val picturesResponse = client.newCall(
-            GET("https://api.jikan.moe/v4/anime/$malId/pictures", headers),
+            GET("$JIKAN_API_URL/anime/$malId/pictures", headers),
         ).execute().parseAs<MALPicturesDto>()
 
         return picturesResponse.data.mapNotNull {

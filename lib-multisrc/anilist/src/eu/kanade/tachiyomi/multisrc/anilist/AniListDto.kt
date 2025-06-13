@@ -150,4 +150,42 @@ data class AniListMedia(
             initialized = true
         }
     }
+
+    @Serializable
+    class AnilistToMalResponse(
+        val data: DataObject,
+    ) {
+        @Serializable
+        class DataObject(
+            @SerialName("Media") val media: MediaObject,
+        ) {
+            @Serializable
+            class MediaObject(
+                val id: Int,
+                val status: String,
+                val idMal: Int? = null,
+            )
+        }
+    }
+
+    @Serializable
+    class AniListEpisodeResponse(
+        val data: DataObject,
+    ) {
+        @Serializable
+        class DataObject(
+            @SerialName("Media") val media: MediaObject,
+        ) {
+            @Serializable
+            class MediaObject(
+                val episodes: Int? = null,
+                val nextAiringEpisode: NextAiringObject? = null,
+            ) {
+                @Serializable
+                class NextAiringObject(
+                    val episode: Int,
+                )
+            }
+        }
+    }
 }

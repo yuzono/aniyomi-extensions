@@ -50,15 +50,15 @@ object AniListQueries {
         $STUDIOS
         """
 
-    internal val ANIME_DETAILS_QUERY = """
+    val ANIME_DETAILS_QUERY = """
         query (%id: Int) {
             Media(id: %id, type: $MEDIA_TYPE) { $MEDIA }
         }
         """.toQuery()
 
-    internal val EPISODES_QUERY = """
-        query media(%id: Int, %type: MediaType) {
-            Media(id: %id, type: %type) {
+    val EPISODES_QUERY = """
+        query media(%id: Int) {
+            Media(id: %id, type: $MEDIA_TYPE) {
                 episodes
                 nextAiringEpisode {
                     episode
@@ -67,7 +67,17 @@ object AniListQueries {
         }
         """.toQuery()
 
-    internal val TRENDING_ANIME_LIST_QUERY = """
+    val MAL_ID_QUERY = """
+        query media(%id: Int) {
+            Media(id: %id, type: $MEDIA_TYPE) {
+                idMal
+                id
+                status
+            }
+        }
+        """.toQuery()
+
+    val TRENDING_ANIME_LIST_QUERY = """
         query (
             %page: Int,
             %sort: [MediaSort],
@@ -91,7 +101,7 @@ object AniListQueries {
         }
         """.toQuery()
 
-    internal fun latestAnilistQuery(extraLatestMediaFields: String = "") = """
+    fun latestAnilistQuery(extraLatestMediaFields: String = "") = """
         query (
             %page: Int,
             %sort: [MediaSort],
@@ -152,7 +162,7 @@ object AniListQueries {
         """.toQuery()
 
     @Serializable
-    internal data class AnimeListVariables(
+    data class AnimeListVariables(
         val page: Int,
         val sort: String,
         val isAdult: Boolean? = null,
@@ -172,5 +182,5 @@ object AniListQueries {
     }
 
     @Serializable
-    internal data class AnimeDetailsVariables(val id: Int)
+    data class AnimeDetailsVariables(val id: Int)
 }
