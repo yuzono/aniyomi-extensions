@@ -9,14 +9,14 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeDetailsResponse
 import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeHttpSource
+import eu.kanade.tachiyomi.multisrc.anilist.AniListMedia
+import eu.kanade.tachiyomi.multisrc.anilist.AniListQueries
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -26,12 +26,12 @@ class AniList : AniListAnimeHttpSource() {
     override val baseUrl = "https://anilist.co"
 
     override val networkBuilder = super.networkBuilder
-        .rateLimitHost("https://api.jikan.moe".toHttpUrl(), 1)
+        .rateLimitHost(JIKAN_API_URL_BASE.toHttpUrl(), 1)
 
     private val mappings by lazy {
         client.newCall(
             GET("https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-mini.json", headers),
-        ).execute().parseAs<List<Mapping>>()
+        ).execute().use { it.parseAs<List<Mapping>>() }
     }
 
     /* ================================= AniList configurations ================================= */
@@ -121,20 +121,17 @@ class AniList : AniListAnimeHttpSource() {
     override fun episodeListRequest(anime: SAnime): Request {
         val variablesObject = buildJsonObject {
             put("id", anime.url.toInt())
-            put("type", "ANIME")
         }
         val variables = json.encodeToString(variablesObject)
 
-        val body = FormBody.Builder().apply {
-            add("query", getMalIdQuery())
-            add("variables", variables)
-        }.build()
-
-        return POST(apiUrl, body = body)
+        return buildRequest(
+            query = AniListQueries.MAL_ID_QUERY,
+            variables = variables,
+        )
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val data = response.parseAs<AnilistToMalResponse>().data.media
+        val data = response.parseAs<AniListMedia.AnilistToMalResponse>().data.media
         if (data.status == "NOT_YET_RELEASED") {
             return emptyList()
         }
@@ -142,8 +139,10 @@ class AniList : AniListAnimeHttpSource() {
         val malId = data.idMal
         val anilistId = data.id
 
-        val episodeData = client.newCall(anilistEpisodeRequest(anilistId)).execute()
-            .parseAs<AniListEpisodeResponse>().data.media
+        val episodeData = client.newCall(anilistEpisodeRequest(anilistId))
+            .execute().use {
+                it.parseAs<AniListMedia.AniListEpisodeResponse>().data.media
+            }
         val episodeCount = episodeData.nextAiringEpisode?.episode?.minus(1)
             ?: episodeData.episodes ?: 0
 
@@ -174,22 +173,19 @@ class AniList : AniListAnimeHttpSource() {
     private fun anilistEpisodeRequest(anilistId: Int): Request {
         val variablesObject = buildJsonObject {
             put("id", anilistId)
-            put("type", "ANIME")
         }
         val variables = json.encodeToString(variablesObject)
 
-        val body = FormBody.Builder().apply {
-            add("query", getEpisodeQuery())
-            add("variables", variables)
-        }.build()
-
-        return POST(apiUrl, body = body)
+        return buildRequest(
+            query = AniListQueries.EPISODES_QUERY,
+            variables = variables,
+        )
     }
 
     private fun getSingleEpisodeFromMal(malId: Int): List<SEpisode> {
         val animeData = client.newCall(
-            GET("https://api.jikan.moe/v4/anime/$malId", headers),
-        ).execute().parseAs<JikanAnimeDto>().data
+            GET("$JIKAN_API_URL/anime/$malId", headers),
+        ).execute().use { it.parseAs<JikanAnimeDto>().data }
 
         return listOf(
             SEpisode.create().apply {
@@ -209,8 +205,8 @@ class AniList : AniListAnimeHttpSource() {
         var page = 1
         while (hasNextPage) {
             val data = client.newCall(
-                GET("https://api.jikan.moe/v4/anime/$malId/episodes?page=$page", headers),
-            ).execute().parseAs<JikanEpisodesDto>()
+                GET("$JIKAN_API_URL/anime/$malId/episodes?page=$page", headers),
+            ).execute().use { it.parseAs<JikanEpisodesDto>() }
 
             if (data.pagination.lastPage == 1 && data.data.isEmpty()) {
                 return getSingleEpisodeFromMal(malId)
@@ -252,7 +248,7 @@ class AniList : AniListAnimeHttpSource() {
     // ============================ Video Links =============================
 
     override fun videoListRequest(episode: SEpisode): Request =
-        throw UnsupportedOperationException()
+        throw UnsupportedOperationException("Video links are not supported in AniList extension.")
 
     override fun videoListParse(response: Response): List<Video> =
         throw UnsupportedOperationException()
@@ -264,6 +260,9 @@ class AniList : AniListAnimeHttpSource() {
 
         private const val MARK_FILLERS_KEY = "preferred_mark_fillers"
         private const val MARK_FILLERS_DEFAULT = true
+
+        private const val JIKAN_API_URL_BASE = "https://api.jikan.moe"
+        const val JIKAN_API_URL = "$JIKAN_API_URL_BASE/v4"
     }
 
     private val SharedPreferences.markFiller
