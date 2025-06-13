@@ -196,7 +196,7 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
     }
 
     /* ==================================== AniList Utility ==================================== */
-    fun buildAnimeListRequest(
+    protected fun buildAnimeListRequest(
         query: String,
         variables: AniListQueries.AnimeListVariables,
     ): Request {
