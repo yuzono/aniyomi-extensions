@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
-import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -65,11 +64,12 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
             }
         }
 
-    open val SharedPreferences.allowAdult
-        get() = getBoolean(PREF_ALLOW_ADULT_KEY, PREF_ALLOW_ADULT_DEFAULT)
-
     open val SharedPreferences.isAdult
-        get() = false.takeUnless { allowAdult }
+        get() = (
+            getString(PREF_ADULT_CONTENT_KEY, PREF_ADULT_CONTENT_DEFAULT)
+                ?: PREF_ADULT_CONTENT_DEFAULT
+            )
+            .toBooleanStrictOrNull()
 
     open val countryOfOrigin: String? = null
 
@@ -179,20 +179,16 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
                 true
             }
         }.also(screen::addPreference)
-
-        SwitchPreferenceCompat(screen.context).apply {
-            key = PREF_ALLOW_ADULT_KEY
-            title = "Allow adult content"
-            setDefaultValue(PREF_ALLOW_ADULT_DEFAULT)
-        }.also(screen::addPreference)
     }
 
     open fun addAdultPreferences(screen: PreferenceScreen) {
-        SwitchPreferenceCompat(screen.context).apply {
-            key = PREF_ALLOW_ADULT_KEY
+        ListPreference(screen.context).apply {
+            key = PREF_ADULT_CONTENT_KEY
             title = "Allow adult content"
-            summary = "Enable to show anime with adult content"
-            setDefaultValue(PREF_ALLOW_ADULT_DEFAULT)
+            entries = PREF_ADULT_CONTENT_ENTRIES
+            entryValues = PREF_ADULT_CONTENT_ENTRY_VALUES
+            setDefaultValue(PREF_ADULT_CONTENT_DEFAULT)
+            summary = "%s"
         }.also(screen::addPreference)
     }
 
@@ -238,7 +234,9 @@ abstract class AniListAnimeHttpSource : AnimeHttpSource(), ConfigurableAnimeSour
         val PREF_TITLE_LANGUAGE_ENTRY_VALUES = arrayOf("romaji", "english", "native")
         const val PREF_TITLE_LANGUAGE_DEFAULT = "romaji"
 
-        const val PREF_ALLOW_ADULT_KEY = "preferred_allow_adult"
-        const val PREF_ALLOW_ADULT_DEFAULT = false
+        const val PREF_ADULT_CONTENT_KEY = "preferred_adult_content"
+        val PREF_ADULT_CONTENT_ENTRIES = arrayOf("No Adult Content", "Allow Adult Content", "Only Adult Content")
+        val PREF_ADULT_CONTENT_ENTRY_VALUES = arrayOf("false", "null", "true")
+        const val PREF_ADULT_CONTENT_DEFAULT = "false"
     }
 }
