@@ -54,7 +54,7 @@ class AniList : AniListAnimeHttpSource() {
         val currentTime = System.currentTimeMillis() / 1000L
         val lastRefresh = lastRefreshed[anime.url] ?: 0L
 
-        val newAnime = if (currentAnime.contains(anime.url) && currentTime - lastRefresh < refreshInterval) {
+        val newAnime = if (currentAnime == anime.url && currentTime - lastRefresh < refreshInterval) {
             anime.apply {
                 thumbnail_url = coverList[coverIndex]
                 coverIndex = (coverIndex + 1) % coverList.size
@@ -79,7 +79,7 @@ class AniList : AniListAnimeHttpSource() {
         val animeData = response.parseAs<AniListAnimeDetailsResponse>().data.media
         val anime = animeData.toSAnime()
 
-        if (!currentAnime.contains(anime.url)) {
+        if (currentAnime != anime.url) {
             currentAnime = ""
             val type = if (animeData.format == "MOVIE") "movies" else "tv"
 

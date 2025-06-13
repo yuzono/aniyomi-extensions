@@ -2,6 +2,7 @@ ext {
     extName = 'AniList'
     extClass = '.AniList'
     themePkg = 'anilist'
+    isNsfw = true
     overrideVersionCode = 6
 }
 
