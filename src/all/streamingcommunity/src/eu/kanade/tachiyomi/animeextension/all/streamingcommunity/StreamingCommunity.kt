@@ -64,14 +64,15 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
             while (response.isRedirect && redirectCount < maxRedirects) {
                 val newUrl = response.header("Location") ?: break
-                val redirectedDomain = newUrl.toHttpUrl().run { "$scheme://$host" }
+                val newUrlHttp = newUrl.toHttpUrl()
+                val redirectedDomain = newUrlHttp.run { "$scheme://$host" }
                 if (redirectedDomain != homepage) {
                     preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
                     apiHeadersRef.set(newApiHeader())
                     jsonHeadersRef.set(newJsonHeader())
                 }
                 response.close()
-                request = request.newBuilder().url(newUrl.toHttpUrl()).build()
+                request = request.newBuilder().url(newUrlHttp).build()
                 response = chain.proceed(request)
                 redirectCount++
             }
