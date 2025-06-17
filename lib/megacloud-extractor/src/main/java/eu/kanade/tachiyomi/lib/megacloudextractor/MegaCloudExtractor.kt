@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.lib.megacloudextractor
 
+import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.util.Log
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.cryptoaes.CryptoAES
@@ -20,6 +22,11 @@ import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import uy.kohesive.injekt.injectLazy
+import java.security.MessageDigest
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 class MegaCloudExtractor(
     private val client: OkHttpClient,
@@ -149,9 +156,10 @@ class MegaCloudExtractor(
         val id = url.substringAfter(SOURCES_SPLITTER[type], "")
             .substringBefore("?", "").ifEmpty { throw Exception("I HATE THE ANTICHRIST") }
 
-//        if (type == 0) {
-//            return webViewResolver.getSources(id)!!
-//        }
+        // Previous method using WebViewResolver to get key
+        // if (type == 0) {
+        //     return webViewResolver.getSources(id)!!
+        // }
 
         val srcRes = client.newCall(GET(SERVER_URL[type] + SOURCES_URL[type] + id))
             .execute()
@@ -162,9 +170,58 @@ class MegaCloudExtractor(
         if (!data.encrypted) return json.decodeFromString<VideoDto>(srcRes)
 
         val ciphered = data.sources.jsonPrimitive.content
-        val decrypted = json.decodeFromString<List<VideoLink>>(tryDecrypting(ciphered, keyType))
+        val decrypted = json.decodeFromString<List<VideoLink>>(
+            // tryDecrypting(ciphered, keyType),
+            tryDecrypting(ciphered),
+        )
 
         return VideoDto(decrypted, data.tracks)
+    }
+
+    private fun tryDecrypting(ciphered: String): String {
+        client.newCall(GET("https://raw.githubusercontent.com/yogesh-hacker/MegacloudKeys/refs/heads/main/keys.json"))
+            .execute()
+            .use { response ->
+                if (!response.isSuccessful) return "[]"
+                val jsonStr = response.body.string()
+                if (jsonStr.isEmpty()) return "[]"
+                val megaKey = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
+                    ?: return "[]"
+
+                return decryptOpenSSL(ciphered, megaKey)
+            }
+    }
+
+    @SuppressLint("NewApi")
+    private fun decryptOpenSSL(encBase64: String, password: String): String {
+        try {
+            val data = Base64.getDecoder().decode(encBase64)
+            require(data.copyOfRange(0, 8).contentEquals("Salted__".toByteArray()))
+            val salt = data.copyOfRange(8, 16)
+            val (key, iv) = opensslKeyIv(password.toByteArray(), salt)
+
+            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+            val secretKey = SecretKeySpec(key, "AES")
+            val ivSpec = IvParameterSpec(iv)
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
+
+            val decrypted = cipher.doFinal(data.copyOfRange(16, data.size))
+            return String(decrypted)
+        } catch (e: Exception) {
+            Log.e("DecryptOpenSSL", "Decryption failed: ${e.message}")
+            return "Decryption Error"
+        }
+    }
+
+    private fun opensslKeyIv(password: ByteArray, salt: ByteArray, keyLen: Int = 32, ivLen: Int = 16): Pair<ByteArray, ByteArray> {
+        var d = ByteArray(0)
+        var d_i = ByteArray(0)
+        while (d.size < keyLen + ivLen) {
+            val md = MessageDigest.getInstance("MD5")
+            d_i = md.digest(d_i + password + salt)
+            d += d_i
+        }
+        return Pair(d.copyOfRange(0, keyLen), d.copyOfRange(keyLen, keyLen + ivLen))
     }
 
     @Serializable
