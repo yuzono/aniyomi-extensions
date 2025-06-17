@@ -67,8 +67,8 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 val redirectedDomain = newUrl.toHttpUrl().run { "$scheme://$host" }
                 if (redirectedDomain != homepage) {
                     preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
-                    apiHeaders = newApiHeader()
-                    jsonHeaders = newJsonHeader()
+                    apiHeadersRef.set(newApiHeader())
+                    jsonHeadersRef.set(newJsonHeader())
                 }
                 response.close()
                 request = request.newBuilder().url(newUrl.toHttpUrl()).build()
@@ -106,13 +106,13 @@ class StreamingCommunity(override val lang: String, private val showType: String
         classLoader = this::class.java.classLoader!!,
     )
 
-    private var apiHeaders: Headers = newApiHeader()
+    private val apiHeadersRef = java.util.concurrent.atomic.AtomicReference(newApiHeader())
     private fun newApiHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
         .build()
 
-    private var jsonHeaders: Headers = newJsonHeader()
+    private val jsonHeadersRef = java.util.concurrent.atomic.AtomicReference(newJsonHeader())
     private fun newJsonHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
@@ -121,6 +121,14 @@ class StreamingCommunity(override val lang: String, private val showType: String
         .add("X-Inertia", "true")
         .add("x-inertia-version", "") // This requires an up-to-date `version`
         .build()
+
+    private var apiHeaders: Headers
+        get() = apiHeadersRef.get()
+        set(value) = apiHeadersRef.set(value)
+
+    private var jsonHeaders: Headers
+        get() = jsonHeadersRef.get()
+        set(value) = jsonHeadersRef.set(value)
 
     private val json: Json by injectLazy()
 
