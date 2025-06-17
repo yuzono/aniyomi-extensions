@@ -57,16 +57,27 @@ class StreamingCommunity(override val lang: String, private val showType: String
     override val client: OkHttpClient = network.client.newBuilder()
         .followRedirects(false)
         .addInterceptor { chain ->
-            val request = chain.request()
-            val response = chain.proceed(request)
-            if (response.isRedirect) {
-                val newUrl = response.header("Location") ?: return@addInterceptor response
+            val maxRedirects = 5
+            var request = chain.request()
+            var response = chain.proceed(request)
+            var redirectCount = 0
+
+            while (response.isRedirect && redirectCount < maxRedirects) {
+                val newUrl = response.header("Location") ?: break
                 val redirectedDomain = newUrl.toHttpUrl().run { "$scheme://$host" }
                 if (redirectedDomain != homepage) {
                     preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
+                    apiHeaders = newApiHeader()
+                    jsonHeaders = newJsonHeader()
                 }
                 response.close()
-                return@addInterceptor chain.proceed(request.newBuilder().url(newUrl.toHttpUrl()).build())
+                request = request.newBuilder().url(newUrl.toHttpUrl()).build()
+                response = chain.proceed(request)
+                redirectCount++
+            }
+            if (redirectCount >= maxRedirects) {
+                response.close()
+                throw java.io.IOException("Too many redirects: $maxRedirects")
             }
             response
         }.build()
@@ -95,21 +106,21 @@ class StreamingCommunity(override val lang: String, private val showType: String
         classLoader = this::class.java.classLoader!!,
     )
 
-    private val apiHeaders: Headers
-        get() = headers.newBuilder()
-            .add("Host", baseUrl.toHttpUrl().host)
-            .add("Referer", baseUrl)
-            .build()
+    private var apiHeaders: Headers = newApiHeader()
+    private fun newApiHeader() = headers.newBuilder()
+        .add("Host", baseUrl.toHttpUrl().host)
+        .add("Referer", baseUrl)
+        .build()
 
-    private val jsonHeaders: Headers
-        get() = headers.newBuilder()
-            .add("Host", baseUrl.toHttpUrl().host)
-            .add("Referer", baseUrl)
-            .add("Content-Type", "application/json")
-            .add("X-Requested-With", "XMLHttpRequest")
-            .add("X-Inertia", "true")
-            .add("x-inertia-version", "") // This requires an up-to-date `version`
-            .build()
+    private var jsonHeaders: Headers = newJsonHeader()
+    private fun newJsonHeader() = headers.newBuilder()
+        .add("Host", baseUrl.toHttpUrl().host)
+        .add("Referer", baseUrl)
+        .add("Content-Type", "application/json")
+        .add("X-Requested-With", "XMLHttpRequest")
+        .add("X-Inertia", "true")
+        .add("x-inertia-version", "") // This requires an up-to-date `version`
+        .build()
 
     private val json: Json by injectLazy()
 
