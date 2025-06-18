@@ -35,6 +35,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -53,19 +54,49 @@ class StreamingCommunity(override val lang: String, private val showType: String
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
 
-    override val client: OkHttpClient = network.client
+    override val client: OkHttpClient = network.client.newBuilder()
+        .followRedirects(false)
+        .addInterceptor { chain ->
+            val maxRedirects = 5
+            var request = chain.request()
+            var response = chain.proceed(request)
+            var redirectCount = 0
 
-    private val homepage by lazy {
-        val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-        if (customDomain.isNullOrBlank()) {
-            DOMAIN_DEFAULT
-        } else {
-            customDomain
+            while (response.isRedirect && redirectCount < maxRedirects) {
+                val newUrl = response.header("Location") ?: break
+                val newUrlHttp = newUrl.toHttpUrl()
+                val redirectedDomain = newUrlHttp.run { "$scheme://$host" }
+                if (redirectedDomain != homepage) {
+                    preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
+                    apiHeadersRef.set(newApiHeader())
+                    jsonHeadersRef.set(newJsonHeader())
+                }
+                response.close()
+                request = request.newBuilder().url(newUrlHttp).build()
+                response = chain.proceed(request)
+                redirectCount++
+            }
+            if (redirectCount >= maxRedirects) {
+                response.close()
+                throw java.io.IOException("Too many redirects: $maxRedirects")
+            }
+            response
+        }.build()
+
+    private val homepage: String
+        get() {
+            val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
+            return if (customDomain.isNullOrBlank()) {
+                DOMAIN_DEFAULT
+            } else {
+                customDomain
+            }
         }
-    }
 
-    override val baseUrl by lazy { "$homepage/$lang" }
-    private val apiUrl by lazy { "$homepage/api" }
+    override val baseUrl: String
+        get() = "$homepage/$lang"
+    private val apiUrl: String
+        get() = "$homepage/api"
 
     override val supportsLatest = true
 
@@ -76,12 +107,14 @@ class StreamingCommunity(override val lang: String, private val showType: String
         classLoader = this::class.java.classLoader!!,
     )
 
-    private val apiHeaders = headers.newBuilder()
+    private val apiHeadersRef = java.util.concurrent.atomic.AtomicReference(newApiHeader())
+    private fun newApiHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
         .build()
 
-    private val jsonHeaders = headers.newBuilder()
+    private val jsonHeadersRef = java.util.concurrent.atomic.AtomicReference(newJsonHeader())
+    private fun newJsonHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
         .add("Content-Type", "application/json")
@@ -89,6 +122,14 @@ class StreamingCommunity(override val lang: String, private val showType: String
         .add("X-Inertia", "true")
         .add("x-inertia-version", "") // This requires an up-to-date `version`
         .build()
+
+    private var apiHeaders: Headers
+        get() = apiHeadersRef.get()
+        set(value) = apiHeadersRef.set(value)
+
+    private var jsonHeaders: Headers
+        get() = jsonHeadersRef.get()
+        set(value) = jsonHeadersRef.set(value)
 
     private val json: Json by injectLazy()
 
@@ -460,7 +501,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
     }
 
     companion object {
-        private const val DOMAIN_DEFAULT = "https://streamingunity.art"
+        private const val DOMAIN_DEFAULT = "https://streamingunity.cam"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
 
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
