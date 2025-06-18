@@ -47,8 +47,8 @@ class MegaCloudExtractor(
         private val SOURCES_URL = arrayOf("/embed-2/v2/e-1/getSources?id=", "/ajax/embed-6-v2/getSources?id=")
         private val SOURCES_SPLITTER = arrayOf("/e-1/", "/embed-6-v2/")
         private val SOURCES_KEY = arrayOf("1", "6")
-        private const val E1_SCRIPT_URL = "https://megacloud.tv/js/player/a/e1-player.min.js"
-        private const val E6_SCRIPT_URL = "https://rapid-cloud.co/js/player/e6-player-v2.min.js"
+        private const val E1_SCRIPT_URL = "/js/player/a/v2/pro/embed-1.min.js"
+        private const val E6_SCRIPT_URL = "/js/player/e6-player-v2.min.js"
         private val MUTEX = Mutex()
         private var shouldUpdateKey = false
         private const val PREF_KEY_KEY = "megacloud_key_"
@@ -72,8 +72,8 @@ class MegaCloudExtractor(
 
     private fun updateKey(type: String) {
         val scriptUrl = when (type) {
-            "1" -> E1_SCRIPT_URL
-            "6" -> E6_SCRIPT_URL
+            "1" -> "${SERVER_URL[0]}$E1_SCRIPT_URL"
+            "6" -> "${SERVER_URL[1]}$E6_SCRIPT_URL"
             else -> throw Exception("Unknown key type")
         }
         val script = noCacheClient.newCall(GET(scriptUrl, cache = cacheControl))
@@ -148,7 +148,10 @@ class MegaCloudExtractor(
     }
 
     private fun getVideoDto(url: String): VideoDto {
-        val type = if (url.startsWith("https://megacloud.tv") or url.startsWith("https://megacloud.blog")) 0 else 1
+        val type = if (
+            url.startsWith("https://megacloud.tv") ||
+            url.startsWith("https://megacloud.blog")
+            ) 0 else 1
 
         val keyType = SOURCES_KEY[type]
 
@@ -186,9 +189,11 @@ class MegaCloudExtractor(
                 if (jsonStr.isEmpty()) throw Exception("keys.json is empty")
                 val megaKey = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
                     ?: throw Exception("Mega key not found in keys.json")
-                Log.w("MegaCloudExtractor", "Using Mega Key: $megaKey")
+                Log.i("MegaCloudExtractor", "Using Mega Key: $megaKey")
 
-                return decryptOpenSSL(ciphered, megaKey)
+                return decryptOpenSSL(ciphered, megaKey).also {
+                    Log.i("MegaCloudExtractor", "Decrypted URL: $it")
+                }
             }
     }
 
