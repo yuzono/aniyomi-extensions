@@ -156,7 +156,8 @@ class MegaCloudExtractor(
         val keyType = SOURCES_KEY[type]
 
         val id = url.substringAfter(SOURCES_SPLITTER[type], "")
-            .substringBefore("?", "").ifEmpty { throw Exception("Failed to extract ID from URL") }
+            .substringBefore("?", "")
+            .ifEmpty { throw Exception("Failed to extract ID from URL") }
 
         // Previous method using WebViewResolver to get key
         // if (type == 0) {

@@ -19,7 +19,6 @@ class HiAnime : ZoroTheme(
     hosterNames = listOf(
         "HD-1",
         "HD-2",
-        "HD-3",
         "StreamTape",
     ),
 ) {
@@ -54,7 +53,7 @@ class HiAnime : ZoroTheme(
                 )?.let(::listOf) ?: emptyList()
             }
 
-            "HD-1", "HD-2", "HD-3" -> megaCloudExtractor.getVideosFromUrl(
+            "HD-1", "HD-2" -> megaCloudExtractor.getVideosFromUrl(
                 server.link,
                 server.type,
                 server.name,
