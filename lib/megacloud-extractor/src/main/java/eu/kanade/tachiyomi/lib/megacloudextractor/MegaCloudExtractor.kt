@@ -189,23 +189,18 @@ class MegaCloudExtractor(
                 decryptOpenSSL(ciphered, key).also {
                     Log.i("MegaCloudExtractor", "Decrypted URL: $it")
                 }
-            }
-            catch (e: RuntimeException) {
+            } catch (e: RuntimeException) {
                 Log.e("MegaCloudExtractor", "Decryption failed with existing key: ${e.message}")
-                requestNewKey().let { newKey ->
-                    megaKey = newKey
-                    decryptOpenSSL(ciphered, newKey).also {
-                        Log.i("MegaCloudExtractor", "Decrypted URL with new key: $it")
-                    }
-                }
+                decryptWithNewKey(ciphered)
             }
-        } ?: run {
-            requestNewKey().let { newKey ->
-                megaKey = newKey
-                decryptOpenSSL(ciphered, newKey).also {
-                    Log.i("MegaCloudExtractor", "Decrypted URL with new key: $it")
-                }
-            }
+        } ?: decryptWithNewKey(ciphered)
+    }
+
+    private fun decryptWithNewKey(ciphered: String): String {
+        val newKey = requestNewKey()
+        megaKey = newKey
+        return decryptOpenSSL(ciphered, newKey).also {
+            Log.i("MegaCloudExtractor", "Decrypted URL with new key: $it")
         }
     }
 
@@ -213,11 +208,11 @@ class MegaCloudExtractor(
         client.newCall(GET("https://raw.githubusercontent.com/yogesh-hacker/MegacloudKeys/refs/heads/main/keys.json"))
             .execute()
             .use { response ->
-                if (!response.isSuccessful) throw Exception("Failed to fetch keys.json")
+                if (!response.isSuccessful) throw IllegalStateException("Failed to fetch keys.json")
                 val jsonStr = response.body.string()
-                if (jsonStr.isEmpty()) throw Exception("keys.json is empty")
+                if (jsonStr.isEmpty()) throw IllegalStateException("keys.json is empty")
                 val key = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
-                    ?: throw Exception("Mega key not found in keys.json")
+                    ?: throw IllegalStateException("Mega key not found in keys.json")
                 Log.i("MegaCloudExtractor", "Using Mega Key: $key")
                 megaKey = key
                 key
