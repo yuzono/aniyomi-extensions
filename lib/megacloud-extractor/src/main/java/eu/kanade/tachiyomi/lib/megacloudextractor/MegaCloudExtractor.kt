@@ -181,22 +181,47 @@ class MegaCloudExtractor(
         return VideoDto(decrypted, data.tracks)
     }
 
+    var megaKey: String? = null
+
     private fun tryDecrypting(ciphered: String): String {
+        return megaKey?.let { key ->
+            try {
+                decryptOpenSSL(ciphered, key).also {
+                    Log.i("MegaCloudExtractor", "Decrypted URL: $it")
+                }
+            }
+            catch (e: RuntimeException) {
+                Log.e("MegaCloudExtractor", "Decryption failed with existing key: ${e.message}")
+                requestNewKey().let { newKey ->
+                    megaKey = newKey
+                    decryptOpenSSL(ciphered, newKey).also {
+                        Log.i("MegaCloudExtractor", "Decrypted URL with new key: $it")
+                    }
+                }
+            }
+        } ?: run {
+            requestNewKey().let { newKey ->
+                megaKey = newKey
+                decryptOpenSSL(ciphered, newKey).also {
+                    Log.i("MegaCloudExtractor", "Decrypted URL with new key: $it")
+                }
+            }
+        }
+    }
+
+    private fun requestNewKey(): String =
         client.newCall(GET("https://raw.githubusercontent.com/yogesh-hacker/MegacloudKeys/refs/heads/main/keys.json"))
             .execute()
             .use { response ->
                 if (!response.isSuccessful) throw Exception("Failed to fetch keys.json")
                 val jsonStr = response.body.string()
                 if (jsonStr.isEmpty()) throw Exception("keys.json is empty")
-                val megaKey = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
+                val key = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
                     ?: throw Exception("Mega key not found in keys.json")
-                Log.i("MegaCloudExtractor", "Using Mega Key: $megaKey")
-
-                return decryptOpenSSL(ciphered, megaKey).also {
-                    Log.i("MegaCloudExtractor", "Decrypted URL: $it")
-                }
+                Log.i("MegaCloudExtractor", "Using Mega Key: $key")
+                megaKey = key
+                key
             }
-    }
 
     private fun decryptOpenSSL(encBase64: String, password: String): String {
         try {
