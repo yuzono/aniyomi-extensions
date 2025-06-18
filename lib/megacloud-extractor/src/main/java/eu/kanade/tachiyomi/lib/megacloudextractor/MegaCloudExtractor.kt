@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.lib.megacloudextractor
 
-import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.util.Base64
 import android.util.Log
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -23,7 +23,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import uy.kohesive.injekt.injectLazy
 import java.security.MessageDigest
-import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -154,7 +153,7 @@ class MegaCloudExtractor(
         val keyType = SOURCES_KEY[type]
 
         val id = url.substringAfter(SOURCES_SPLITTER[type], "")
-            .substringBefore("?", "").ifEmpty { throw Exception("I HATE THE ANTICHRIST") }
+            .substringBefore("?", "").ifEmpty { throw Exception("Failed to extract ID from URL") }
 
         // Previous method using WebViewResolver to get key
         // if (type == 0) {
@@ -182,20 +181,20 @@ class MegaCloudExtractor(
         client.newCall(GET("https://raw.githubusercontent.com/yogesh-hacker/MegacloudKeys/refs/heads/main/keys.json"))
             .execute()
             .use { response ->
-                if (!response.isSuccessful) return "[]"
+                if (!response.isSuccessful) throw Exception("Failed to fetch keys.json")
                 val jsonStr = response.body.string()
-                if (jsonStr.isEmpty()) return "[]"
+                if (jsonStr.isEmpty()) throw Exception("keys.json is empty")
                 val megaKey = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
-                    ?: return "[]"
+                    ?: throw Exception("Mega key not found in keys.json")
+                Log.w("MegaCloudExtractor", "Using Mega Key: $megaKey")
 
                 return decryptOpenSSL(ciphered, megaKey)
             }
     }
 
-    @SuppressLint("NewApi")
     private fun decryptOpenSSL(encBase64: String, password: String): String {
         try {
-            val data = Base64.getDecoder().decode(encBase64)
+            val data = Base64.decode(encBase64, Base64.NO_WRAP) // Base64.DEFAULT or Base64.NO_WRAP
             require(data.copyOfRange(0, 8).contentEquals("Salted__".toByteArray()))
             val salt = data.copyOfRange(8, 16)
             val (key, iv) = opensslKeyIv(password.toByteArray(), salt)
@@ -209,7 +208,7 @@ class MegaCloudExtractor(
             return String(decrypted)
         } catch (e: Exception) {
             Log.e("DecryptOpenSSL", "Decryption failed: ${e.message}")
-            return "Decryption Error"
+            throw RuntimeException("Decryption failed: ${e.message}", e)
         }
     }
 
