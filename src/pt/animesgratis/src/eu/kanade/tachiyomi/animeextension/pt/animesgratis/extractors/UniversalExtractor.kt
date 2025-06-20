@@ -34,46 +34,50 @@ class UniversalExtractor(private val client: OkHttpClient) {
         val playlistUtils by lazy { PlaylistUtils(client, origRequestHeader) }
         val headers = origRequestHeader.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }.toMutableMap()
 
-        handler.post {
-            val newView = WebView(context)
-            webView = newView
-            with(newView.settings) {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                databaseEnabled = true
-                useWideViewPort = false
-                loadWithOverviewMode = false
-                userAgentString = origRequestHeader["User-Agent"]
-            }
-            newView.webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    Log.d(tag, "Page loaded, injecting script")
-                    view?.evaluateJavascript(CHECK_SCRIPT) {}
+        try {
+            handler.post {
+                val newView = WebView(context)
+                webView = newView
+                with(newView.settings) {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    databaseEnabled = true
+                    useWideViewPort = false
+                    loadWithOverviewMode = false
+                    userAgentString = origRequestHeader["User-Agent"]
                 }
-
-                override fun shouldInterceptRequest(
-                    view: WebView,
-                    request: WebResourceRequest,
-                ): WebResourceResponse? {
-                    val url = request.url.toString()
-                    Log.d(tag, "Intercepted URL: $url")
-                    if (VIDEO_REGEX.containsMatchIn(url)) {
-                        resultUrl = url
-                        latch.countDown()
+                newView.webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        Log.d(tag, "Page loaded, injecting script")
+                        view?.evaluateJavascript(CHECK_SCRIPT) {}
                     }
-                    return super.shouldInterceptRequest(view, request)
+
+                    override fun shouldInterceptRequest(
+                        view: WebView,
+                        request: WebResourceRequest,
+                    ): WebResourceResponse? {
+                        val url = request.url.toString()
+                        Log.d(tag, "Intercepted URL: $url")
+                        if (VIDEO_REGEX.containsMatchIn(url)) {
+                            resultUrl = url
+                            latch.countDown()
+                        }
+                        return super.shouldInterceptRequest(view, request)
+                    }
                 }
+
+                webView?.loadUrl("$origRequestUrl&dl=1", headers)
             }
 
-            webView?.loadUrl("$origRequestUrl&dl=1", headers)
-        }
-
-        latch.await(TIMEOUT_SEC, TimeUnit.SECONDS)
-
-        handler.post {
-            webView?.stopLoading()
-            webView?.destroy()
-            webView = null
+            latch.await(TIMEOUT_SEC, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            Log.e(tag, "Error while waiting for video URL", e)
+        } finally {
+            handler.post {
+                webView?.stopLoading()
+                webView?.destroy()
+                webView = null
+            }
         }
 
         return when {
