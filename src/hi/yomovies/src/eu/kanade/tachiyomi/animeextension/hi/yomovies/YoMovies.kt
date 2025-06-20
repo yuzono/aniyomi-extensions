@@ -153,7 +153,7 @@ class YoMovies : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 extractVideosFromIframe(iframe.attr("abs:src"), name)
             }
 
-        return videoList.sort()
+        return videoList
     }
 
     private fun extractVideosFromIframe(iframeUrl: String, name: String): List<Video> {

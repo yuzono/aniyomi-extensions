@@ -122,7 +122,7 @@ class FrenchAnime : DataLifeEngine(
                     else -> emptyList()
                 }
             }
-        }.sort()
+        }
         return list
     }
 

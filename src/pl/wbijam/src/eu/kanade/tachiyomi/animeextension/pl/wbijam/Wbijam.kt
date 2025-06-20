@@ -271,7 +271,7 @@ class Wbijam : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }.orEmpty()
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun videoFromElement(element: Element): Video = throw UnsupportedOperationException()

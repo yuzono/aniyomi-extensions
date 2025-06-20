@@ -90,7 +90,7 @@ class Wiflix : DataLifeEngine(
                     else -> emptyList()
                 }
             }
-        }.sort()
+        }
         if (list.isEmpty()) throw Exception("no player found")
         return list
     }
