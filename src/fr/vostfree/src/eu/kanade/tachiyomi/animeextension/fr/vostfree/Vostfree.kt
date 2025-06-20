@@ -175,7 +175,7 @@ class Vostfree : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 "vudeo" -> vudeoExtractor.videosFromUrl(content)
                 else -> emptyList()
             }
-        }.sort()
+        }
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()

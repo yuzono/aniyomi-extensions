@@ -143,7 +143,7 @@ class Animejl : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
             videoList.addAll(videos)
         }
-        return videoList.sort()
+        return videoList
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()

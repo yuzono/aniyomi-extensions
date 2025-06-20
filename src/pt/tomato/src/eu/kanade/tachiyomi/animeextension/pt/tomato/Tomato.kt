@@ -266,7 +266,7 @@ class Tomato : ConfigurableAnimeSource, AnimeHttpSource() {
             }
         }
 
-        return videos.sort()
+        return videos
     }
 
     // ============================== Settings ==============================

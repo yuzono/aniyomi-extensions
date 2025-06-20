@@ -152,7 +152,7 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
                 }.also(videoList::addAll)
             }
         }
-        return videoList.sort()
+        return videoList
     }
 
     /*--------------------------------Video extractors------------------------------------*/

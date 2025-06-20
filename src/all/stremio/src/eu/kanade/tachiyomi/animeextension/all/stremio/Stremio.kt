@@ -544,7 +544,6 @@ class Stremio : ConfigurableAnimeSource, AnimeHttpSource() {
                     .map { v -> v.toVideo(serverUrl, subtitles) }
             }
             .filterNotNull()
-            .sort()
     }
 
     private suspend fun getSubtitleList(type: String, id: String): List<Track> {
