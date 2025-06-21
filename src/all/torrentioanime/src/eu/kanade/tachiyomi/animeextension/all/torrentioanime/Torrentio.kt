@@ -456,34 +456,18 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
         }.orEmpty()
     }
 
+    private val codecPreferences
+        get() = preferences.getStringSet(PREF_CODEC_KEY, PREF_CODEC_DEFAULT) ?: setOf()
+
     override fun List<Video>.sort(): List<Video> {
         val isDub = preferences.getBoolean(IS_DUB_KEY, IS_DUB_DEFAULT)
         val isEfficient = preferences.getBoolean(IS_EFFICIENT_KEY, IS_EFFICIENT_DEFAULT)
-        val codecPreferences = preferences.getStringSet(PREF_CODEC_KEY, PREF_CODEC_DEFAULT) ?: setOf()
 
         return if (codecPreferences.isNotEmpty()) {
             // Filter to only show videos matching selected codecs
             filter { video ->
-                codecPreferences.any { codec ->
-                    when (codec) {
-                        "x264" -> video.quality.contains("264", true) || (
-                            !video.quality.contains("265", true) &&
-                                !video.quality.contains("hevc", true) &&
-                                !video.quality.contains("av1", true) &&
-                                !video.quality.contains("vp9", true)
-                            )
-                        "x265" -> video.quality.contains("265", true) ||
-                            video.quality.contains("hevc", true)
-                        "av1" -> video.quality.contains("av1", true)
-                        "vp9" -> video.quality.contains("vp9", true)
-                        "other" -> !video.quality.contains("264", true) &&
-                            !video.quality.contains("265", true) &&
-                            !video.quality.contains("hevc", true) &&
-                            !video.quality.contains("av1", true) &&
-                            !video.quality.contains("vp9", true)
-                        else -> false
-                    }
-                }
+                video.detectCodec() in codecPreferences ||
+                    video.codecIs("other") && "x264" in codecPreferences
             }.sortedWith(
                 compareBy(
                     { Regex("\\[(.+?) download]").containsMatchIn(it.quality) },
@@ -501,6 +485,29 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             )
         }
     }
+
+    private fun Video.detectCodec(): String =
+        when {
+            quality.contains("264", true) -> "x264"
+            quality.contains("265", true) || quality.contains("hevc", true) -> "x265"
+            quality.contains("av1", true) -> "av1"
+            quality.contains("vp9", true) -> "vp9"
+            else -> "other"
+        }
+
+    private fun Video.codecIs(codec: String): Boolean =
+        when (codec) {
+            "x264" -> quality.contains("264", true)
+            "x265" -> quality.contains("265", true) || quality.contains("hevc", true)
+            "av1" -> quality.contains("av1", true)
+            "vp9" -> quality.contains("vp9", true)
+            "other" -> !quality.contains("264", true) &&
+                !quality.contains("265", true) &&
+                !quality.contains("hevc", true) &&
+                !quality.contains("av1", true) &&
+                !quality.contains("vp9", true)
+            else -> false
+        }
 
     private fun fetchTrackers(): String {
         val request = Request.Builder()
@@ -598,10 +605,11 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             setDefaultValue(IS_DUB_DEFAULT)
         }.also(screen::addPreference)
 
-        SwitchPreferenceCompat(screen.context).apply {
+        val efficientPref = SwitchPreferenceCompat(screen.context).apply {
             key = IS_EFFICIENT_KEY
             title = "Efficient Video Priority"
             setDefaultValue(IS_EFFICIENT_DEFAULT)
+            setVisible(codecPreferences.isEmpty())
             summary = "Codec: (HEVC / x265)  & AV1. High-quality video with less data usage."
         }.also(screen::addPreference)
 
@@ -611,6 +619,16 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             entries = PREF_CODEC
             entryValues = PREF_CODEC_VALUE
             setDefaultValue(PREF_CODEC_DEFAULT)
+            summary = codecPreferences.joinToString()
+
+            setOnPreferenceChangeListener { _, newValue ->
+                @Suppress("UNCHECKED_CAST")
+                val newSet = newValue as Set<String>
+                preferences.edit().putStringSet(key, newSet).apply()
+                summary = newSet.joinToString()
+                efficientPref.setVisible(newSet.isEmpty())
+                true
+            }
         }.also(screen::addPreference)
     }
 
