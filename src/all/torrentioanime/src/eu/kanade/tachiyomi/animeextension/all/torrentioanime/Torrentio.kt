@@ -466,8 +466,7 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
         return if (codecPreferences.isNotEmpty()) {
             // Filter to only show videos matching selected codecs
             filter { video ->
-                video.detectCodec() in codecPreferences ||
-                    video.codecIs("other") && "x264" in codecPreferences
+                video.detectCodec() in codecPreferences
             }.sortedWith(
                 compareBy(
                     { Regex("\\[(.+?) download]").containsMatchIn(it.quality) },
@@ -493,20 +492,6 @@ class Torrentio : ConfigurableAnimeSource, AnimeHttpSource() {
             quality.contains("av1", true) -> "av1"
             quality.contains("vp9", true) -> "vp9"
             else -> "other"
-        }
-
-    private fun Video.codecIs(codec: String): Boolean =
-        when (codec) {
-            "x264" -> quality.contains("264", true)
-            "x265" -> quality.contains("265", true) || quality.contains("hevc", true)
-            "av1" -> quality.contains("av1", true)
-            "vp9" -> quality.contains("vp9", true)
-            "other" -> !quality.contains("264", true) &&
-                !quality.contains("265", true) &&
-                !quality.contains("hevc", true) &&
-                !quality.contains("av1", true) &&
-                !quality.contains("vp9", true)
-            else -> false
         }
 
     private fun fetchTrackers(): String {
