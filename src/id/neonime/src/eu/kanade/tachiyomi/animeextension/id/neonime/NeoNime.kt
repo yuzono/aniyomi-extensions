@@ -259,7 +259,7 @@ class NeoNime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun List<Video>.sort(): List<Video> {

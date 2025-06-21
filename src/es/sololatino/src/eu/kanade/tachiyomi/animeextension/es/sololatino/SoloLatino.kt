@@ -137,7 +137,7 @@ class SoloLatino : DooPlay(
 
     private fun extractVideosSafely(link: String, languageCode: String): List<Video> {
         return runCatching {
-            extractVideos(link, languageCode).sort()
+            extractVideos(link, languageCode)
         }.onFailure { it.printStackTrace() }.getOrDefault(emptyList())
     }
 

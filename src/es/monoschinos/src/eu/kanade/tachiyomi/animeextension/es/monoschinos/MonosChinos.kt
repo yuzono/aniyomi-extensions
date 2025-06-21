@@ -178,7 +178,7 @@ class MonosChinos : ConfigurableAnimeSource, AnimeHttpSource() {
 
         return serverDocument.select("[data-player]")
             .map { String(Base64.decode(it.attr("data-player"), Base64.DEFAULT)) }
-            .parallelCatchingFlatMapBlocking { serverVideoResolver(it) }.sort()
+            .parallelCatchingFlatMapBlocking { serverVideoResolver(it) }
     }
 
     override fun getFilterList(): AnimeFilterList = MonosChinosFilters.FILTER_LIST

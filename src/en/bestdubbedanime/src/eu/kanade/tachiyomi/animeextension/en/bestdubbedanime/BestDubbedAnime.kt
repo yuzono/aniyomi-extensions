@@ -264,7 +264,7 @@ class BestDubbedAnime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         require(videoList.isNotEmpty()) { "Failed to fetch videos" }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()
