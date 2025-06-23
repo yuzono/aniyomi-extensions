@@ -436,7 +436,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     companion object {
-        private const val DOMAIN = "aniwave.se"
+        private const val DOMAIN = "www.aniwave.se"
 
         private val SOFTSUB_REGEX by lazy { Regex("""\bsoftsub\b""", RegexOption.IGNORE_CASE) }
         private val RELEASE_REGEX by lazy { Regex("""Release: (\d+/\d+/\d+ \d+:\d+)""") }
