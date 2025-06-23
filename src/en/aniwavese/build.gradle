@@ -2,15 +2,15 @@ ext {
     extKmkVersionCode = 1
     extName = 'Aniwave.se'
     extClass = '.AniwaveSe'
-    extVersionCode = 1
+    extVersionCode = 2
 }
 
 apply from: "$rootDir/common.gradle"
 
 dependencies {
     implementation(project(':lib:playlist-utils'))
-    implementation(project(':lib:vidsrc-extractor'))
-    implementation(project(':lib:filemoon-extractor'))
-    implementation(project(':lib:mp4upload-extractor'))
-    implementation(project(':lib:streamtape-extractor'))
+//    implementation(project(':lib:vidsrc-extractor'))
+//    implementation(project(':lib:filemoon-extractor'))
+//    implementation(project(':lib:mp4upload-extractor'))
+//    implementation(project(':lib:streamtape-extractor'))
 }
