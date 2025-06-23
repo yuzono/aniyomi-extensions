@@ -16,11 +16,7 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
-import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
-import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
-import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
-import eu.kanade.tachiyomi.lib.vidsrcextractor.VidsrcExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelFlatMapBlocking
@@ -109,7 +105,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // =============================== Search ===============================
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val filters = AniwaveSeFilters.getSearchParameters(filters)
+        val searchParams = AniwaveSeFilters.getSearchParameters(filters)
 
         val vrf = if (query.isNotBlank()) utils.vrfEncrypt(query) else ""
         var url = baseUrl.toHttpUrl().newBuilder().apply {
@@ -117,16 +113,16 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             addQueryParameter("keyword", query)
         }.build().toString()
 
-        if (filters.genre.isNotBlank()) url += filters.genre
-        if (filters.genreMode.isNotBlank()) url += filters.genreMode
-        if (filters.country.isNotBlank()) url += filters.country
-        if (filters.season.isNotBlank()) url += filters.season
-        if (filters.year.isNotBlank()) url += filters.year
-        if (filters.type.isNotBlank()) url += filters.type
-        if (filters.status.isNotBlank()) url += filters.status
-        if (filters.language.isNotBlank()) url += filters.language
-        if (filters.rating.isNotBlank()) url += filters.rating
-        if (filters.sort.isNotBlank()) url += "&sort=${filters.sort}"
+        if (searchParams.genre.isNotBlank()) url += searchParams.genre
+        if (searchParams.genreMode.isNotBlank()) url += searchParams.genreMode
+        if (searchParams.country.isNotBlank()) url += searchParams.country
+        if (searchParams.season.isNotBlank()) url += searchParams.season
+        if (searchParams.year.isNotBlank()) url += searchParams.year
+        if (searchParams.type.isNotBlank()) url += searchParams.type
+        if (searchParams.status.isNotBlank()) url += searchParams.status
+        if (searchParams.language.isNotBlank()) url += searchParams.language
+        if (searchParams.rating.isNotBlank()) url += searchParams.rating
+        if (searchParams.sort.isNotBlank()) url += "&sort=${searchParams.sort}"
 
         return GET("$url&page=$page&vrf=$vrf", refererHeaders)
     }
@@ -279,10 +275,10 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================= Utilities ==============================
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
-    private val vidsrcExtractor by lazy { VidsrcExtractor(client, headers) }
-    private val filemoonExtractor by lazy { FilemoonExtractor(client) }
-    private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
-    private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
+//    private val vidsrcExtractor by lazy { VidsrcExtractor(client, headers) }
+//    private val filemoonExtractor by lazy { FilemoonExtractor(client) }
+//    private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
+//    private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
 
     private fun extractVideo(server: VideoData, epUrl: String): List<Video> {
         /**
