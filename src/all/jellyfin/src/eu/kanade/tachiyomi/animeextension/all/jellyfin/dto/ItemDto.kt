@@ -1,5 +1,7 @@
-package eu.kanade.tachiyomi.animeextension.all.jellyfin
+package eu.kanade.tachiyomi.animeextension.all.jellyfin.dto
 
+import eu.kanade.tachiyomi.animeextension.all.jellyfin.formatBytes
+import eu.kanade.tachiyomi.animeextension.all.jellyfin.getImageUrl
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import kotlinx.serialization.Serializable
@@ -11,38 +13,28 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Serializable
-class LoginDto(
-    val accessToken: String,
-    val sessionInfo: SessionDto,
-) {
-    @Serializable
-    class SessionDto(
-        val userId: String,
-    )
-}
-
-@Serializable
-class ItemListDto(
+data class ItemListDto(
     val items: List<ItemDto>,
     val totalRecordCount: Int,
 )
 
 @Serializable
-class ItemDto(
+data class ItemDto(
     // Common
     val name: String,
-    val type: String,
+    val type: ItemType,
     val id: String,
     val locationType: String,
     val imageTags: ImageDto,
 
-    // Items
+    // Libraries
     val collectionType: String? = null,
 
     // Anime
     val seriesId: String? = null,
     val seriesName: String? = null,
     val seasonName: String? = null,
+    val seriesPrimaryImageTag: String? = null,
 
     // Anime Details
     val status: String? = null,
@@ -60,7 +52,7 @@ class ItemDto(
     val mediaSources: List<MediaDto>? = null,
 ) {
     @Serializable
-    class ImageDto(
+    data class ImageDto(
         val primary: String? = null,
     )
 
@@ -73,10 +65,10 @@ class ItemDto(
 
     fun toSAnime(baseUrl: String, userId: String): SAnime = SAnime.create().apply {
         val typeMap = mapOf(
-            "Season" to "seriesId,$seriesId",
-            "Movie" to "movie",
-            "BoxSet" to "boxSet",
-            "Series" to "series",
+            ItemType.Season to "seriesId,$seriesId",
+            ItemType.Movie to "movie",
+            ItemType.BoxSet to "boxSet",
+            ItemType.Series to "series",
         )
 
         url = baseUrl.toHttpUrl().newBuilder().apply {
@@ -86,7 +78,7 @@ class ItemDto(
             addPathSegment(id)
             fragment(typeMap[type])
         }.build().toString()
-        thumbnail_url = "$baseUrl/Items/$id/Images/Primary"
+        thumbnail_url = imageTags.primary?.getImageUrl(baseUrl, id)
         title = name
         description = overview?.let {
             Jsoup.parseBodyFragment(
@@ -96,30 +88,34 @@ class ItemDto(
         genre = genres?.joinToString(", ")
         author = studios?.joinToString(", ") { it.name }
 
-        status = if (type == "Movie") {
+        status = if (type == ItemType.Movie) {
             SAnime.COMPLETED
         } else {
             this@ItemDto.status.parseStatus()
         }
 
-        if (type == "Season") {
+        if (type == ItemType.Season) {
             if (locationType == "Virtual") {
-                title = seriesName!!
-                thumbnail_url = "$baseUrl/Items/$seriesId/Images/Primary"
+                title = seriesName ?: "Season"
+                seriesId?.let {
+                    thumbnail_url = seriesPrimaryImageTag?.getImageUrl(baseUrl, it)
+                }
             } else {
                 title = "$seriesName $name"
             }
 
-            // Use series as fallback
+            // Use series image as fallback
             if (imageTags.primary == null) {
-                thumbnail_url = "$baseUrl/Items/$seriesId/Images/Primary"
+                seriesId?.let {
+                    thumbnail_url = seriesPrimaryImageTag?.getImageUrl(baseUrl, it)
+                }
             }
         }
     }
 
-    private fun String?.parseStatus(): Int = when (this) {
-        "Ended" -> SAnime.COMPLETED
-        "Continuing" -> SAnime.ONGOING
+    private fun String?.parseStatus(): Int = when (this?.lowercase()) {
+        "ended" -> SAnime.COMPLETED
+        "continuing" -> SAnime.ONGOING
         else -> SAnime.UNKNOWN
     }
 
@@ -137,7 +133,7 @@ class ItemDto(
         val runTime = runtimeInSec?.formatSeconds()
         val title = buildString {
             append(prefix)
-            if (type != "Movie") {
+            if (type != ItemType.Movie) {
                 append(this@ItemDto.name)
             }
         }
@@ -146,8 +142,8 @@ class ItemDto(
             "title" to title,
             "originalTitle" to (originalTitle ?: ""),
             "sortTitle" to (sortName ?: ""),
-            "type" to type,
-            "typeShort" to type.replace("Episode", "Ep."),
+            "type" to type.name,
+            "typeShort" to type.name.replace("Episode", "Ep."),
             "seriesTitle" to (seriesName ?: ""),
             "seasonTitle" to (seasonName ?: ""),
             "number" to (indexNumber?.toString() ?: ""),
@@ -160,7 +156,7 @@ class ItemDto(
         )
         val sub = StringSubstitutor(values, "{", "}")
         val extraInfo = buildList {
-            if (epDetails.contains("Overview") && overview != null && type == "Episode") {
+            if (epDetails.contains("Overview") && overview != null && type == ItemType.Episode) {
                 add(overview)
             }
             if (epDetails.contains("Size") && size != null) {
@@ -183,7 +179,7 @@ class ItemDto(
         indexNumber?.let {
             episode_number = it.toFloat()
         }
-        if (type == "Movie") {
+        if (type == ItemType.Movie) {
             episode_number = 1F
         }
     }
@@ -209,6 +205,7 @@ class ItemDto(
     }
 
     companion object {
+        @Suppress("SpellCheckingInspection")
         private val FORMATTER_DATE_TIME = SimpleDateFormat(
             "yyyy-MM-dd'T'HH:mm:ss.SSSSSSS",
             Locale.ENGLISH,
@@ -225,7 +222,11 @@ class SessionDto(
 @Serializable
 class MediaDto(
     val size: Long? = null,
+    val id: String? = null,
+    val bitrate: Long? = null,
+    val transcodingUrl: String? = null,
     val supportsTranscoding: Boolean,
+    val supportsDirectStream: Boolean,
     val mediaStreams: List<MediaStreamDto>,
 ) {
     @Serializable
@@ -237,8 +238,6 @@ class MediaDto(
         val isExternal: Boolean,
         val language: String? = null,
         val displayTitle: String? = null,
-        val height: Int? = null,
-        val width: Int? = null,
         val bitRate: Long? = null,
     )
 }

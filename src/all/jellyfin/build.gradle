@@ -1,7 +1,7 @@
 ext {
     extName = 'Jellyfin'
     extClass = '.JellyfinFactory'
-    extVersionCode = 22
+    extVersionCode = 23
 }
 
 apply from: "$rootDir/common.gradle"
