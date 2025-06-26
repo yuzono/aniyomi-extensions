@@ -12,5 +12,4 @@ dependencies {
     implementation(project(':lib:dood-extractor'))
     implementation(project(':lib:streamhidevid-extractor'))
     implementation(project(':lib:vidguard-extractor'))
-    implementation(libs.jsunpacker)
 }

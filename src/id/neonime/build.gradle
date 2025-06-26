@@ -12,5 +12,4 @@ dependencies {
     implementation(project(':lib:gdriveplayer-extractor'))
     implementation(project(':lib:yourupload-extractor'))
     implementation(project(':lib:okru-extractor'))
-    implementation(libs.jsunpacker)
 }
