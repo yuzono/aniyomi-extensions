@@ -28,5 +28,4 @@ dependencies {
     implementation(project(':lib:vidguard-extractor'))
     implementation(project(':lib:universal-extractor'))
     implementation(project(':lib:cryptoaes'))
-    implementation(libs.jsunpacker)
 }

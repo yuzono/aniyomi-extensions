@@ -15,5 +15,4 @@ dependencies {
     implementation(project(':lib:gogostream-extractor'))
     implementation(project(':lib:filemoon-extractor'))
     implementation(project(':lib:streamwish-extractor'))
-    implementation(libs.jsunpacker)
 }

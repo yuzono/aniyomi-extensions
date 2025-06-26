@@ -24,5 +24,4 @@ dependencies {
     implementation(project(':lib:fastream-extractor'))
     implementation(project(':lib:upstream-extractor'))
     implementation(project(':lib:universal-extractor'))
-    implementation(libs.jsunpacker)
 }

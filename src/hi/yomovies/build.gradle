@@ -11,6 +11,5 @@ apply from: "$rootDir/common.gradle"
 dependencies {
     implementation(project(':lib:dood-extractor'))
     implementation(project(':lib:mixdrop-extractor'))
-    implementation(libs.jsunpacker)
     implementation(project(':lib:playlist-utils'))
 }
