@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 3
     extName = 'Pelisplushd'
     extClass = '.PelisplushdFactory'
-    extVersionCode = 75
+    extVersionCode = 78
 }
 
 apply from: "$rootDir/common.gradle"

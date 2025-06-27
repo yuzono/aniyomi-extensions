@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Xiaoxintv'
     extClass = '.Xiaoxintv'
     extVersionCode = 1

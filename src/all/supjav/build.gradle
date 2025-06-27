@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 3
     extName = 'SupJav'
     extClass = '.SupJavFactory'
-    extVersionCode = 16
+    extVersionCode = 19
     isNsfw = true
 }
 

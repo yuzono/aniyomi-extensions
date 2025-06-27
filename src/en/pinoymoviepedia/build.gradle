@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'PinoyMoviePedia'
     extClass = '.PinoyMoviePedia'
     themePkg = 'dooplay'
     baseUrl = 'https://pinoymoviepedia.ru'
-    overrideVersionCode = 2
+    overrideVersionCode = 3
     isNsfw = true
 }
 

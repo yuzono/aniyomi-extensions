@@ -50,17 +50,13 @@ jobs:
 
       # This step is to alert whether a bumping version might occur.
       - name: Bump extensions that uses a modified lib
-        if: steps.modified-libs.outputs.any_changed == 'true' && !startsWith(github.event.pull_request.title, '[skip mass-bump]')
+        if: steps.modified-libs.outputs.any_changed == 'true'
         run: |
           latest_commit_author=$(git log -1 --pretty=%an)
-          isKmk=false
-          if [[ "$latest_commit_author" == *"Cuong"* || "$latest_commit_author" == *"cuong"* ]]; then
-            isKmk=true
-          fi
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           chmod +x ./.github/scripts/bump-versions.py
-          ./.github/scripts/bump-versions.py $isKmk "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
+          ./.github/scripts/bump-versions.py "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
           echo "!!! This PR will bumping extensions version that uses a modified lib"
 
       - name: Set up Java

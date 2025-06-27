@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Nivod'
     extClass = '.Nivod'
     extVersionCode = 1

@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'HDS'
     extClass = '.Hds'
     themePkg = 'dooplay'
     baseUrl = 'https://www.hds.quest'
-    overrideVersionCode = 6
+    overrideVersionCode = 7
 }
 
 apply from: "$rootDir/common.gradle"

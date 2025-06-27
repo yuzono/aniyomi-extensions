@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'WcoTv'
     extClass = '.WcoTv'
     themePkg = 'wcotheme'

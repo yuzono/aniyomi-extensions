@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 3
     extName = 'Anime4up'
     extClass = '.Anime4Up'
-    extVersionCode = 64
+    extVersionCode = 67
 }
 
 apply from: "$rootDir/common.gradle"

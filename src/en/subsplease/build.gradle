@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Subsplease (Torrent)'
     extClass = '.Subsplease'
     extVersionCode = 1

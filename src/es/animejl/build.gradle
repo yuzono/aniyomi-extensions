@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 2
     extName = 'Animejl'
     extClass = '.Animejl'
-    extVersionCode = 7
+    extVersionCode = 9
     isNsfw = true
 }
 

@@ -9,8 +9,7 @@ import sys
 from collections import deque # Add this import
 
 VERSION_STR = "VersionCode ="
-VERSION_REGEX_KMK = re.compile(f"(?<=Kmk){VERSION_STR} (\\d+)")
-VERSION_REGEX_UPSTREAM = re.compile(f"(?<!Kmk){VERSION_STR} (\\d+)")
+VERSION_REGEX = re.compile(f"{VERSION_STR} (\\d+)")
 BUMPED_FILES: list[Path] = []
 
 def has_match(query: str, file: Path) -> tuple[Path, bool]:
@@ -42,7 +41,7 @@ def find_files_with_match(query: str, include_multisrc: bool = True) -> list[Pat
         return [path for path, result in results if result]
 
 def replace_version(match: re.Match) -> str:
-    version = int(match.group(1))
+    version = int(match[1])
     print(f"{version} -> {version + 1}")
     return f"{VERSION_STR} {version + 1}"
 
@@ -50,8 +49,7 @@ def bump_version(file: Path):
     BUMPED_FILES.append(file)
     with file.open("r+") as f:
         print(f"\n{file}: ", end="")
-        regex = VERSION_REGEX_KMK if len(sys.argv) > 1 and sys.argv[1].lower() == 'true' else VERSION_REGEX_UPSTREAM
-        text = regex.sub(replace_version, f.read())
+        text = VERSION_REGEX.sub(replace_version, f.read())
         # Move the cursor to the start again, to prevent writing at the end
         f.seek(0)
         f.write(text)
@@ -64,13 +62,13 @@ def commit_changes():
     paths = [str(path.resolve()) for path in BUMPED_FILES]
     subprocess.check_call(["git", "add"] + paths)
     commit_message = "[skip ci] chore: Mass-bump on extensions"
-    if len(sys.argv) > 2:
-        commit_message += f"\n\nCaused by: {sys.argv[2]}"
+    if len(sys.argv) > 1:
+        commit_message += f"\n\nCaused by: {sys.argv[1]}"
     subprocess.check_call(["git", "commit", "-m", commit_message])
     # 'git push' will be doing outside of this script so we can decide per workflow if we want to push or not.
     # subprocess.check_call(["git", "push"])
 
-if __name__ == "__main__" and len(sys.argv) > 3:
+if __name__ == "__main__" and len(sys.argv) > 2:
     # Regex to match the lib name in the path, like "unpacker" or "dood-extractor".
     lib_name_extractor_regex = re.compile(r"lib/([a-z0-9-]+)/")
 
@@ -78,7 +76,7 @@ if __name__ == "__main__" and len(sys.argv) > 3:
     all_libs_to_process = set() # Set of all unique library names found
 
     # Initial population of the discovery queue and the set of all libs
-    initial_matches_from_args = filter(None, map(lib_name_extractor_regex.search, sys.argv[3:]))
+    initial_matches_from_args = filter(None, map(lib_name_extractor_regex.search, sys.argv[2:]))
     for match_obj in initial_matches_from_args:
         lib_name = match_obj.group(1)
         if lib_name not in all_libs_to_process:

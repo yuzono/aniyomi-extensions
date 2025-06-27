@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 2
     extName = 'Cinemathek'
     extClass = '.Cinemathek'
     themePkg = 'dooplay'
     baseUrl = 'https://cinemathek.net'
-    overrideVersionCode = 26
+    overrideVersionCode = 28
     isNsfw = true
 }
 
