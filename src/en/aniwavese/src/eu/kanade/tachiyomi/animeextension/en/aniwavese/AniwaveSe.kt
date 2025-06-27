@@ -179,22 +179,24 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             add("X-Requested-With", "XMLHttpRequest")
         }.build()
 
-        return GET("$baseUrl/ajax/episode/list/$id?vrf=$vrf#${anime.url}", listHeaders)
+        return GET("$baseUrl/ajax/episode/list/$id?vrf=$vrf", listHeaders)
     }
 
     override fun episodeListSelector() = "div.episodes ul > li > a"
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val animeUrl = response.request.url.fragment!!
+        val referer = response.request.header("Referer")
+            ?: throw IllegalStateException("Referrer header not found in request")
+        val animeUrl = referer.toHttpUrl().encodedPath
         val document = response.parseAs<ResultResponse>().toDocument()
 
         val episodeElements = document.select(episodeListSelector())
-        return episodeElements.parallelMapBlocking { episodeFromElements(it, animeUrl) }.reversed()
+        return episodeElements.parallelMapBlocking { episodeFromElement(it, animeUrl) }.reversed()
     }
 
     override fun episodeFromElement(element: Element): SEpisode = throw UnsupportedOperationException()
 
-    private fun episodeFromElements(element: Element, url: String): SEpisode {
+    private fun episodeFromElement(element: Element, animeUrl: String): SEpisode {
         val title = element.parent()?.attr("title") ?: ""
 
         val epNum = element.attr("data-num")
@@ -214,7 +216,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return SEpisode.create().apply {
             this.name = "Episode $epNum" +
                 if (name.isNotEmpty() && name != namePrefix) ": $name" else ""
-            this.url = "$ids&epurl=$url/ep-$epNum"
+            this.url = "$ids&epurl=$animeUrl/ep-$epNum"
             episode_number = epNum.toFloat()
             date_upload = RELEASE_REGEX.find(title)?.let {
                 parseDate(it.groupValues[1])
@@ -237,7 +239,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             add("X-Requested-With", "XMLHttpRequest")
         }.build()
 
-        return GET("$baseUrl$url#$epurl", listHeaders)
+        return GET("$baseUrl$url", listHeaders)
     }
 
     data class VideoData(
@@ -247,7 +249,9 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     )
 
     override fun videoListParse(response: Response): List<Video> {
-        val epurl = response.request.url.fragment!!
+        val referer = response.request.header("Referer")
+            ?: throw IllegalStateException("Referrer header not found in request")
+        val epurl = referer.toHttpUrl().encodedPath
         val document = response.parseAs<ResultResponse>().toDocument()
         val hosterSelection = getHosters()
         val typeSelection = preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)!!
@@ -432,7 +436,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     companion object {
-        private const val DOMAIN = "www.aniwave.se"
+        private const val DOMAIN = "ww.aniwave.se"
 
         private val SOFTSUB_REGEX by lazy { Regex("""\bsoftsub\b""", RegexOption.IGNORE_CASE) }
         private val RELEASE_REGEX by lazy { Regex("""Release: (\d+/\d+/\d+ \d+:\d+)""") }
@@ -496,7 +500,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             key = PREF_DOMAIN_KEY
             title = "Preferred domain"
             entries = arrayOf(DOMAIN)
-            entryValues = arrayOf("https://$DOMAIN")
+            entryValues = arrayOf(PREF_DOMAIN_DEFAULT)
             setDefaultValue(PREF_DOMAIN_DEFAULT)
             summary = "%s"
 
@@ -612,7 +616,7 @@ class AniwaveSe : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     preferences.edit().putString(key, newDomain).apply()
                     true
                 } else {
-                    Toast.makeText(screen.context, "Invalid url. Url example: https://$DOMAIN", Toast.LENGTH_LONG).show()
+                    Toast.makeText(screen.context, "Invalid url. Url example: $PREF_DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
                     false
                 }
             }
