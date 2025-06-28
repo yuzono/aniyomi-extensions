@@ -226,7 +226,7 @@ class MoviesMod : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun videoFromElement(element: Element): Video = throw UnsupportedOperationException()

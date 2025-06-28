@@ -145,7 +145,7 @@ class Zeroanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     private fun serverVideoResolver(url: String, server: String): List<Video> {

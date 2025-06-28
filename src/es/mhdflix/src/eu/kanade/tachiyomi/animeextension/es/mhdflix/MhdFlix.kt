@@ -248,7 +248,7 @@ open class MhdFlix : AnimeHttpSource(), ConfigurableAnimeSource {
             }
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }

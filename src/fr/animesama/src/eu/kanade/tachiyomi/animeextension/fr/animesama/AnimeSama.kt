@@ -137,7 +137,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                 }
             }
-        }.sort()
+        }
         return videos
     }
 
