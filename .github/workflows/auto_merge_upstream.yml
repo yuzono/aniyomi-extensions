@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Set env
         run: |
-          echo "UPSTREAM_URL=https://github.com/Kohi-den/extensions-source.git" >> $GITHUB_ENV
+          echo "UPSTREAM_URL=https://kohiden.xyz/Kohi-den/extensions-source.git" >> $GITHUB_ENV
           echo "UPSTREAM_BRANCH=main" >> $GITHUB_ENV
           echo "LOCAL_BRANCH=kohiden" >> $GITHUB_ENV
           echo "MERGE_BRANCH=main" >> $GITHUB_ENV

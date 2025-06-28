@@ -42,7 +42,7 @@ def find_files_with_match(query: str, include_multisrc: bool = True) -> list[Pat
         return [path for path, result in results if result]
 
 def replace_version(match: re.Match) -> str:
-    version = int(match.group(1))
+    version = int(match[1])
     print(f"{version} -> {version + 1}")
     return f"{VERSION_STR} {version + 1}"
 
