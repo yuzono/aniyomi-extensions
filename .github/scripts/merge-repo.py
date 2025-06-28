@@ -10,7 +10,7 @@ LOCAL_REPO: Path = REMOTE_REPO.parent.joinpath(sys.argv[2])
 to_delete: list[str] = json.loads(sys.argv[1])
 
 for module in to_delete:
-    apk_name = f"aniyomi-{module}-v*.*.*.apk"
+    apk_name = f"aniyomi-{module}-v*.*.apk"
     icon_name = f"eu.kanade.tachiyomi.animeextension.{module}.png"
     for file in REMOTE_REPO.joinpath("apk").glob(apk_name):
         print(file.name)
@@ -29,8 +29,9 @@ with LOCAL_REPO.joinpath("index.min.json").open() as local_index_file:
     local_index = json.load(local_index_file)
 
 index = [
-    item for item in remote_index
-    if not any([item["pkg"].endswith(f".{module}") for module in to_delete])
+    item
+    for item in remote_index
+    if not any(item["pkg"].endswith(f".{module}") for module in to_delete)
 ]
 index.extend(local_index)
 index.sort(key=lambda x: x["pkg"])
