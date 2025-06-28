@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Hanime1'
     extClass = '.Hanime1'
     extVersionCode = 5

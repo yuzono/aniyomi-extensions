@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Kawaiifu'
     extClass = '.Kawaiifu'
     extVersionCode = 5

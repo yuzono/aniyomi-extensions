@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Stremio'
     extClass = '.Stremio'
     extVersionCode = 2

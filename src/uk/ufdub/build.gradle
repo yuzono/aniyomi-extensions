@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'UFDub'
     extClass = '.UFDub'
     extVersionCode = 1

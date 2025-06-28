@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Jellyfin'
     extClass = '.JellyfinFactory'
     extVersionCode = 22

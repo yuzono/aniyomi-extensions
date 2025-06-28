@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'Pi Fansubs'
     extClass = '.PiFansubs'
     themePkg = 'dooplay'
     baseUrl = 'https://pifansubs.club'
-    overrideVersionCode = 23
+    overrideVersionCode = 24
     isNsfw = true
 }
 

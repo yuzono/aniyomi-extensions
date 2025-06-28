@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'AnimesBr'
     extClass = '.AnimesBr'
     themePkg = 'dooplay'
     baseUrl = 'https://animesbr.tv'
-    overrideVersionCode = 2
+    overrideVersionCode = 3
     isNsfw = true
 }
 

@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'AnimeIndo'
     extClass = '.AnimeIndo'
     themePkg = 'animestream'
     baseUrl = 'https://animeindo.skin'
-    overrideVersionCode = 13
+    overrideVersionCode = 14
 }
 
 apply from: "$rootDir/common.gradle"

@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'OgladajAnime'
     extClass = '.OgladajAnime'
     extVersionCode = 4

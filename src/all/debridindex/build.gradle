@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Debrid Index'
     extClass = '.DebridIndex'
     extVersionCode = 1

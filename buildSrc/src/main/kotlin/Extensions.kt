@@ -5,7 +5,7 @@ import org.gradle.api.plugins.ExtensionAware
 import org.gradle.kotlin.dsl.extra
 
 var ExtensionAware.baseVersionCode: Int
-    get() = extra.get("baseVersionCode") as Int + baseKmkVersionCode
+    get() = extra.get("baseVersionCode") as Int
     set(value) = extra.set("baseVersionCode", value)
 
 fun Project.getDependents(): Set<Project> {
@@ -35,13 +35,3 @@ fun Project.printDependentExtensions() {
         }
     }
 }
-
-var ExtensionAware.baseKmkVersionCode: Int
-    get() {
-        return try {
-            extra.get("baseKmkVersionCode") as Int
-        } catch (e: MissingPropertyException) {
-            0
-        }
-    }
-    set(value) = extra.set("baseKmkVersionCode", value)

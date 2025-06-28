@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'VeoHentai'
     extClass = '.VeoHentai'
     extVersionCode = 1

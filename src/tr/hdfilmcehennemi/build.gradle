@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 3
     extName = 'HDFilmCehennemi'
     extClass = '.HDFilmCehennemi'
-    extVersionCode = 22
+    extVersionCode = 25
     isNsfw = true
 }
 

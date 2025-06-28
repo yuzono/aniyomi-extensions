@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'desu-online'
     extClass = '.DesuOnline'
     themePkg = 'animestream'
     baseUrl = 'https://desu-online.pl'
-    overrideVersionCode = 6
+    overrideVersionCode = 7
 }
 
 apply from: "$rootDir/common.gradle"

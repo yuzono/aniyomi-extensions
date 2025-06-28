@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 2
     extName = 'FanPelis'
     extClass = '.FanPelis'
-    extVersionCode = 17
+    extVersionCode = 19
 }
 
 apply from: "$rootDir/common.gradle"

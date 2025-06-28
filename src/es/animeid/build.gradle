@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'AnimeID'
     extClass = '.AnimeID'
-    extVersionCode = 18
+    extVersionCode = 19
 }
 
 apply from: "$rootDir/common.gradle"
