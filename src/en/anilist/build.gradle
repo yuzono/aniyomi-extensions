@@ -1,8 +1,7 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'AniList'
     extClass = '.AniList'
-    extVersionCode = 9
+    extVersionCode = 10
 }
 
 apply from: "$rootDir/common.gradle"

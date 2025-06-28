@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'HentaisTube'
     extClass = '.HentaisTube'
     extVersionCode = 3

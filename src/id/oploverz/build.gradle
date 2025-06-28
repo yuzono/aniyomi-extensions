@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Oploverz'
     extClass = '.Oploverz'
     extVersionCode = 26

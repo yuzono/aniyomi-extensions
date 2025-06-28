@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Xfani'
     extClass = '.Xfani'
     extVersionCode = 6

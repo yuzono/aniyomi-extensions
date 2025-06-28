@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Xvideos'
     extClass = '.Xvideos'
     extVersionCode = 3

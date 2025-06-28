@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Torrentio (Torrent / Debrid)'
     extClass = '.Torrentio'
     extVersionCode = 5

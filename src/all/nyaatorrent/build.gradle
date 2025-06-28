@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 0
     extName = 'Nyaa (Torrent)'
     extClass = '.NyaaFactory'
     extVersionCode = 3

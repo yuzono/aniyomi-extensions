@@ -1,10 +1,9 @@
 ext {
-    extKmkVersionCode = 2
     extName = 'AsyaAnimeleri'
     extClass = '.AsyaAnimeleri'
     themePkg = 'animestream'
     baseUrl = 'https://asyaanimeleri.com'
-    overrideVersionCode = 6
+    overrideVersionCode = 8
 }
 
 apply from: "$rootDir/common.gradle"
