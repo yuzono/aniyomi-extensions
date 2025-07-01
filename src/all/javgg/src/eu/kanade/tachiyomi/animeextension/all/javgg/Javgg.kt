@@ -32,6 +32,8 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val supportsLatest = true
 
+    override val supportsRelatedAnimes = false
+
     private val preferences by getPreferencesLazy()
 
     companion object {
@@ -124,6 +126,23 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
         return AnimesPage(animeList, nextPage)
     }
 
+    override fun String.stripKeywordForRelatedAnimes(): List<String> {
+        val regexWhitespace = Regex("\\s+")
+        val regexSpecialCharacters =
+            Regex("([-!~#$%^&*+_|/\\\\,?:;'“”‘’\"<>(){}\\[\\]。・～：—！？、―«»《》〘〙【】「」｜]|\\s-|-\\s|\\s\\.|\\.\\s)")
+        val regexNumberOnly = Regex("^\\d+$")
+
+        return replace(regexSpecialCharacters, " ")
+            .split(regexWhitespace)
+            .map {
+                // remove number only
+                it.replace(regexNumberOnly, "")
+                    .lowercase()
+            }
+            // exclude single character
+            .filter { it.length > 1 }
+    }
+
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
         return if (document.select(".dooplay_player_option").any()) {
@@ -179,7 +198,7 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun org.jsoup.nodes.Element.getImageUrl(): String? {
-        val imageLinkRegex = """https?://[^\s]+\.(jpg|png)""".toRegex()
+        val imageLinkRegex = """https?://\S+\.(jpg|png)""".toRegex()
 
         for (link in this.select("[href], [src]")) {
             val href = link.attr("href")
