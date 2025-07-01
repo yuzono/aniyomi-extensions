@@ -22,6 +22,7 @@ import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.upstreamextractor.UpstreamExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
+import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -142,6 +143,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
     private val streamTapeExtractor by lazy { StreamTapeExtractor(client) }
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val filelionsExtractor by lazy { StreamWishExtractor(client, headers) }
+    private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
     private val amazonExtractor by lazy { AmazonExtractor(client) }
 
     private fun serverVideoResolver(url: String): List<Video> {
@@ -163,6 +165,7 @@ class Animefenix : ConfigurableAnimeSource, AnimeHttpSource() {
                 "streamtape" -> streamTapeExtractor.videosFromUrl(url)
                 "vidhide" -> streamHideVidExtractor.videosFromUrl(url)
                 "filelions" -> filelionsExtractor.videosFromUrl(url, videoNameGen = { "FileLions:$it" })
+                "vidguard" -> vidGuardExtractor.videosFromUrl(url)
                 "fireload" -> {
                     val video = url.substringAfter("/stream/fl.php?v=")
                     if (client.newCall(GET(video)).execute().code == 200) {

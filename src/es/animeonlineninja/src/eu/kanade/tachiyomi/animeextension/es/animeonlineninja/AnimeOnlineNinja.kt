@@ -146,7 +146,7 @@ class AnimeOnlineNinja : DooPlay(
         try {
             val matched = conventions.firstOrNull { (_, names) -> names.any { it.lowercase() in url.lowercase() || it.lowercase() in lang.lowercase() } }?.first
             return when (matched) {
-                "saidochesto", "multiserver" -> extractFromMulti(url)
+                "saidochesto" -> extractFromMulti(url)
                 "filemoon" -> filemoonExtractor.videosFromUrl(url, "$lang Filemoon:", headers)
                 "doodstream" -> doodExtractor.videosFromUrl(url, "$lang DoodStream", false)
                 "streamtape" -> streamTapeExtractor.videosFromUrl(url, "$lang StreamTape")
@@ -173,7 +173,7 @@ class AnimeOnlineNinja : DooPlay(
     }
 
     private val conventions = listOf(
-        "saidochesto" to listOf("saidochesto"),
+        "saidochesto" to listOf("saidochesto", "multiserver"),
         "filemoon" to listOf("filemoon", "moonplayer", "moviesm4u", "files.im"),
         "doodstream" to listOf("doodstream", "dood.", "ds2play", "doods.", "ds2video", "dooood", "d000d", "d0000d"),
         "streamtape" to listOf("streamtape", "stp", "stape", "shavetape"),
