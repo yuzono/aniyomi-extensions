@@ -80,11 +80,10 @@ class VoeExtractor(private val client: OkHttpClient) {
         }.joinToString("")
     }
 
+    private val patternsRegex = listOf("@$", "^^", "~@", "%?", "*~", "!!", "#&").joinToString("|") { Regex.escape(it) }.toRegex()
+
     private fun replacePatterns(input: String): String {
-        val patterns = listOf("@$", "^^", "~@", "%?", "*~", "!!", "#&")
-        return patterns.fold(input) { result, pattern ->
-            result.replace(Regex(Regex.escape(pattern)), "_")
-        }
+        return input.replace(patternsRegex, "_")
     }
 
     private fun removeUnderscores(input: String): String = input.replace("_", "")

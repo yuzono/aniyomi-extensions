@@ -120,16 +120,18 @@ open class Pelisplushd(override val name: String, override val baseUrl: String) 
             val apiResponse = client.newCall(GET(opt)).execute()
             if (apiResponse.isSuccessful) {
                 val docResponse = apiResponse.asJsoup()
-                val cryptoScript = docResponse.selectFirst("script:containsData(const dataLink)")?.data() ?: return emptyList()
+                val cryptoScript = docResponse.selectFirst("script:containsData(const dataLink)")?.data() ?: return@forEach
                 val jsLinksMatch = cryptoScript.substringAfter("const dataLink =").substringBefore("];") + "]"
                 val decryptUtf8 = cryptoScript.contains("decryptLink(encrypted){")
-                var key = cryptoScript.substringAfter("CryptoJS.AES.decrypt(encrypted, '").substringBefore("')")
-                if (!decryptUtf8) {
-                    key = cryptoScript.substringAfter("decryptLink(server.link, '").substringBefore("'),")
+                val key = if (decryptUtf8) {
+                    cryptoScript.substringAfter("CryptoJS.AES.decrypt(encrypted, '").substringBefore("')")
+                } else {
+                    cryptoScript.substringAfter("decryptLink(server.link, '").substringBefore("'),")
                 }
                 json.decodeFromString<List<DataLinkDto>>(jsLinksMatch).flatMap { embed ->
-                    embed.sortedEmbeds.map { item ->
+                    embed.sortedEmbeds.mapNotNull { item ->
                         val link = CryptoAES.decryptCbcIV(item?.link ?: "", key, decryptUtf8) ?: ""
+                        if (link.isEmpty()) return@mapNotNull null
                         val lng = embed.videoLanguage ?: ""
                         val server = item?.servername ?: ""
                         (server to lng) to link
