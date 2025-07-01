@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# Require Python 3.12 or higher
+import sys
+assert sys.version_info >= (3, 12), "Requires Python 3.12+"
 
 import itertools
 import json
