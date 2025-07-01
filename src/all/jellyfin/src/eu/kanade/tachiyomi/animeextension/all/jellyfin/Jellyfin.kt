@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.all.jellyfin
 
-import android.app.Application
 import android.content.SharedPreferences
 import android.text.InputType
 import android.util.Log
@@ -19,6 +18,7 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -27,14 +27,10 @@ import okhttp3.Response
 import org.apache.commons.text.StringSubstitutor
 import rx.Single
 import rx.schedulers.Schedulers
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.security.MessageDigest
 
 class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpSource(), UnmeteredSource {
-    internal val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    internal val preferences by getPreferencesLazy()
 
     private val displayName by lazy { preferences.getString(PREF_CUSTOM_LABEL_KEY, suffix)!!.ifBlank { suffix } }
     private val userId by lazy { preferences.userId.ifBlank { authInterceptor.updateCredentials().second } }

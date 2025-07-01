@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.all.stremio
 
-import android.app.Application
 import android.content.SharedPreferences
 import android.text.InputType
 import android.util.Log
@@ -25,6 +24,7 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parseAs
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,15 +38,9 @@ import okhttp3.Response
 import org.apache.commons.text.StringSubstitutor
 import rx.Single
 import rx.schedulers.Schedulers
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
-import kotlin.collections.any
-import kotlin.collections.orEmpty
 
 class Stremio : ConfigurableAnimeSource, AnimeHttpSource() {
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     override val baseUrl by lazy { preferences.getString(WEBUI_URL_KEY, WEBUI_URL_DEFAULT)!! }
 
