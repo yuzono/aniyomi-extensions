@@ -41,6 +41,17 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_DEFAULT = "StreamWish"
+
+        /**
+         * Current servers available on the site:
+         * TB: TurboPlay
+         * VH: VidHide
+         * MD: MixDrop
+         * SW: StreamWish
+         * VG: JavGuard
+         * VO: Voe
+         * upjav: upjav
+         */
         private val SERVER_LIST = arrayOf(
             "StreamWish",
             "Voe",
@@ -132,7 +143,7 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
         val document = response.asJsoup()
         return document.select("[id*=source-player] iframe").parallelCatchingFlatMapBlocking {
             val numOpt = it.closest(".source-box")?.attr("id")?.replace("source-player-", "")
-            val serverName = document.select("[data-nume=\"$numOpt\"] .server").text()
+            val serverName = document.select("[data-nume=\"$numOpt\"] .server").attr("data-text")
             serverVideoResolver(serverName, it.attr("src"))
         }
     }
