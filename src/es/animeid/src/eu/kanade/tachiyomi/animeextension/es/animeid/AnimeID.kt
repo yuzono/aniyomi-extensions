@@ -126,14 +126,15 @@ class AnimeID : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val titleServer = script.closest(".subtab")?.attr("data-tab-id")?.let {
                 document.selectFirst("#mirrors [data-tab-id=\"$it\"]")?.ownText()?.trim()
             } ?: ""
-            val jsonUnescape = unescapeJava(jsonString)!!.replace("\\", "")
+            val jsonUnescape = unescapeJava(jsonString).replace("\\", "")
             val url = fetchUrls(jsonUnescape).firstOrNull()?.replace("\\\\", "\\") ?: ""
             val matched = conventions.firstOrNull { (_, names) -> names.any { it.lowercase() in url.lowercase() || it.lowercase() in titleServer.lowercase() } }?.first
-            return when (matched) {
+            val videos = when (matched) {
                 "streamtape" -> streamtapeExtractor.videosFromUrl(url)
                 "streamwish" -> streamwishExtractor.videosFromUrl(url, videoNameGen = { "StreamWish:$it" })
                 else -> universalExtractor.videosFromUrl(url, headers)
             }
+            videoList.addAll(videos)
         }
         return videoList
     }
