@@ -25,13 +25,20 @@ fun Project.getDependents(): Set<Project> {
 }
 
 fun Project.printDependentExtensions() {
+    printDependentExtensions(mutableSetOf())
+}
+
+private fun Project.printDependentExtensions(visited: MutableSet<String>) {
+    if (path in visited) return
+    visited.add(path)
+
     getDependents().forEach { project ->
         if (project.path.startsWith(":src:")) {
             println(project.path)
         } else if (project.path.startsWith(":lib-multisrc:")) {
             project.getDependents().forEach { println(it.path) }
         } else if (project.path.startsWith(":lib:")) {
-            project.printDependentExtensions()
+            project.printDependentExtensions(visited)
         }
     }
 }

@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+
+# Require Python 3.12 or higher
+
 import itertools
 import json
 import os
