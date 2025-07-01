@@ -22,7 +22,6 @@ import eu.kanade.tachiyomi.lib.streamlareextractor.StreamlareExtractor
 import eu.kanade.tachiyomi.lib.streamsilkextractor.StreamSilkExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
-import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.upstreamextractor.UpstreamExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
 import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
@@ -186,7 +185,6 @@ open class Serieskao : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val streamSilkExtractor by lazy { StreamSilkExtractor(client) }
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
-    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     private fun serverVideoResolver(url: String, prefix: String = ""): List<Video> {
         return runCatching {

@@ -6,7 +6,6 @@ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
-import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
 import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
@@ -43,7 +42,6 @@ class DeTodoPeliculas : DooPlay(
 
     private val uqloadExtractor by lazy { UqloadExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
-    private val universalExtractor by lazy { UniversalExtractor(client) }
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
     private val voeExtractor by lazy { VoeExtractor(client) }
