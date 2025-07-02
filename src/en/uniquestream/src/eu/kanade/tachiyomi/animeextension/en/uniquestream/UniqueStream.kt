@@ -289,7 +289,7 @@ class UniqueStream : DooPlay(
 
         require(videoList.isNotEmpty()) { "Failed to fetch videos" }
 
-        return videoList.sort()
+        return videoList
     }
 
     // ============================== Settings ==============================

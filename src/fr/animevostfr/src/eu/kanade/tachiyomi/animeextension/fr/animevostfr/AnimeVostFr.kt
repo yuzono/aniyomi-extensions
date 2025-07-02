@@ -223,7 +223,7 @@ class AnimeVostFr : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
 
-        return playlist.sort()
+        return playlist
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()

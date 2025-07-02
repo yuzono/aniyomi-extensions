@@ -239,7 +239,7 @@ class AniPlay : AniListAnimeHttpSource(), ConfigurableAnimeSource {
             throw Exception("Timed out")
         }
 
-        return videos.sort()
+        return videos
     }
 
     private fun getVideos(extra: EpisodeExtra, language: String, request: Request): List<Video> {

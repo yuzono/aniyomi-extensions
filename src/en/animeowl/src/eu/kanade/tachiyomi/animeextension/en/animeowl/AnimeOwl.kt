@@ -161,7 +161,7 @@ class AnimeOwl : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================ Video Links =============================
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
-        return json.decodeFromString<LinkData>(episode.url).links.parallelFlatMap { owlServersExtractor.extractOwlVideo(it) }.sort()
+        return json.decodeFromString<LinkData>(episode.url).links.parallelFlatMap { owlServersExtractor.extractOwlVideo(it) }
     }
 
     override fun videoFromElement(element: Element): Video = throw UnsupportedOperationException()

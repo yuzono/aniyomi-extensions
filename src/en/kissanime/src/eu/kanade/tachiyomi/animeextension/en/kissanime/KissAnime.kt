@@ -228,7 +228,7 @@ class KissAnime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }.orEmpty()
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun videoUrlParse(document: Document): String = throw UnsupportedOperationException()

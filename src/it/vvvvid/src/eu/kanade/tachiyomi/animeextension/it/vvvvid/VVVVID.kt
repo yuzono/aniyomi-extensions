@@ -456,7 +456,7 @@ class VVVVID : ConfigurableAnimeSource, AnimeHttpSource() {
             }
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     // ============================= Utilities ==============================
