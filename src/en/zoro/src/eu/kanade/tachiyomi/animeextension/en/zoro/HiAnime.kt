@@ -19,6 +19,7 @@ class HiAnime : ZoroTheme(
     hosterNames = listOf(
         "HD-1",
         "HD-2",
+        "HD-3",
         "StreamTape",
     ),
 ) {
@@ -53,7 +54,7 @@ class HiAnime : ZoroTheme(
                 )?.let(::listOf) ?: emptyList()
             }
 
-            "HD-1", "HD-2" -> megaCloudExtractor.getVideosFromUrl(
+            "HD-1", "HD-2", "HD-3" -> megaCloudExtractor.getVideosFromUrl(
                 server.link,
                 server.type,
                 server.name,
@@ -70,21 +71,20 @@ class HiAnime : ZoroTheme(
             ListPreference(screen.context).apply {
                 key = PREF_DOMAIN_KEY
                 title = "Preferred domain"
-                entries = arrayOf("hianime.to", "hianimez.to", "hianimez.is", "hianime.nz", "hianime.pe")
-                entryValues = arrayOf("https://hianime.to", "https://hianimez.to", "https://hianimez.is", "https://hianime.nz", "https://hianime.pe")
+                entries = DOMAIN_ENTRIES
+                entryValues = DOMAIN_VALUES
                 setDefaultValue(PREF_DOMAIN_DEFAULT)
                 summary = "%s"
 
                 setOnPreferenceChangeListener { _, newValue ->
-                    val selected = newValue as String
-                    val index = findIndexOfValue(selected)
-                    val entry = entryValues[index] as String
+                    val entry = newValue as String
                     Toast.makeText(
                         screen.context,
                         "Restart App to apply changes",
                         Toast.LENGTH_LONG,
                     ).show()
-                    preferences.edit().putString(key, entry).commit()
+                    preferences.edit().putString(key, entry).apply()
+                    true
                 }
             },
         )
@@ -92,6 +92,18 @@ class HiAnime : ZoroTheme(
 
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
-        private const val PREF_DOMAIN_DEFAULT = "https://hianime.to"
+        private val DOMAIN_ENTRIES = arrayOf(
+            "hianime.to",
+            "hianime.nz",
+            "hianime.mn",
+            "hianime.sx",
+            "hianime.is",
+            "hianime.bz",
+            "hianime.pe",
+            "hianimez.to",
+            "hianimez.is",
+        )
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
+        private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
     }
 }
