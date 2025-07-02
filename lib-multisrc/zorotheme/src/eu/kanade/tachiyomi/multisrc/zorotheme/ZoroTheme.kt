@@ -236,7 +236,6 @@ abstract class ZoroTheme(
         }.flatten()
 
         return embedLinks.parallelCatchingFlatMap(::extractVideo)
-            .sort()
     }
 
     abstract fun extractVideo(server: VideoData): List<Video>

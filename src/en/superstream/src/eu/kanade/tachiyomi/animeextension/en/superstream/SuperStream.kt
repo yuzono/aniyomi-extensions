@@ -96,8 +96,7 @@ class SuperStream : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val videos = superStreamAPI.loadLinks(episode.url)
-        val sortedVideos = videos.sort()
-        return sortedVideos
+        return videos
     }
 
     override fun videoListParse(response: Response) = throw UnsupportedOperationException()

@@ -214,7 +214,6 @@ class PutLocker : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 )
             }
             .parallelCatchingFlatMap { putServerExtractor.extractVideo(it, baseUrl) }
-            .sort()
     }
 
     override fun videoFromElement(element: Element): Video = throw UnsupportedOperationException()

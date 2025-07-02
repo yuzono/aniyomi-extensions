@@ -312,7 +312,7 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun videoListSelector() = "li#play-video > a.play-video"

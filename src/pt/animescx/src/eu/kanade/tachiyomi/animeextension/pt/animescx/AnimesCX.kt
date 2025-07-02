@@ -214,7 +214,7 @@ class AnimesCX : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
                     else -> emptyList()
                 }
             }
-        }.sort()
+        }
     }
     override fun videoListParse(response: Response): List<Video> {
         throw UnsupportedOperationException()
