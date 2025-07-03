@@ -11,10 +11,10 @@ apply from: "$rootDir/common.gradle"
 dependencies {
     implementation(project(":lib:streamwish-extractor"))
     implementation(project(":lib:uqload-extractor"))
-    implementation(project(":lib:universal-extractor"))
     implementation(project(':lib:streamhidevid-extractor'))
     implementation(project(':lib:vidguard-extractor'))
     implementation(project(':lib:voe-extractor'))
     implementation(project(":lib:dood-extractor"))
+    implementation(project(":lib:filemoon-extractor"))
     implementation(project(':lib:cryptoaes'))
 }

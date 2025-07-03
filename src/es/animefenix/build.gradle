@@ -22,4 +22,5 @@ dependencies {
     implementation(project(':lib:streamhidevid-extractor'))
     implementation(project(':lib:universal-extractor'))
     implementation(project(':lib:amazon-extractor'))
+    implementation(project(':lib:vidguard-extractor'))
 }
