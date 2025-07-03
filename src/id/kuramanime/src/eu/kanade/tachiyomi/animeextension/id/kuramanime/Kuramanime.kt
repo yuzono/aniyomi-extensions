@@ -8,17 +8,17 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
+import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
+import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.injectLazy
 
 class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val name = "Kuramanime"
@@ -30,8 +30,6 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val supportsLatest = true
 
     private val preferences by getPreferencesLazy()
-
-    private val json: Json by injectLazy()
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) = GET("$baseUrl/anime?page=$page")
@@ -147,14 +145,16 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoListSelector() = "video#player > source"
 
     // Shall we add "archive", "archive-v2"? archive.org usually returns a beautiful 403 xD
-    private val supportedHosters = listOf("kuramadrive", "kuramadrive-v2", "streamtape")
+    private val supportedHosters = listOf("kuramadrive", "kuramadrive-v2", "filelions", "filemoon", "mega", "streamwish", "streamtape")
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
+    private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
+    private val filemoonExtractor by lazy { FilemoonExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val doc = response.asJsoup()
 
-        val scriptData = doc.selectFirst("[data-js]")?.attr("data-js")
+        val scriptData = doc.selectFirst("[data-kps]")?.attr("data-kps")
             ?.let(::getScriptData)
             ?: return emptyList()
 
@@ -194,36 +194,59 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val playerDoc = client.newCall(GET(newUrl.toString(), headers)).execute()
                     .asJsoup()
 
-                if (server == "streamtape") {
-                    val url = playerDoc.selectFirst("div.video-content iframe")!!.attr("src")
-                    streamtapeExtractor.videosFromUrl(url)
-                } else {
-                    playerDoc.select("video#player > source").map {
-                        val src = it.attr("src")
-                        Video(src, "${it.attr("size")}p - $serverName", src)
+                val url = playerDoc.selectFirst("div.video-content iframe")?.attr("src")
+                when {
+                    // server == "filelions" && url != null -> streamtapeExtractor.videosFromUrl(url)
+                    server == "filemoon" && url != null -> filemoonExtractor.videosFromUrl(url)
+                    // mega.nz source
+                    // server == "mega" && url != null -> streamtapeExtractor.videosFromUrl(url)
+                    server == "streamwish" && url != null -> streamWishExtractor.videosFromUrl(url)
+                    server == "streamtape" && url != null -> streamtapeExtractor.videosFromUrl(url)
+                    else -> {
+                        playerDoc.select("video#player > source").map {
+                            val src = it.attr("src")
+                            Video(src, "${it.attr("size")}p - $serverName", src)
+                        }
                     }
                 }
-            }.getOrElse { emptyList<Video>() }
+            }.getOrElse { emptyList() }
         }
     }
 
     private fun getScriptData(scriptName: String): ScriptDataDto? {
-        val scriptUrl = "$baseUrl/assets/js/$scriptName.js"
-        val scriptCode = client.newCall(GET(scriptUrl, headers)).execute()
-            .body.string()
-
-        // Trust me, I hate this too.
-        val scriptJson = scriptCode.lines()
-            .filter { it.contains(": '") || it.contains(": \"") }
-            .map {
-                val (key, value) = it.split(":", limit = 2).map(String::trim)
-                val fixedValue = value.replace("'", "\"").substringBeforeLast(',')
-                "\"$key\": $fixedValue"
-            }.joinToString(prefix = "{", postfix = "}")
+        val assetsUrl = "$baseUrl/assets/js/$scriptName.js"
 
         return runCatching {
-            json.decodeFromString<ScriptDataDto>(scriptJson)
-        }.onFailure { it.printStackTrace() }.getOrNull()
+            val response = client.newCall(GET(assetsUrl, headers)).execute()
+                .body.string()
+
+            // Extract the data from the window.process assignment
+            val processEnvRegex = Regex("""window\.process\s*=\s*\{[\s\S]*?env:\s*\{([\s\S]*?)\}[\s\S]*?\}""")
+            val envMatch = processEnvRegex.find(response) ?: return null
+
+            val envContent = envMatch.groupValues[1]
+
+            // Parse each environment variable
+            val envVars = mutableMapOf<String, String>()
+            val varRegex = Regex("""(\w+):\s*['"]([^'"]+)['"]""")
+
+            varRegex.findAll(envContent).forEach { match ->
+                val key = match.groupValues[1]
+                val value = match.groupValues[2]
+                envVars[key] = value
+            }
+
+            ScriptDataDto(
+                authPathPrefix = envVars["MIX_PREFIX_AUTH_ROUTE_PARAM"] ?: "",
+                authPathSuffix = envVars["MIX_AUTH_ROUTE_PARAM"] ?: "",
+                authKey = envVars["MIX_AUTH_KEY"] ?: "",
+                authToken = envVars["MIX_AUTH_TOKEN"] ?: "",
+                tokenParam = envVars["MIX_PAGE_TOKEN_KEY"] ?: "",
+                serverParam = envVars["MIX_STREAM_SERVER_KEY"] ?: "",
+            )
+        }.onFailure {
+            it.printStackTrace()
+        }.getOrNull()
     }
 
     @Serializable
