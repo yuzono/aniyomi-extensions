@@ -222,7 +222,7 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
             // Extract the data from the window.process assignment
             val processEnvRegex = Regex("""window\.process\s*=\s*\{[\s\S]*?env:\s*\{([\s\S]*?)\}[\s\S]*?\}""")
-            val envMatch = processEnvRegex.find(response) ?: return null
+            val envMatch = processEnvRegex.find(response) ?: return@runCatching null
 
             val envContent = envMatch.groupValues[1]
 
