@@ -38,7 +38,7 @@ private fun Project.printDependentExtensions(visited: MutableSet<String>) {
             project.path.startsWith(":lib-multisrc:") ->
                 project.getDependents().forEach { println(it.path) }
             project.path.startsWith(":lib:") ->
-                project.printDependentExtensions(visited)
+                project.getDependents().forEach { println(it.path) }
         }
     }
 }
