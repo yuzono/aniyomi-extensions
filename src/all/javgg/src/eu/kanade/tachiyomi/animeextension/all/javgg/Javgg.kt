@@ -35,6 +35,8 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val supportsLatest = true
 
+    override val supportsRelatedAnimes = false
+
     private val preferences: SharedPreferences by lazy {
         Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
     }
@@ -46,6 +48,17 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_DEFAULT = "StreamWish"
+
+        /**
+         * Current servers available on the site:
+         * TB: TurboPlay
+         * VH: VidHide
+         * MD: MixDrop
+         * SW: StreamWish
+         * VG: JavGuard
+         * VO: Voe
+         * upjav: upjav
+         */
         private val SERVER_LIST = arrayOf(
             "StreamWish",
             "Voe",
@@ -118,6 +131,23 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
         return AnimesPage(animeList, nextPage)
     }
 
+    override fun String.stripKeywordForRelatedAnimes(): List<String> {
+        val regexWhitespace = Regex("\\s+")
+        val regexSpecialCharacters =
+            Regex("([-!~#$%^&*+_|/\\\\,?:;'“”‘’\"<>(){}\\[\\]。・～：—！？、―«»《》〘〙【】「」｜]|\\s-|-\\s|\\s\\.|\\.\\s)")
+        val regexNumberOnly = Regex("^\\d+$")
+
+        return replace(regexSpecialCharacters, " ")
+            .split(regexWhitespace)
+            .map {
+                // remove number only
+                it.replace(regexNumberOnly, "")
+                    .lowercase()
+            }
+            // exclude single character
+            .filter { it.length > 1 }
+    }
+
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
         return if (document.select(".dooplay_player_option").any()) {
@@ -137,7 +167,7 @@ class Javgg : ConfigurableAnimeSource, AnimeHttpSource() {
         val document = response.asJsoup()
         return document.select("[id*=source-player] iframe").parallelCatchingFlatMapBlocking {
             val numOpt = it.closest(".source-box")?.attr("id")?.replace("source-player-", "")
-            val serverName = document.select("[data-nume=\"$numOpt\"] .server").text()
+            val serverName = document.select("[data-nume=\"$numOpt\"] .server").attr("data-text")
             serverVideoResolver(serverName, it.attr("src"))
         }
     }
