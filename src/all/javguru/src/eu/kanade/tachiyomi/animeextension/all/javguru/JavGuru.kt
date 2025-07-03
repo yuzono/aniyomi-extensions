@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.all.javguru
 
-import android.app.Application
 import android.util.Base64
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
@@ -24,14 +23,13 @@ import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.Call
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.select.Elements
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import kotlin.math.min
 
 class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
@@ -48,9 +46,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
         .followRedirects(false)
         .build()
 
-    private val preference by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     private lateinit var popularElements: Elements
 
@@ -204,7 +200,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
                 document.selectFirst(".infoleft li:contains(actor)")?.text()?.let { append("$it\n") }
                 document.selectFirst(".infoleft li:contains(actress)")?.text()?.let { append("$it\n") }
             }
-            thumbnail_url = if (preference.fetchHDCovers) {
+            thumbnail_url = if (preferences.fetchHDCovers) {
                 javId?.let { JavCoverFetcher.getCoverById(it) } ?: siteCover
             } else {
                 siteCover
@@ -316,7 +312,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preference.getString(PREF_QUALITY, PREF_QUALITY_DEFAULT)!!
+        val quality = preferences.getString(PREF_QUALITY, PREF_QUALITY_DEFAULT)!!
 
         return sortedWith(
             compareBy { it.quality.contains(quality) },

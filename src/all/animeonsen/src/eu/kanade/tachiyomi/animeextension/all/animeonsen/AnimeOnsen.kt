@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.all.animeonsen
 
-import android.app.Application
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.animeonsen.dto.AnimeDetails
@@ -19,13 +18,12 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.parseAs
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Headers
 import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
 class AnimeOnsen : ConfigurableAnimeSource, AnimeHttpSource() {
@@ -46,9 +44,7 @@ class AnimeOnsen : ConfigurableAnimeSource, AnimeHttpSource() {
             .build()
     }
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     private val json: Json by injectLazy()
 

@@ -1,5 +1,4 @@
 package eu.kanade.tachiyomi.animeextension.en.rule34video
-import android.app.Application
 import android.util.Log
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
@@ -14,12 +13,11 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class Rule34Video : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -38,9 +36,7 @@ class Rule34Video : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         .addInterceptor(ddgInterceptor)
         .build()
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {

@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.multisrc.animestream
 
-import android.app.Application
 import android.util.Base64
 import android.util.Log
 import androidx.preference.ListPreference
@@ -24,6 +23,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -33,8 +33,6 @@ import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -46,9 +44,7 @@ abstract class AnimeStream(
 
     override val supportsLatest = true
 
-    protected open val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    protected open val preferences by getPreferencesLazy()
 
     companion object {
         const val PREFIX_SEARCH = "path:"

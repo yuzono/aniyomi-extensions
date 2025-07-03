@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.all.missav
 
-import android.app.Application
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -16,12 +15,11 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.lib.unpacker.Unpacker
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
 
@@ -40,9 +38,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         PlaylistUtils(client, headers)
     }
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     override fun popularAnimeRequest(page: Int) =
         GET("$baseUrl/en/today-hot?page=$page", headers)

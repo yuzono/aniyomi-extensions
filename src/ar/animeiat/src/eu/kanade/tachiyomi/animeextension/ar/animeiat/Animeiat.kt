@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.ar.animeiat
 
-import android.app.Application
-import android.content.SharedPreferences
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.preference.ListPreference
@@ -20,11 +18,10 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import okhttp3.Request
 import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.util.Base64
 
 class Animeiat : ConfigurableAnimeSource, AnimeHttpSource() {
@@ -41,9 +38,7 @@ class Animeiat : ConfigurableAnimeSource, AnimeHttpSource() {
         ignoreUnknownKeys = true
     }
 
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     // ============================== Popular ===============================
     override fun popularAnimeParse(response: Response): AnimesPage {

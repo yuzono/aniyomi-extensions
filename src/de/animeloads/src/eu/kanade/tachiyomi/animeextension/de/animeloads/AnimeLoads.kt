@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.de.animeloads
 
-import android.app.Application
-import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
@@ -18,6 +16,7 @@ import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -26,10 +25,7 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.net.URLDecoder
-import kotlin.Exception
 
 class AnimeLoads : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -47,9 +43,7 @@ class AnimeLoads : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         .addInterceptor(DdosGuardInterceptor(network.client))
         .build()
 
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     override fun popularAnimeSelector(): String = "div.row div.col-sm-6 div.panel-body"
 
