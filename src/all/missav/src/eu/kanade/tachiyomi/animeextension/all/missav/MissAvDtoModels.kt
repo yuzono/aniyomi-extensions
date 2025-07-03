@@ -36,7 +36,7 @@ data class Recommendation(
     val videoInfo: VideoInfo,
 ) {
     fun toSAnime(): SAnime? {
-        if (videoInfo.dm == null) return null
+        if (videoInfo.dm == null || videoInfo.titleEn == null) return null
         return SAnime.create().apply {
             url = if (videoInfo.dm == 0) "/en/$id" else "/dm${videoInfo.dm}/en/$id"
             title = "${stripID().uppercase()} ${videoInfo.titleEn}"

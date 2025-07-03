@@ -96,18 +96,16 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         return GET(url, headers)
     }
 
-    private val searchQueryRegex = Regex("""search/([^?]+)\?page=(\d+)""")
-
     override fun searchAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
 
-        if (document.toString().contains("handleRecommendResponse")) {
-            val url = response.request.url.toString()
-            val (queryStr, pageStr) = searchQueryRegex.find(url)
-                ?.destructured
-                ?: throw Exception("Failed to parse search query and page from URL: $url")
+        if (document.selectFirst("div[x-data*=handleRecommendResponse]") != null) {
+            val url = response.request.url
+            val pathSegments = url.pathSegments
+            val queryStr = pathSegments.getOrNull(pathSegments.indexOf("search") + 1)
+                ?: throw Exception("Failed to parse search query from URL: $url")
             val query = URLDecoder.decode(queryStr, "UTF-8")
-            val page = pageStr.toIntOrNull() ?: 1
+            val page = url.queryParameter("page")?.toIntOrNull() ?: 1
             client.newCall(fallbackApiSearch(query, page))
                 .execute().use {
                     if (!it.isSuccessful) {
@@ -290,9 +288,9 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         filterIsInstance<T>().firstOrNull()
 
     private fun getUuid(): String {
-        return preferences.getString("missav_uuid", null) ?: run {
+        return preferences.getString(PREF_UUID_KEY, null) ?: run {
             val uuid = MissAvApi.generateUUID()
-            preferences.edit().putString("missav_uuid", uuid).apply()
+            preferences.edit().putString(PREF_UUID_KEY, uuid).apply()
             uuid
         }
     }
@@ -306,5 +304,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         private const val PREF_QUALITY = "preferred_quality"
         private const val PREF_QUALITY_TITLE = "Preferred quality"
         private const val PREF_QUALITY_DEFAULT = "720"
+
+        private const val PREF_UUID_KEY = "missav_uuid"
     }
 }
