@@ -23,7 +23,7 @@ import uy.kohesive.injekt.injectLazy
 class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val name = "Kuramanime"
 
-    override val baseUrl = "https://v7.kuramanime.run"
+    override val baseUrl = "https://v8.kuramanime.run"
 
     override val lang = "id"
 
@@ -36,15 +36,15 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) = GET("$baseUrl/anime?page=$page")
 
-    override fun popularAnimeSelector() = "div.product__item"
+    override fun popularAnimeSelector() = "div.filter__gallery > a"
 
     override fun popularAnimeFromElement(element: Element) = SAnime.create().apply {
-        setUrlWithoutDomain(element.selectFirst("a")!!.attr("href"))
-        thumbnail_url = element.selectFirst("a > div")?.attr("data-setbg")
-        title = element.selectFirst("div.product__item__text > h5")!!.text()
+        setUrlWithoutDomain(element.attr("href"))
+        thumbnail_url = element.selectFirst("div.set-bg")?.attr("data-setbg")
+        title = element.selectFirst("div > h5")!!.text()
     }
 
-    override fun popularAnimeNextPageSelector() = "div.product__pagination > a:last-child"
+    override fun popularAnimeNextPageSelector() = "div.product__pagination > a:last-child:not([aria-disabled='true'])"
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/anime?order_by=updated&page=$page")
