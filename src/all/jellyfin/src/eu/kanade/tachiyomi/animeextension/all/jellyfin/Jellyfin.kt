@@ -339,7 +339,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             userId = preferences.userId,
             isPlayback = true,
             mediaSourceId = mediaSource.id!!,
-            maxStreamingBitrate = qualities.last().videoBitrate,
+            maxStreamingBitrate = if (qualities.isNotEmpty()) qualities.last().videoBitrate else referenceBitrate,
             audioStreamIndex = audioTrackIndex?.toString(),
             subtitleStreamIndex = subtitleTrackIndex?.toString(),
             alwaysBurnInSubtitleWhenTranscoding = preferences.burnSub,
@@ -347,8 +347,8 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             deviceProfile = getDeviceProfile(
                 name = deviceInfo.name,
                 videoCodec = preferences.videoCodec,
-                videoBitrate = qualities.last().videoBitrate,
-                audioBitrate = qualities.last().audioBitrate,
+                videoBitrate = if (qualities.isNotEmpty()) qualities.last().videoBitrate else referenceBitrate,
+                audioBitrate = if (qualities.isNotEmpty()) qualities.last().audioBitrate else Constants.QUALITIES_LIST.first().audioBitrate,
             ),
         )
 
@@ -483,7 +483,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             resp.parseAs<LoginDto>()
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Failed to perform login", e)
-            throw Exception("Failed to login")
+            throw IOException("Failed to login", e)
         }
     }
 
