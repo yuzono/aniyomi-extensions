@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.es.mundodonghua
 
-import android.app.Application
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.es.mundodonghua.extractors.JsUnpacker
@@ -17,13 +16,13 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+
 class MundoDonghua : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "MundoDonghua"
@@ -34,9 +33,7 @@ class MundoDonghua : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val supportsLatest = true
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     override fun popularAnimeSelector() = "div > div.row > div.item > a"
 

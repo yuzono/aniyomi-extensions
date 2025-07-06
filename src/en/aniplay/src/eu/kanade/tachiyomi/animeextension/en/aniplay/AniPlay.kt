@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.aniplay
 
-import android.app.Application
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
@@ -18,6 +17,7 @@ import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeHttpSource
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parseAs
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import okhttp3.Headers
@@ -26,8 +26,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -44,9 +42,7 @@ class AniPlay : AniListAnimeHttpSource(), ConfigurableAnimeSource {
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     /* ================================= AniList configurations ================================= */
 

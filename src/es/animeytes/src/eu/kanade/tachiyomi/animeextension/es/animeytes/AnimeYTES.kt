@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.es.animeytes
 
-import android.app.Application
-import android.content.SharedPreferences
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -13,15 +11,14 @@ import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.multisrc.animestream.AnimeStream
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import keiyoushi.utils.getPreferencesLazy
 
 class AnimeYTES : AnimeStream(
     "es",
     "AnimeYT.es",
     "https://animeyt.es",
 ) {
-    override val preferences: SharedPreferences by lazy { Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000) }
+    override val preferences by getPreferencesLazy()
 
     companion object {
         private const val PREF_QUALITY_KEY = "preferred_quality"

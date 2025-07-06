@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.pt.animescx
 
-import android.app.Application
 import android.util.Base64
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
@@ -17,19 +16,16 @@ import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArrayBuilder
-import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.putJsonArray
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 
 class AnimesCX : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
@@ -44,9 +40,7 @@ class AnimesCX : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
 
     private val json: Json by injectLazy()
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) = GET("$baseUrl/doramas-legendados/page/$page", headers)
