@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.zh.anime1
 
-import android.app.Application
-import android.content.SharedPreferences
 import android.webkit.CookieManager
 import androidx.preference.CheckBoxPreference
 import androidx.preference.ListPreference
@@ -21,6 +19,7 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.contentOrNull
@@ -33,8 +32,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -58,9 +55,7 @@ class Anime1 : AnimeHttpSource(), ConfigurableAnimeSource {
     private lateinit var data: JsonArray
     private val cookieManager
         get() = CookieManager.getInstance()
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     override fun animeDetailsParse(response: Response) = throw UnsupportedOperationException()
 

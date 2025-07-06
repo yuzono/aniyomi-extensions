@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.tr.hentaizm
 
-import android.app.Application
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.tr.hentaizm.extractors.VideaExtractor
@@ -15,6 +14,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -23,8 +23,6 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 
 class HentaiZM : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
 
@@ -40,9 +38,7 @@ class HentaiZM : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
         .add("Origin", baseUrl)
         .add("Referer", "$baseUrl/")
 
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     init {
         runBlocking {
