@@ -69,6 +69,7 @@ data class ItemDto(
             ItemType.Movie to "movie",
             ItemType.BoxSet to "boxSet",
             ItemType.Series to "series",
+            // FIXME: No Episode & Other here?
         )
 
         url = baseUrl.toHttpUrl().newBuilder().apply {

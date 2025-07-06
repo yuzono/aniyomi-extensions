@@ -50,7 +50,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
     internal val preferences by getPreferencesLazy {
         val quality = getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
         Constants.QUALITY_MIGRATION_MAP[quality]?.let {
-            edit().putString(PREF_QUALITY_KEY, it.toString()).commit()
+            edit().putString(PREF_QUALITY_KEY, it.toString()).apply()
         }
     }
 
@@ -521,7 +521,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
 
     private fun checkPreferences() {
         if (preferences.selectedLibrary.isBlank()) {
-            throw Exception("Select library in extension settings")
+            throw IllegalStateException("Select library in extension settings")
         }
     }
 
@@ -710,6 +710,8 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             } else {
                 preferences.clearCredentials()
             }
+            // Always re-enable after login attempt completes
+            mediaLibraryPref.setEnabled(true)
         }
 
         fun logIn() {
@@ -758,8 +760,6 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                         onCompleteLogin(false)
                     },
                 )
-
-            mediaLibraryPref.setEnabled(true)
         }
 
         if (suffix == "1") {
