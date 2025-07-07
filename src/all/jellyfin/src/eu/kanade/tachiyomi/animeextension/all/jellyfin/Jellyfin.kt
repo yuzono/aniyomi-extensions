@@ -419,7 +419,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         return sortedWith(
             compareBy(
                 { it.url.equals(preferences.quality, true) },
-                { it.url.toLong() },
+                { it.url.toLongOrNull() },
             ),
         ).reversed()
     }
