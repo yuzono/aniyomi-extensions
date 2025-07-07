@@ -137,23 +137,24 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     private val recommMap: MutableMap<String, String> = ConcurrentHashMap()
+    private val jsonMime by lazy { "application/json; charset=utf-8".toMediaTypeOrNull() }
 
     private fun fallbackApiSearch(query: String, page: Int): Request {
         val recommId = recommMap[query]
         return if (page == 1 || recommId == null) {
             val body = MissAvApi.searchData(query)
-                .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+                .toRequestBody(jsonMime)
             POST(MissAvApi.searchURL(getUuid()), headers, body)
         } else {
             val body = MissAvApi.recommData
-                .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+                .toRequestBody(jsonMime)
             POST(MissAvApi.recommURL(recommId), headers, body)
         }
     }
 
     override fun relatedAnimeListRequest(anime: SAnime): Request {
         val body = MissAvApi.relatedData(getUuid(), anime.url.substringAfterLast("/"))
-            .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+            .toRequestBody(jsonMime)
 
         return POST(MissAvApi.relatedURL(), headers, body)
     }
