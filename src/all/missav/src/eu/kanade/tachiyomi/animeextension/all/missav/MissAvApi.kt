@@ -1,5 +1,8 @@
 package eu.kanade.tachiyomi.animeextension.all.missav
 
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.crypto.Mac
@@ -36,60 +39,46 @@ object MissAvApi {
     }
 
     fun searchData(query: String): String {
-        return """{
-            "searchQuery":"$query",
-            "count":$RESULT_COUNT,
-            "scenario":"search",
-            "returnProperties":true,
-            "includedProperties":[
-                "title_en",
-                "dm"
-            ],
-            "cascadeCreate":true
-        }
-        """.trimIndent()
+        return kotlinx.serialization.json.buildJsonObject {
+            put("searchQuery", query)
+            put("count", RESULT_COUNT)
+            put("scenario", "search")
+            put("returnProperties", true)
+            put("includedProperties", kotlinx.serialization.json.buildJsonArray {
+                add("title_en")
+                add("dm")
+            })
+            put("cascadeCreate", true)
+        }.toString()
     }
 
     val recommData
         get() = """{"count":$RESULT_COUNT,"cascadeCreate":true}"""
 
     fun relatedData(uuid: String, entryId: String): String {
-        return """{
-          "requests": [
-            {
-              "method": "POST",
-              "path": "/recomms/items/$entryId/items/",
-              "params": {
-                "targetUserId": "$uuid",
-                "count": $RESULT_COUNT,
-                "scenario": "desktop-watch-next-side",
-                "returnProperties": true,
-                "includedProperties": [
-                  "title_en",
-                  "dm"
-                ],
-                "cascadeCreate": true
-              }
-            },
-            {
-              "method": "POST",
-              "path": "/recomms/items/$entryId/items/",
-              "params": {
-                "targetUserId": "$uuid",
-                "count": $RESULT_COUNT,
-                "scenario": "desktop-watch-next-bottom",
-                "returnProperties": true,
-                "includedProperties": [
-                  "title_en",
-                  "dm"
-                ],
-                "cascadeCreate": true
-              }
+        fun buildRequestObject(scenario: String) = kotlinx.serialization.json.buildJsonObject {
+            put("method", "POST")
+            put("path", "/recomms/items/$entryId/items/")
+            putJsonObject("params") {
+                put("targetUserId", uuid)
+                put("count", RESULT_COUNT)
+                put("scenario", scenario)
+                put("returnProperties", true)
+                put("includedProperties", kotlinx.serialization.json.buildJsonArray {
+                    add("title_en")
+                    add("dm")
+                })
+                put("cascadeCreate", true)
             }
-          ],
-          "distinctRecomms": true
         }
-        """.trimIndent()
+
+        return kotlinx.serialization.json.buildJsonObject {
+            put("requests", kotlinx.serialization.json.buildJsonArray {
+                add(buildRequestObject("desktop-watch-next-side"))
+                add(buildRequestObject("desktop-watch-next-bottom"))
+            })
+            put("distinctRecomms", true)
+        }.toString()
     }
 
     private fun generateHMACSignature(data: String, @Suppress("SameParameterValue") key: String): String {
