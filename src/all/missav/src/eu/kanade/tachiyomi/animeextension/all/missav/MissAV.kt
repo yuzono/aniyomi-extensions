@@ -163,11 +163,6 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     override fun String.stripKeywordForRelatedAnimes(): List<String> {
-        val regexWhitespace = Regex("\\s+")
-        val regexSpecialCharacters =
-            Regex("([-.!~#$%^&*+_|/\\\\,?:;'“”‘’\"<>(){}\\[\\]。・～：—！？、―«»《》〘〙【】「」｜]|\\s-|-\\s|\\s\\.|\\.\\s)")
-        val regexNumberOnly = Regex("^\\d+$")
-
         return replace(regexSpecialCharacters, " ")
             .split(regexWhitespace)
             .map {
@@ -308,5 +303,10 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         private const val PREF_QUALITY_DEFAULT = "720"
 
         private const val PREF_UUID_KEY = "missav_uuid"
+
+        private val regexWhitespace = Regex("\\s+")
+        private val regexSpecialCharacters =
+            Regex("([-.!~#$%^&*+_|/\\\\,?:;'“”‘’\"<>(){}\\[\\]。・～：—！？、―«»《》〘〙【】「」｜]|\\s-|-\\s|\\s\\.|\\.\\s)")
+        private val regexNumberOnly = Regex("^\\d+$")
     }
 }
