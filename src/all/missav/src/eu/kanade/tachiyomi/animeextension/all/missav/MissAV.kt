@@ -141,13 +141,11 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         return if (page == 1 || recommId == null) {
             val body = MissAvApi.searchData(query)
                 .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
-
             POST(MissAvApi.searchURL(getUuid()), headers, body)
         } else {
-            GET(MissAvApi.recommURL(recommId), headers).newBuilder()
-                .addHeader("Content-Type", "application/json")
-                .post(MissAvApi.recommData.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
-                .build()
+            val body = MissAvApi.recommData
+                .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+            POST(MissAvApi.recommURL(recommId), headers, body)
         }
     }
 
