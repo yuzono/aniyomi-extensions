@@ -76,14 +76,12 @@ class HiAnime : ZoroTheme(
                 setDefaultValue(PREF_DOMAIN_DEFAULT)
                 summary = "%s"
 
-                setOnPreferenceChangeListener { _, newValue ->
-                    val entry = newValue as String
+                setOnPreferenceChangeListener { _, _ ->
                     Toast.makeText(
                         screen.context,
                         "Restart App to apply changes",
                         Toast.LENGTH_LONG,
                     ).show()
-                    preferences.edit().putString(key, entry).apply()
                     true
                 }
             },
