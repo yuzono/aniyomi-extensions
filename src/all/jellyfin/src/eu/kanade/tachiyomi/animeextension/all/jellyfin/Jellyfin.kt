@@ -334,7 +334,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             }
         }
 
-        val qualities = Constants.QUALITIES_LIST.takeWhile { it.videoBitrate < referenceBitrate }
+        val qualities = Constants.QUALITIES_LIST.takeWhile { it.videoBitrate <= referenceBitrate }
         val playbackInfo = PlaybackInfoDto(
             userId = preferences.userId,
             isPlayback = true,
