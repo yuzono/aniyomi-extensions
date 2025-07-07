@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.all.missav
 
+import android.util.Log
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -101,6 +102,7 @@ object MissAvApi {
 
             "$data&frontend_sign=$hexString"
         } catch (e: Exception) {
+            Log.e("MissAvApi", "HMAC signature generation failed", e)
             // Fallback to original path if signing fails
             data
         }
