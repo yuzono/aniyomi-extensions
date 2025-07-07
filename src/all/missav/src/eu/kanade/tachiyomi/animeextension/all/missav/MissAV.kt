@@ -27,6 +27,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.nodes.Element
 import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 
 class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
@@ -105,7 +106,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
             val pathSegments = url.pathSegments
             val queryStr = pathSegments.getOrNull(pathSegments.indexOf("search") + 1)
                 ?: throw Exception("Failed to parse search query from URL: $url")
-            val query = URLDecoder.decode(queryStr, "UTF-8")
+            val query = URLDecoder.decode(queryStr, StandardCharsets.UTF_8.name())
             val page = url.queryParameter("page")?.toIntOrNull() ?: 1
             client.newCall(fallbackApiSearch(query, page))
                 .execute().use {
