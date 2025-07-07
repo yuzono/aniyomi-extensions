@@ -45,9 +45,11 @@ data class Recommendation(
     }
 
     private fun stripID(): String {
-        return id.lowercase().replace(Regex("""-uncensored-leak|-chinese-subtitle|-english-subtitle"""), "")
+        return id.lowercase().replace(STRIP_SUB_REGEX, "")
     }
 }
+
+private val STRIP_SUB_REGEX by lazy { Regex("""-uncensored-leak|-chinese-subtitle|-english-subtitle""") }
 
 @Serializable
 data class VideoInfo(
