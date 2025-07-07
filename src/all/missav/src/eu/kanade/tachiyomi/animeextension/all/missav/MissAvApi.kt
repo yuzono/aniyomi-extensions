@@ -44,10 +44,13 @@ object MissAvApi {
             put("count", RESULT_COUNT)
             put("scenario", "search")
             put("returnProperties", true)
-            put("includedProperties", kotlinx.serialization.json.buildJsonArray {
-                add("title_en")
-                add("dm")
-            })
+            put(
+                "includedProperties",
+                kotlinx.serialization.json.buildJsonArray {
+                    add("title_en")
+                    add("dm")
+                },
+            )
             put("cascadeCreate", true)
         }.toString()
     }
@@ -64,19 +67,25 @@ object MissAvApi {
                 put("count", RESULT_COUNT)
                 put("scenario", scenario)
                 put("returnProperties", true)
-                put("includedProperties", kotlinx.serialization.json.buildJsonArray {
-                    add("title_en")
-                    add("dm")
-                })
+                put(
+                    "includedProperties",
+                    kotlinx.serialization.json.buildJsonArray {
+                        add("title_en")
+                        add("dm")
+                    },
+                )
                 put("cascadeCreate", true)
             }
         }
 
         return kotlinx.serialization.json.buildJsonObject {
-            put("requests", kotlinx.serialization.json.buildJsonArray {
-                add(buildRequestObject("desktop-watch-next-side"))
-                add(buildRequestObject("desktop-watch-next-bottom"))
-            })
+            put(
+                "requests",
+                kotlinx.serialization.json.buildJsonArray {
+                    add(buildRequestObject("desktop-watch-next-side"))
+                    add(buildRequestObject("desktop-watch-next-bottom"))
+                },
+            )
             put("distinctRecomms", true)
         }.toString()
     }
