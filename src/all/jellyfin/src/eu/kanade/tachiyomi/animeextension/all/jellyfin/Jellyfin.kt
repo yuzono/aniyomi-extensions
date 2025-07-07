@@ -364,7 +364,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             body = JSON_INSTANCE.encodeToString(playbackInfo).toJsonBody(),
         ).parseAs<SessionDto>()
 
-        val videoBitrate = mediaSource.bitrate!!.formatBytes().replace("B", "b")
+        val videoBitrate = (mediaSource.bitrate ?: 0).formatBytes().replace("B", "b")
         val staticUrl = baseUrl.toHttpUrl().newBuilder().apply {
             addPathSegment("Videos")
             addPathSegment(itemId)
@@ -525,7 +525,6 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         }
     }
 
-    @Suppress("SpellCheckingInspection")
     companion object {
         private const val SEASONS_FETCH_LIMIT = 20
         private const val SERIES_FETCH_LIMIT = 5
