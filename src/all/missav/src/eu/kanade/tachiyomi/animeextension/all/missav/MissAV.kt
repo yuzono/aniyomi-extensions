@@ -27,6 +27,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.nodes.Element
 import java.net.URLDecoder
+import java.util.concurrent.ConcurrentHashMap
 
 class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
 
@@ -134,7 +135,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         return AnimesPage(entries, hasNextPage)
     }
 
-    private val recommMap: MutableMap<String, String> = mutableMapOf()
+    private val recommMap: MutableMap<String, String> = ConcurrentHashMap()
 
     private fun fallbackApiSearch(query: String, page: Int): Request {
         val recommId = recommMap[query]
@@ -286,10 +287,13 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         filterIsInstance<T>().firstOrNull()
 
     private fun getUuid(): String {
-        return preferences.getString(PREF_UUID_KEY, null) ?: run {
-            val uuid = MissAvApi.generateUUID()
-            preferences.edit().putString(PREF_UUID_KEY, uuid).apply()
-            uuid
+        return preferences.getString(PREF_UUID_KEY, null) ?: synchronized(this) {
+            // Double-check pattern to avoid generating UUID if another thread already did
+            preferences.getString(PREF_UUID_KEY, null) ?: run {
+                val uuid = MissAvApi.generateUUID()
+                preferences.edit().putString(PREF_UUID_KEY, uuid).apply()
+                uuid
+            }
         }
     }
 
