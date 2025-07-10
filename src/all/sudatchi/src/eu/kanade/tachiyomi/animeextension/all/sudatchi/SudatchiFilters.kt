@@ -48,7 +48,7 @@ class SudatchiFilters(
         if (!this::filterList.isInitialized) {
             runCatching {
                 error = false
-                filterList = client.newCall(GET("$baseUrl/api/directory"))
+                filterList = client.newCall(GET("$baseUrl/api/series"))
                     .execute()
                     .parseAs<DirectoryFiltersDto>()
                     .let(::filtersParse)

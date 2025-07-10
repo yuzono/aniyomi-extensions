@@ -3,12 +3,12 @@ package eu.kanade.tachiyomi.animeextension.all.sudatchi
 import android.content.SharedPreferences
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.AnimeDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.AnimePageDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.DirectoryDto
+import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.AnimeDetailDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.EpisodePageDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.HomePageDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.PropsDto
+import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SearchDto
+import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SeriesDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SubtitleDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -20,13 +20,16 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
 import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import uy.kohesive.injekt.injectLazy
@@ -51,49 +54,37 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     private val preferences by getPreferencesLazy()
 
+    private val jsonMime by lazy { "application/json; charset=utf-8".toMediaTypeOrNull() }
+
     // ============================== Popular ===============================
-    override fun popularAnimeRequest(page: Int) = GET(baseUrl, headers)
-
-    private fun Int.parseStatus() = when (this) {
-        1 -> SAnime.LICENSED // Not Yet Released
-        2 -> SAnime.ONGOING
-        3 -> SAnime.COMPLETED
-        else -> SAnime.UNKNOWN
-    }
-
-    private fun AnimeDto.toSAnime(titleLang: String) = SAnime.create().apply {
-        url = "/anime/$slug"
-        title = when (titleLang) {
-            "romaji" -> titleRomanji
-            "japanese" -> titleJapanese
-            else -> titleEnglish
-        } ?: arrayOf(titleEnglish, titleRomanji, titleJapanese, "").firstNotNullOf { it }
-        description = synopsis
-        status = statusId.parseStatus()
-        thumbnail_url = when {
-            imgUrl.startsWith("/") -> "$baseUrl$imgUrl"
-            else -> "$ipfsUrl/ipfs/$imgUrl"
-        }
-        genre = animeGenres?.joinToString { it.genre.name }
-    }
+    override fun popularAnimeRequest(page: Int) =
+        GET("$baseUrl/api/series?page=$page&perPage=24&sort=POPULARITY_DESC&status=RELEASING", headers)
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         sudatchiFilters.fetchFilters()
         val titleLang = preferences.title
-        val document = response.asJsoup()
-        val data = document.parseAs<HomePageDto>().animeSpotlight
-        return AnimesPage(data.map { it.toSAnime(titleLang) }.filterNot { it.status == SAnime.LICENSED }, false)
+        return response.parseAs<SeriesDto>().let {
+            AnimesPage(
+                it.results.map { it.toSAnime(titleLang) }
+                    .filterNot { it.status == SAnime.LICENSED },
+                it.hasNextPage,
+            )
+        }
     }
 
     // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int) = GET("$baseUrl/api/directory?page=$page&genres=&status=2,3", headers)
+    override fun latestUpdatesRequest(page: Int) =
+        GET("$baseUrl/api/home?matureMode=true", headers)
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
         sudatchiFilters.fetchFilters()
         val titleLang = preferences.title
-        return response.parseAs<DirectoryDto>().let {
-            AnimesPage(it.animes.map { it.toSAnime(titleLang) }.filterNot { it.status == SAnime.LICENSED }, it.page != it.pages)
-        }
+        return AnimesPage(
+            response.parseAs<HomePageDto>().latestEpisodes
+                .map { it.toSAnime(titleLang, baseUrl) }
+                .filterNot { it.status == SAnime.LICENSED },
+            false,
+        )
     }
 
     // =============================== Search ===============================
@@ -111,33 +102,55 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     private fun searchAnimeByIdParse(response: Response): AnimesPage {
-        val details = animeDetailsParse(response).apply {
-            setUrlWithoutDomain(response.request.url.toString())
-            initialized = true
-        }
-
-        return AnimesPage(listOf(details), false)
+        val anime = animeDetailsParse(response)
+        return AnimesPage(listOf(anime), false)
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val url = "$baseUrl/api/directory".toHttpUrl().newBuilder()
-        url.addQueryParameter("page", page.toString())
-        url.addQueryParameter("title", query)
-        filters.filterIsInstance<SudatchiFilters.QueryParameterFilter>().forEach {
-            val (name, value) = it.toQueryParameter()
-            if (value != null) url.addQueryParameter(name, value)
-        }
-        return GET(url.build(), headers)
+//        filters.filterIsInstance<SudatchiFilters.QueryParameterFilter>().forEach {
+//            val (name, value) = it.toQueryParameter()
+//            if (value != null) url.addQueryParameter(name, value)
+//        }
+        val body = kotlinx.serialization.json.buildJsonObject {
+            put("query", query)
+            put("page", 1)
+            put("matureMode", false)
+        }.toString()
+            .toRequestBody(jsonMime)
+        return POST("$baseUrl/api/search", headers, body)
     }
 
-    override fun searchAnimeParse(response: Response) = latestUpdatesParse(response)
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        sudatchiFilters.fetchFilters()
+        val titleLang = preferences.title
+        return AnimesPage(
+            response.parseAs<SearchDto>().results
+                .map { it.toSAnime(titleLang) }
+                .filterNot { it.status == SAnime.LICENSED },
+            false,
+        )
+    }
+
+    // =========================== Related Anime ============================
+    override fun relatedAnimeListRequest(anime: SAnime): Request {
+        return GET("$baseUrl/api${anime.url}", headers)
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val data = response.parseAs<AnimeDetailDto>()
+        return (data.related.orEmpty() + data.recommendations.orEmpty())
+            .map { it.toSAnime(preferences.title) }
+    }
 
     // =========================== Anime Details ============================
     override fun getAnimeUrl(anime: SAnime) = "$baseUrl${anime.url}"
 
+    override fun animeDetailsRequest(anime: SAnime): Request {
+        return GET("$baseUrl/api${anime.url}", headers)
+    }
+
     override fun animeDetailsParse(response: Response): SAnime {
-        val document = response.asJsoup()
-        val data = document.parseAs<AnimePageDto>().animeData
+        val data = response.parseAs<AnimeDetailDto>()
         return data.toSAnime(preferences.title)
     }
 
@@ -145,13 +158,12 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     override fun episodeListRequest(anime: SAnime) = animeDetailsRequest(anime)
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val document = response.asJsoup()
-        val anime = document.parseAs<AnimePageDto>().animeData
+        val anime = response.parseAs<AnimeDetailDto>()
         return anime.episodes.map {
             SEpisode.create().apply {
                 name = it.title
                 episode_number = it.number.toFloat()
-                url = "/watch/${anime.slug}/${it.number}"
+                url = "/watch/${anime.id}/${it.number}"
             }
         }.reversed()
     }
@@ -177,7 +189,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
                         it.url.startsWith("/ipfs") -> "$ipfsUrl${it.url}"
                         else -> "$baseUrl${it.url}"
                     },
-                    "${it.SubtitlesName.name} (${it.SubtitlesName.language})",
+                    "${it.subtitlesName?.name} (${it.subtitlesName?.language})",
                 )
             }.sort(),
         )
