@@ -4,12 +4,10 @@ import android.content.SharedPreferences
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.AnimeDetailDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.EpisodePageDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.HomePageDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.PropsDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SearchDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SeriesDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SubtitleDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -22,11 +20,12 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
-import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
 import keiyoushi.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.put
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -40,7 +39,9 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val baseUrl = "https://sudatchi.com"
 
-    private val ipfsUrl = "https://ipfs.sudatchi.com"
+    override val client = network.client.newBuilder()
+        .rateLimitHost("$baseUrl/api/".toHttpUrl(), 5)
+        .build()
 
     override val lang = "all"
 
@@ -159,13 +160,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val anime = response.parseAs<AnimeDetailDto>()
-        return anime.episodes.map {
-            SEpisode.create().apply {
-                name = it.title
-                episode_number = it.number.toFloat()
-                url = "/watch/${anime.id}/${it.number}"
-            }
-        }.reversed()
+        return anime.episodes.map { it.toEpisode(animeId = anime.id) }.reversed()
     }
 
     // ============================ Video Links =============================
@@ -174,24 +169,21 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     private val playlistUtils: PlaylistUtils by lazy { PlaylistUtils(client, headers) }
 
     override fun videoListParse(response: Response): List<Video> {
-        val document = response.asJsoup()
-        val data = document.parseAs<EpisodePageDto>().episodeData
-        val subtitles = json.decodeFromString<List<SubtitleDto>>(data.subtitlesJson)
-        // val videoUrl = client.newCall(GET("$baseUrl/api/streams?episodeId=${data.episode.id}", headers)).execute().parseAs<StreamsDto>().url
-        // keeping it in case the simpler solution breaks, can be hardcoded to this for now :
-        val videoUrl = "$baseUrl/videos/m3u8/episode-${data.episode.id}.m3u8"
+        val episodeId = response.request.url.queryParameter("episode")?.toIntOrNull()
+            ?: throw Exception("Episode ID not found in request URL")
+        val episode = response.parseAs<AnimeDetailDto>().episodes.firstOrNull { it.id == episodeId }
+            ?: throw Exception("Episode not found")
+
+        val subtitles = episode.subtitlesNew
+        val videoUrl = "$baseUrl/api/streams?episodeId=$episodeId"
         return playlistUtils.extractFromHls(
             videoUrl,
-            videoNameGen = { "Sudatchi (Private IPFS Gateway) - $it" },
-            subtitleList = subtitles.map {
+            subtitleList = subtitles?.map {
                 Track(
-                    when {
-                        it.url.startsWith("/ipfs") -> "$ipfsUrl${it.url}"
-                        else -> "$baseUrl${it.url}"
-                    },
-                    "${it.subtitlesName?.name} (${it.subtitlesName?.language})",
+                    url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
+                    lang = "${it.subtitlesName?.name} (${it.subtitlesName?.language})",
                 )
-            }.sort(),
+            }?.sort() ?: emptyList(),
         )
     }
 

@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.all.sudatchi.dto
 
 import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SEpisode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -25,10 +26,16 @@ data class EpisodeDto(
     val audioStreamsNew: List<AudioDto>?, // playlistUri & AudioLangDto
     val audioStreams: List<AudioDto>?, // playlistUri & language
     /* For home page */
-    val animeId: Int,
+    val animeId: Int, // Only correct for home page, not correct for anime detail page
     val coverImage: String?, // "/image/2ca27132"
     val animeTitle: TitleDto?,
 ) {
+    fun toEpisode(animeId: Int) = SEpisode.create().apply {
+        url = "/api/anime/$animeId?episode=$id"
+        name = title
+        episode_number = number.toFloat()
+    }
+
     fun toSAnime(titleLang: String, baseUrl: String) = SAnime.create().apply {
         url = "/anime/$animeId"
         title = animeTitle?.let {
