@@ -131,6 +131,7 @@ data class AnimeDetailDto(
             averageScore?.let { appendLine("Score: $it") }
             appendLine()
             alternativeNames?.let { list ->
+                if (list.isEmpty()) return@let
                 appendLine("Alternative names:")
                 list.forEach { appendLine("- $it") }
             }
