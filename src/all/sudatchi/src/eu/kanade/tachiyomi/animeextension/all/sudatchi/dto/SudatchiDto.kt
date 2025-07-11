@@ -6,15 +6,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class GenreDto(val name: String)
-
-@Serializable
-data class AnimeGenreRelationDto(
-    @SerialName("Genre")
-    val genre: GenreDto,
-)
-
-@Serializable
 data class EpisodeDto(
     val title: String,
     val id: Int,
@@ -77,7 +68,7 @@ data class AnimeDto(
 }
 
 @Serializable
-data class AnimeSearchDto(
+data class AnimeRelatedDto(
     val id: Int,
     val title: TitleDto,
     val status: String?, // FINISHED
@@ -88,11 +79,11 @@ data class AnimeSearchDto(
     fun toSAnime(titleLang: String) = SAnime.create().apply {
         url = "/anime/$id"
         title = when (titleLang) {
-            "romaji" -> this@AnimeSearchDto.title.romaji
-            "japanese" -> this@AnimeSearchDto.title.native
-            else -> this@AnimeSearchDto.title.english
-        } ?: arrayOf(this@AnimeSearchDto.title.english, this@AnimeSearchDto.title.romaji, this@AnimeSearchDto.title.native, "").firstNotNullOf { it }
-        status = this@AnimeSearchDto.status?.parseStatus() ?: SAnime.UNKNOWN
+            "romaji" -> this@AnimeRelatedDto.title.romaji
+            "japanese" -> this@AnimeRelatedDto.title.native
+            else -> this@AnimeRelatedDto.title.english
+        } ?: arrayOf(this@AnimeRelatedDto.title.english, this@AnimeRelatedDto.title.romaji, this@AnimeRelatedDto.title.native, "").firstNotNullOf { it }
+        status = this@AnimeRelatedDto.status?.parseStatus() ?: SAnime.UNKNOWN
         thumbnail_url = coverImage
         genre = animeGenres?.joinToString()
     }
@@ -119,8 +110,8 @@ data class AnimeDetailDto(
     val trailer: TrailerDto?,
     val studio: String?,
     val country: String?, // JP
-    val related: List<AnimeSearchDto>?,
-    val recommendations: List<AnimeSearchDto>?,
+    val related: List<AnimeRelatedDto>?,
+    val recommendations: List<AnimeRelatedDto>?,
     val episodes: List<EpisodeDto>,
 ) {
     fun toSAnime(titleLang: String) = SAnime.create().apply {
@@ -189,31 +180,9 @@ data class HomePageDto(
 )
 
 @Serializable
-data class EpisodeDataDto(
-    val episode: EpisodeDto,
-    val subtitlesJson: String,
-)
-
-@Serializable
-data class EpisodePageDto(
-    val episodeData: EpisodeDataDto,
-)
-
-@Serializable
-data class PagePropsDto<T>(val pageProps: T)
-
-@Serializable
-data class PropsDto<T>(val props: PagePropsDto<T>)
-
-@Serializable
 data class SeriesDto(
     val results: List<AnimeDto>,
     val hasNextPage: Boolean,
-)
-
-@Serializable
-data class SearchDto(
-    val results: List<AnimeSearchDto>,
 )
 
 @Serializable
@@ -241,28 +210,4 @@ data class AudioDto(
 data class AudioLangDto(
     val name: String, // "English"
     val code: String, // "eng"
-)
-
-@Serializable
-data class FilterItemDto(
-    val id: Int,
-    val name: String,
-)
-
-@Serializable
-data class FilterYearDto(
-    val year: Int,
-)
-
-@Serializable
-data class DirectoryFiltersDto(
-    val genres: List<FilterItemDto>,
-    val years: List<FilterYearDto>,
-    val types: List<FilterItemDto>,
-    val status: List<FilterItemDto>,
-)
-
-@Serializable
-data class StreamsDto(
-    val url: String,
 )

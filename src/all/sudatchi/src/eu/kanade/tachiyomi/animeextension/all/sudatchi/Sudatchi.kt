@@ -5,8 +5,6 @@ import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.AnimeDetailDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.HomePageDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.PropsDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SearchDto
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.SeriesDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -18,20 +16,13 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.parseAs
 import keiyoushi.utils.getPreferencesLazy
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import org.jsoup.nodes.Document
-import uy.kohesive.injekt.injectLazy
 
 class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
@@ -49,20 +40,13 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     private val codeRegex by lazy { Regex("""\((.*)\)""") }
 
-    private val json: Json by injectLazy()
-
-    private val sudatchiFilters: SudatchiFilters by lazy { SudatchiFilters(baseUrl, client) }
-
     private val preferences by getPreferencesLazy()
-
-    private val jsonMime by lazy { "application/json; charset=utf-8".toMediaTypeOrNull() }
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) =
         GET("$baseUrl/api/series?page=$page&perPage=24&sort=POPULARITY_DESC&status=RELEASING", headers)
 
     override fun popularAnimeParse(response: Response): AnimesPage {
-        sudatchiFilters.fetchFilters()
         val titleLang = preferences.title
         return response.parseAs<SeriesDto>().let {
             AnimesPage(
@@ -78,7 +62,6 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         GET("$baseUrl/api/home?matureMode=true", headers)
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
-        sudatchiFilters.fetchFilters()
         val titleLang = preferences.title
         return AnimesPage(
             response.parseAs<HomePageDto>().latestEpisodes
@@ -89,7 +72,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     // =============================== Search ===============================
-    override fun getFilterList() = sudatchiFilters.getFilterList()
+    override fun getFilterList() = SudatchiFilters.getFilterList()
 
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
         return if (query.startsWith(PREFIX_SEARCH)) { // URL intent handler
@@ -107,35 +90,38 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         return AnimesPage(listOf(anime), false)
     }
 
+    // https://sudatchi.com/api/series?page=1&perPage=24&sort=POPULARITY_DESC&search=welcome+to
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-//        filters.filterIsInstance<SudatchiFilters.QueryParameterFilter>().forEach {
-//            val (name, value) = it.toQueryParameter()
-//            if (value != null) url.addQueryParameter(name, value)
-//        }
-        val body = kotlinx.serialization.json.buildJsonObject {
-            put("query", query)
-            put("page", 1)
-            put("matureMode", false)
-        }.toString()
-            .toRequestBody(jsonMime)
-        return POST("$baseUrl/api/search", headers, body)
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("api")
+            addPathSegment("series")
+            addQueryParameter("page", page.toString())
+            addQueryParameter("matureMode", "false")
+
+            filters.filterIsInstance<SudatchiFilters.QueryParameterFilter>().forEach {
+                val (name, value) = it.toQueryParameter()
+                if (value != null) addQueryParameter(name, value)
+            }
+
+            addQueryParameter("search", query.trim())
+        }
+
+        return GET(url.build(), headers)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
-        sudatchiFilters.fetchFilters()
         val titleLang = preferences.title
+        val result = response.parseAs<SeriesDto>()
         return AnimesPage(
-            response.parseAs<SearchDto>().results
+            result.results
                 .map { it.toSAnime(titleLang) }
                 .filterNot { it.status == SAnime.LICENSED },
-            false,
+            result.hasNextPage,
         )
     }
 
     // =========================== Related Anime ============================
-    override fun relatedAnimeListRequest(anime: SAnime): Request {
-        return GET("$baseUrl/api${anime.url}", headers)
-    }
+    override fun relatedAnimeListRequest(anime: SAnime) = animeDetailsRequest(anime)
 
     override fun relatedAnimeListParse(response: Response): List<SAnime> {
         val data = response.parseAs<AnimeDetailDto>()
@@ -250,11 +236,6 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     // ============================= Utilities ==============================
-    private inline fun <reified T> Document.parseAs(): T {
-        val nextData = this.selectFirst("script#__NEXT_DATA__")!!.data()
-        return json.decodeFromString<PropsDto<T>>(nextData).props.pageProps
-    }
-
     private val SharedPreferences.quality get() = getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
     private val SharedPreferences.subtitles get() = getString(PREF_SUBTITLES_KEY, PREF_SUBTITLES_DEFAULT)!!
     private val SharedPreferences.title get() = getString(PREF_TITLE_KEY, PREF_TITLE_DEFAULT)!!

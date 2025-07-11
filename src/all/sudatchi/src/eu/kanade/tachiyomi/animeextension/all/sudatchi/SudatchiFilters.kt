@@ -1,22 +1,11 @@
 package eu.kanade.tachiyomi.animeextension.all.sudatchi
 
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.DirectoryFiltersDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.FilterItemDto
-import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.FilterYearDto
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
-import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.util.parseAs
-import okhttp3.OkHttpClient
+import kotlinx.serialization.Serializable
+import java.util.Calendar
 
-class SudatchiFilters(
-    private val baseUrl: String,
-    private val client: OkHttpClient,
-) {
-
-    private var error = false
-
-    private lateinit var filterList: AnimeFilterList
+object SudatchiFilters {
 
     interface QueryParameterFilter { fun toQueryParameter(): Pair<String, String?> }
 
@@ -35,38 +24,81 @@ class SudatchiFilters(
     }
 
     fun getFilterList(): AnimeFilterList {
-        return if (error) {
-            AnimeFilterList(AnimeFilter.Header("Error fetching the filters."))
-        } else if (this::filterList.isInitialized) {
-            filterList
-        } else {
-            AnimeFilterList(AnimeFilter.Header("Use 'Reset' to load the filters."))
-        }
-    }
+        val yearList = buildList {
+            add(Pair("<select>", ""))
+            addAll(
+                (currentYear downTo 1960).map {
+                    Pair(it.toString(), it.toString())
+                },
+            )
+        }.toList()
 
-    fun fetchFilters() {
-        if (!this::filterList.isInitialized) {
-            runCatching {
-                error = false
-                filterList = client.newCall(GET("$baseUrl/api/series"))
-                    .execute()
-                    .parseAs<DirectoryFiltersDto>()
-                    .let(::filtersParse)
-            }.onFailure { error = true }
-        }
-    }
-
-    private fun List<FilterItemDto>.toPairList() = map { Pair(it.name, it.id.toString()) }
-
-    @JvmName("toPairList2")
-    private fun List<FilterYearDto>.toPairList() = map { Pair(it.year.toString(), it.year.toString()) }
-
-    private fun filtersParse(directoryFiltersDto: DirectoryFiltersDto): AnimeFilterList {
         return AnimeFilterList(
-            CheckboxList("Genres", "genres", directoryFiltersDto.genres.toPairList()),
-            CheckboxList("Years", "years", directoryFiltersDto.years.toPairList()),
-            CheckboxList("Types", "types", directoryFiltersDto.types.toPairList()),
-            CheckboxList("Status", "status", directoryFiltersDto.status.toPairList()),
+            CheckboxList("Genres", "genres", genreList.toPairList()),
+            CheckboxList("Status", "status", statusList.toPairList()),
+            CheckboxList("Format", "format", formatList.toPairList()),
+            CheckboxList("Year", "year", yearList),
+            CheckboxList("Status", "sort", sortList.toPairList()),
         )
     }
+
+    private fun List<FilterItemDto>.toPairList() = map { Pair(it.name, it.id) }
+
+    private val currentYear by lazy {
+        Calendar.getInstance().get(Calendar.YEAR)
+    }
+
+    @Serializable
+    data class FilterItemDto(
+        val id: String,
+        val name: String,
+    )
+
+    private val genreList = listOf(
+        FilterItemDto("Action", "Action"),
+        FilterItemDto("Adventure", "Adventure"),
+        FilterItemDto("Comedy", "Comedy"),
+        FilterItemDto("Drama", "Drama"),
+        FilterItemDto("Ecchi", "Ecchi"),
+        FilterItemDto("Fantasy", "Fantasy"),
+        FilterItemDto("Horror", "Horror"),
+        FilterItemDto("Mahou Shoujo", "Mahou Shoujo"),
+        FilterItemDto("Mecha", "Mecha"),
+        FilterItemDto("Music", "Music"),
+        FilterItemDto("Mystery", "Mystery"),
+        FilterItemDto("Psychological", "Psychological"),
+        FilterItemDto("Romance", "Romance"),
+        FilterItemDto("Sci-Fi", "Sci-Fi"),
+        FilterItemDto("Slice of Life", "Slice of Life"),
+        FilterItemDto("Sports", "Sports"),
+        FilterItemDto("Supernatural", "Supernatural"),
+        FilterItemDto("Thriller", "Thriller"),
+    )
+
+    private val formatList = listOf(
+        FilterItemDto("<select>", ""),
+        FilterItemDto("TV", "TV Series"),
+        FilterItemDto("MOVIE", "Movie"),
+        FilterItemDto("OVA", "OVA"),
+        FilterItemDto("ONA", "ONA"),
+        FilterItemDto("TV_SHORT", "TV Short"),
+        FilterItemDto("SPECIAL", "Special"),
+    )
+
+    private val statusList = listOf(
+        FilterItemDto("<select>", ""),
+        FilterItemDto("RELEASING", "Currently Airing"),
+        FilterItemDto("FINISHED", "Completed"),
+        FilterItemDto("NOT_YET_RELEASED", "Upcoming"),
+        FilterItemDto("CANCELLED", "Cancelled"),
+    )
+
+    private val sortList = listOf(
+        FilterItemDto("POPULARITY_DESC", "Most Popular"),
+        FilterItemDto("SCORE_DESC", "Highest Rated"),
+        FilterItemDto("TRENDING_DESC", "Trending"),
+        FilterItemDto("START_DATE_DESC", "Newest"),
+        FilterItemDto("TITLE_ROMAJI", "A-Z"),
+        FilterItemDto("EPISODES_DESC", "Most Episodes"),
+    )
 }
