@@ -180,22 +180,33 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
             ?: throw Exception("Episode not found")
 
         val videoUrl = "$baseUrl/api/streams?episodeId=$episodeId"
+
+        fun buildSubtitleUrl(subUrl: String): String {
+            return if (subUrl.startsWith("http://") || subUrl.startsWith("https://")) {
+                subUrl
+            } else {
+                "$baseUrl/api/proxy/${subUrl.removePrefix("/ipfs/")}"
+            }
+        }
+
         return playlistUtils.extractFromHls(
             videoUrl,
-            subtitleList = episode.subtitlesDto
-                ?.map {
-                    Track(
-                        url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
-                        lang = "${it.subtitleLang?.name} (${it.subtitleLang?.language})",
-                    )
-                }?.sort()
-                ?: episode.subtitles?.map {
-                    Track(
-                        url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
-                        lang = it.language ?: "???",
-                    )
-                }?.sort()
-                ?: emptyList(),
+            subtitleList = (
+                episode.subtitlesDto
+                    ?.map {
+                        Track(
+                            url = buildSubtitleUrl(it.url),
+                            lang = "${it.subtitleLang?.name ?: "???"} (${it.subtitleLang?.language ?: "???"})",
+                        )
+                    }
+                    ?: episode.subtitles?.map {
+                        Track(
+                            url = buildSubtitleUrl(it.url),
+                            lang = "${it.language ?: "???"} (${it.language ?: "???"})",
+                        )
+                    }
+                    ?: emptyList()
+                ).sort(),
         )
     }
 
