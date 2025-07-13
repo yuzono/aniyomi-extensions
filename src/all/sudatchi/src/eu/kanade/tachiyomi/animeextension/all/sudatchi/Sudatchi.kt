@@ -90,7 +90,6 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         return AnimesPage(listOf(anime), false)
     }
 
-    // https://sudatchi.com/api/series?page=1&perPage=24&sort=POPULARITY_DESC&search=welcome+to
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val url = baseUrl.toHttpUrl().newBuilder().apply {
             addPathSegment("api")
@@ -142,6 +141,15 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     // ============================== Episodes ==============================
+    /* Can also parsing the episode page directly, but this way is more convenient.
+       The episode page is at: https://sudatchi.com/watch/{animeId}/{episodeNumber}.
+       Find all <script>self.__next_f.push([...])</script>
+       Then regex with "self\.__next_f\.push\(\[\d+,\s?"(.*?)"\]\)"
+       Then concatenate all the captured together.
+       Afterward, replace "\n" with '\n' (but except "\\n").
+       Then process line by line, pick only the one with "{\"metadata\":\[.*?],"
+       Finally, parse the JSON to get streams & subtitles. Audio should already be included in the streams.
+     */
     override fun episodeListRequest(anime: SAnime) = animeDetailsRequest(anime)
 
     override fun episodeListParse(response: Response): List<SEpisode> {
