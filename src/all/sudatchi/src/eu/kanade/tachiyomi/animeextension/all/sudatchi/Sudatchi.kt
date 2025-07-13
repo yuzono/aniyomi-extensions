@@ -182,11 +182,11 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         val videoUrl = "$baseUrl/api/streams?episodeId=$episodeId"
         return playlistUtils.extractFromHls(
             videoUrl,
-            subtitleList = episode.subtitlesNew
+            subtitleList = episode.subtitlesDto
                 ?.map {
                     Track(
                         url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
-                        lang = "${it.subtitlesName?.name} (${it.subtitlesName?.language})",
+                        lang = "${it.subtitleLang?.name} (${it.subtitleLang?.language})",
                     )
                 }?.sort()
                 ?: episode.subtitles?.map {

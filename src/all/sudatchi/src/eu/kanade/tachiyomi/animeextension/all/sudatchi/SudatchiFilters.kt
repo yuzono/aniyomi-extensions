@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.animeextension.all.sudatchi
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
-import kotlinx.serialization.Serializable
 import java.util.Calendar
 
 object SudatchiFilters {
@@ -46,7 +45,7 @@ object SudatchiFilters {
             SelectList("Status", "status", statusList.toPairList()),
             SelectList("Format", "format", formatList.toPairList()),
             SelectList("Year", "year", yearList.toPairList()),
-            SelectList("Status", "sort", sortList.toPairList()),
+            SelectList("Sort", "sort", sortList.toPairList()),
         )
     }
 
@@ -56,7 +55,6 @@ object SudatchiFilters {
         Calendar.getInstance().get(Calendar.YEAR)
     }
 
-    @Serializable
     data class FilterItemDto(
         val id: String,
         val name: String,

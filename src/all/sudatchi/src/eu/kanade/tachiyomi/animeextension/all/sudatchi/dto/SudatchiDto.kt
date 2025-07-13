@@ -11,10 +11,10 @@ data class EpisodeDto(
     val id: Int,
     val number: Int,
     @SerialName("Subtitles")
-    val subtitlesNew: List<SubtitleDto>?, // url & SubtitleLangDto
+    val subtitlesDto: List<SubtitleDto>?, // url & SubtitleLangDto
     val subtitles: List<SubtitleDto>?, // url & language
     @SerialName("AudioStreams")
-    val audioStreamsNew: List<AudioDto>?, // playlistUri & AudioLangDto
+    val audioStreamsDto: List<AudioDto>?, // playlistUri & AudioLangDto
     val audioStreams: List<AudioDto>?, // playlistUri & language
     /* For home page */
     val animeId: Int, // Only correct for home page, not correct for anime detail page
@@ -196,14 +196,15 @@ data class SubtitleLangDto(
 data class SubtitleDto(
     val url: String, // "/ipfs/bafkreicmknx7fg23tvfktgo4gybh2a3dqvgk33z7wtyxnjcbar26m57kjq"
     @SerialName("SubtitlesName")
-    val subtitlesName: SubtitleLangDto?,
+    val subtitleLang: SubtitleLangDto?,
     val language: String?,
 )
 
 @Serializable
 data class AudioDto(
     val playlistUri: String, // "bafybeiegi6t2yhc4cubdztvvzb6s5vetuyisrureindkrgi7xgcmu2cmqi/audio.m3u8"
-    val Language: AudioLangDto?,
+    @SerialName("Language")
+    val audioLang: AudioLangDto?,
     val language: String?,
 )
 
