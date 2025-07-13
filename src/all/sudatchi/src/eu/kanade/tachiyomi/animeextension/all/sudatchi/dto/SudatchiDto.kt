@@ -29,18 +29,7 @@ data class EpisodeDto(
 
     fun toSAnime(titleLang: String, baseUrl: String) = SAnime.create().apply {
         url = "/anime/$animeId"
-        title = animeTitle?.let {
-            when (titleLang) {
-                "romaji" -> it.romaji
-                "japanese" -> it.native
-                else -> it.english
-            } ?: arrayOf(
-                it.english,
-                it.romaji,
-                it.native,
-                "",
-            ).firstNotNullOf { it }
-        } ?: this@EpisodeDto.title
+        title = animeTitle?.getTitle(titleLang) ?: this@EpisodeDto.title
         thumbnail_url = "$baseUrl$coverImage"
     }
 }
@@ -56,11 +45,7 @@ data class AnimeDto(
 ) {
     fun toSAnime(titleLang: String) = SAnime.create().apply {
         url = "/anime/$id"
-        title = when (titleLang) {
-            "romaji" -> this@AnimeDto.title.romaji
-            "japanese" -> this@AnimeDto.title.native
-            else -> this@AnimeDto.title.english
-        } ?: arrayOf(this@AnimeDto.title.english, this@AnimeDto.title.romaji, this@AnimeDto.title.native, "").firstNotNullOf { it }
+        title = this@AnimeDto.title.getTitle(titleLang)
         status = this@AnimeDto.status?.parseStatus() ?: SAnime.UNKNOWN
         thumbnail_url = coverImage
         genre = animeGenres?.joinToString()
@@ -78,11 +63,7 @@ data class AnimeRelatedDto(
 ) {
     fun toSAnime(titleLang: String) = SAnime.create().apply {
         url = "/anime/$id"
-        title = when (titleLang) {
-            "romaji" -> this@AnimeRelatedDto.title.romaji
-            "japanese" -> this@AnimeRelatedDto.title.native
-            else -> this@AnimeRelatedDto.title.english
-        } ?: arrayOf(this@AnimeRelatedDto.title.english, this@AnimeRelatedDto.title.romaji, this@AnimeRelatedDto.title.native, "").firstNotNullOf { it }
+        title = this@AnimeRelatedDto.title.getTitle(titleLang)
         status = this@AnimeRelatedDto.status?.parseStatus() ?: SAnime.UNKNOWN
         thumbnail_url = coverImage
         genre = animeGenres?.joinToString()
@@ -116,11 +97,7 @@ data class AnimeDetailDto(
 ) {
     fun toSAnime(titleLang: String) = SAnime.create().apply {
         url = "/anime/$id"
-        title = when (titleLang) {
-            "romaji" -> this@AnimeDetailDto.title.romaji
-            "japanese" -> this@AnimeDetailDto.title.native
-            else -> this@AnimeDetailDto.title.english
-        } ?: arrayOf(this@AnimeDetailDto.title.english, this@AnimeDetailDto.title.romaji, this@AnimeDetailDto.title.native, "").firstNotNullOf { it }
+        title = this@AnimeDetailDto.title.getTitle(titleLang)
         description = StringBuilder().apply {
             this@AnimeDetailDto.description?.let { appendLine(it) }
             appendLine()
@@ -162,7 +139,17 @@ data class TitleDto(
     val romaji: String?,
     val english: String?,
     val native: String?,
-)
+) {
+    fun getTitle(titleLang: String) = when (titleLang) {
+        "romaji" -> romaji
+        "japanese" -> native
+        else -> english
+    }
+        ?: english
+        ?: romaji
+        ?: native
+        ?: ""
+}
 
 @Serializable
 data class CoverDto(
