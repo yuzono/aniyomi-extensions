@@ -23,22 +23,30 @@ object SudatchiFilters {
         )
     }
 
+    private class SelectList(name: String, private val paramName: String, private val pairs: List<Pair<String, String>>) :
+        AnimeFilter.Select<String>(name, pairs.map { it.first }.toTypedArray()), QueryParameterFilter {
+        override fun toQueryParameter() = Pair(
+            paramName,
+            pairs[state].second.takeUnless { it.isBlank() },
+        )
+    }
+
     fun getFilterList(): AnimeFilterList {
         val yearList = buildList {
-            add(Pair("<select>", ""))
+            add(FilterItemDto("", "<select>"))
             addAll(
                 (currentYear downTo 1960).map {
-                    Pair(it.toString(), it.toString())
+                    FilterItemDto(it.toString(), it.toString())
                 },
             )
         }.toList()
 
         return AnimeFilterList(
             CheckboxList("Genres", "genres", genreList.toPairList()),
-            CheckboxList("Status", "status", statusList.toPairList()),
-            CheckboxList("Format", "format", formatList.toPairList()),
-            CheckboxList("Year", "year", yearList),
-            CheckboxList("Status", "sort", sortList.toPairList()),
+            SelectList("Status", "status", statusList.toPairList()),
+            SelectList("Format", "format", formatList.toPairList()),
+            SelectList("Year", "year", yearList.toPairList()),
+            SelectList("Status", "sort", sortList.toPairList()),
         )
     }
 
@@ -76,7 +84,7 @@ object SudatchiFilters {
     )
 
     private val formatList = listOf(
-        FilterItemDto("<select>", ""),
+        FilterItemDto("", "<select>"),
         FilterItemDto("TV", "TV Series"),
         FilterItemDto("MOVIE", "Movie"),
         FilterItemDto("OVA", "OVA"),
@@ -86,7 +94,7 @@ object SudatchiFilters {
     )
 
     private val statusList = listOf(
-        FilterItemDto("<select>", ""),
+        FilterItemDto("", "<select>"),
         FilterItemDto("RELEASING", "Currently Airing"),
         FilterItemDto("FINISHED", "Completed"),
         FilterItemDto("NOT_YET_RELEASED", "Upcoming"),
