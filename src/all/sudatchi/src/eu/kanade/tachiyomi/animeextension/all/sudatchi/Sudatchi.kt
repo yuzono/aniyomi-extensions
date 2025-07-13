@@ -179,16 +179,23 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         val episode = response.parseAs<AnimeDetailDto>().episodes.firstOrNull { it.id == episodeId }
             ?: throw Exception("Episode not found")
 
-        val subtitles = episode.subtitlesNew
         val videoUrl = "$baseUrl/api/streams?episodeId=$episodeId"
         return playlistUtils.extractFromHls(
             videoUrl,
-            subtitleList = subtitles?.map {
-                Track(
-                    url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
-                    lang = "${it.subtitlesName?.name} (${it.subtitlesName?.language})",
-                )
-            }?.sort() ?: emptyList(),
+            subtitleList = episode.subtitlesNew
+                ?.map {
+                    Track(
+                        url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
+                        lang = "${it.subtitlesName?.name} (${it.subtitlesName?.language})",
+                    )
+                }?.sort()
+                ?: episode.subtitles?.map {
+                    Track(
+                        url = "$baseUrl/api/proxy/${it.url.removePrefix("/ipfs/")}",
+                        lang = it.language ?: "???",
+                    )
+                }?.sort()
+                ?: emptyList(),
         )
     }
 
