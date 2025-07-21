@@ -1,0 +1,7 @@
+ext {
+    extName = 'UniqueStream (Anime)'
+    extClass = '.UniqueStreamAnime'
+    extVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
