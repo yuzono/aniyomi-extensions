@@ -10,6 +10,8 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelFlatMap
+import eu.kanade.tachiyomi.util.parallelFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -82,12 +84,40 @@ class UniqueStreamAnime : AnimeHttpSource() {
     override fun searchAnimeParse(response: Response): AnimesPage {
         return AnimesPage(emptyList(), false)
     }
-    override fun animeDetailsParse(response: Response): SAnime {
-        TODO("Not yet implemented")
+
+    // ============================== Details ===============================
+
+    override fun getAnimeUrl(anime: SAnime): String {
+        return baseUrl + anime.url + "/${anime.title.titleToUri()}"
     }
 
+    private fun String.titleToUri(): String {
+        return this.replace(" ", "-")
+            .replace(Regex("[^a-z0-9-]"), "")
+    }
+
+    override fun animeDetailsRequest(anime: SAnime) =
+        GET(baseUrl + "/api/v1" + anime.url)
+
+    override fun animeDetailsParse(response: Response): SAnime {
+        return response.parseAs<AnimeDetailsDto>().toSAnime()
+    }
+
+    override fun episodeListRequest(anime: SAnime) = animeDetailsRequest(anime)
+
     override fun episodeListParse(response: Response): List<SEpisode> {
-        TODO("Not yet implemented")
+        val seasons = response.parseAs<AnimeDetailsDto>().seasons
+        return seasons.filter { it.episodeCount > 0 }
+            .parallelFlatMapBlocking { season ->
+                val pages = season.episodeCount / 20 + 1
+                (1..pages).parallelFlatMap { page ->
+                    client.newCall(
+                        GET("$baseUrl/api/v1/season/${season.contentId}/episodes?page=$page&limit=20"),
+                    ).execute().use { episodesResponse ->
+                        episodesResponse.parseAs<List<EpisodeDto>>().map { it.toEpisode(season.displayNumber) }
+                    }
+                }
+            }.reversed()
     }
 
     // ============================== Filters ===============================
