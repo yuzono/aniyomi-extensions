@@ -1,65 +1,94 @@
 package eu.kanade.tachiyomi.animeextension.all.stremio.addon
 
-import android.content.SharedPreferences
 import eu.kanade.tachiyomi.animeextension.all.stremio.ResultDto
 import eu.kanade.tachiyomi.animeextension.all.stremio.Stremio
 import eu.kanade.tachiyomi.animeextension.all.stremio.addon.dto.AddonDto
 import eu.kanade.tachiyomi.animeextension.all.stremio.addon.dto.AddonResultDto
 import eu.kanade.tachiyomi.animeextension.all.stremio.addon.dto.ManifestDto
-import eu.kanade.tachiyomi.animeextension.all.stremio.addons
-import eu.kanade.tachiyomi.animeextension.all.stremio.authKey
-import eu.kanade.tachiyomi.animeextension.all.stremio.get
-import eu.kanade.tachiyomi.animeextension.all.stremio.post
-import eu.kanade.tachiyomi.animeextension.all.stremio.toBody
 import eu.kanade.tachiyomi.util.parallelMapNotNull
-import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.LazyMutablePreference
+import extensions.utils.Source
+import extensions.utils.get
+import extensions.utils.parseAs
+import extensions.utils.post
+import extensions.utils.toRequestBody
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import okhttp3.OkHttpClient
+import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 
+@Suppress("SpellCheckingInspection")
 class AddonManager(
-    private val preferences: SharedPreferences,
-    private val client: OkHttpClient,
-) {
-    val addons: List<AddonDto> by lazy {
-        runBlocking {
-            if (preferences.addons.isNotBlank()) {
-                getFromPref(preferences.addons)
-            } else if (preferences.authKey.isNotBlank()) {
-                getFromUser(preferences.authKey)
+    addonDelegate: LazyMutablePreference<String>,
+    authKeyDelegate: LazyMutablePreference<String>,
+) : ReadOnlyProperty<Source, List<AddonDto>> {
+    private val addonValue by addonDelegate
+    private val authKeyValue by authKeyDelegate
+
+    private var cachedAddons: String? = null
+    private var cachedAuthKey: String? = null
+    private var addons: List<AddonDto>? = null
+
+    override fun getValue(
+        thisRef: Source,
+        property: KProperty<*>,
+    ): List<AddonDto> {
+        val useAddons = addonValue.isNotBlank()
+        val hasChanged = when {
+            useAddons -> addonValue != cachedAddons
+            else -> authKeyValue != cachedAuthKey
+        }
+
+        if (hasChanged) {
+            addons = runBlocking(Dispatchers.IO) {
+                when {
+                    useAddons -> getFromPref(thisRef, addonValue)
+                    authKeyValue.isNotBlank() -> getFromUser(thisRef, authKeyValue)
+                    else -> throw Exception("Addons must be manually added if not logged in")
+                }
+            }
+
+            if (useAddons) {
+                cachedAddons = addonValue
             } else {
-                throw Exception("Addons must be manually added if not logged in")
+                cachedAuthKey = authKeyValue
             }
         }
+
+        return addons ?: emptyList()
     }
 
-    suspend fun getFromPref(addons: String): List<AddonDto> {
-        val urls = addons.split(" ")
+    private suspend fun getFromPref(thisRef: Source, addons: String): List<AddonDto> {
+        val urls = addons.split("\n")
 
         return urls.parallelMapNotNull { url ->
             try {
-                val manifest = client.get(
-                    url.replace("stremio://", "https://"),
-                ).parseAs<ManifestDto>()
-                AddonDto(
-                    transportUrl = url,
-                    manifest = manifest,
-                )
+                val manifestUrl = url.replace("stremio://", "https://")
+                with(thisRef) {
+                    val manifest = thisRef.client.get(manifestUrl).parseAs<ManifestDto>()
+                    AddonDto(
+                        transportUrl = manifestUrl,
+                        manifest = manifest,
+                    )
+                }
             } catch (_: Exception) {
                 null
             }
         }
     }
 
-    suspend fun getFromUser(authKey: String): List<AddonDto> {
-        val body = buildJsonObject {
-            put("authKey", authKey)
-            put("type", "AddonCollectionGet")
-            put("update", true)
-        }.toBody()
+    private suspend fun getFromUser(thisRef: Source, authKey: String): List<AddonDto> {
+        return with(thisRef) {
+            val body = buildJsonObject {
+                put("authKey", authKey)
+                put("type", "AddonCollectionGet")
+                put("update", true)
+            }.toRequestBody()
 
-        return client.post("${Stremio.API_URL}/api/addonCollectionGet", body = body)
-            .parseAs<ResultDto<AddonResultDto>>().result.addons
+            thisRef.client.post("${Stremio.API_URL}/api/addonCollectionGet", body = body)
+                .parseAs<ResultDto<AddonResultDto>>().result.addons
+        }
     }
 }

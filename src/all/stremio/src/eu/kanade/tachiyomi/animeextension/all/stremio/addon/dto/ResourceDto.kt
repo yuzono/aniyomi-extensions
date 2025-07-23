@@ -49,7 +49,9 @@ data class ResourceDto(
     val idPrefixes: List<String>? = null,
 )
 
-object ResourceListSerializer : JsonTransformingSerializer<List<ResourceDto>>(ListSerializer(ResourceDto.serializer())) {
+object ResourceListSerializer : JsonTransformingSerializer<List<ResourceDto>>(
+    ListSerializer(ResourceDto.serializer()),
+) {
     override fun transformDeserialize(element: JsonElement): JsonElement {
         return JsonArray(
             element.jsonArray.map { jsonElement ->
@@ -59,6 +61,7 @@ object ResourceListSerializer : JsonTransformingSerializer<List<ResourceDto>>(Li
                             "name" to jsonElement,
                         ),
                     )
+
                     else -> jsonElement
                 }
             },

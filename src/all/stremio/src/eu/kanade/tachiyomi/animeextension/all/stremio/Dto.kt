@@ -1,16 +1,18 @@
+@file:Suppress("SpellCheckingInspection")
+
 package eu.kanade.tachiyomi.animeextension.all.stremio
 
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
+import extensions.utils.tryParse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.apache.commons.text.StringSubstitutor
 import java.net.URLEncoder
-import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -138,19 +140,11 @@ data class VideoDto(
         name = sub.replace(episodeTemplate).trim()
         scanlator = sub.replace(scanlatorTemplate).trim().takeIf { it.isNotBlank() }
         episode_number = episode?.toFloat() ?: 1F
-        date_upload = released?.parseDate() ?: 0L
+        date_upload = DATE_FORMAT.tryParse(released)
     }
 
     companion object {
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ENGLISH)
-
-        private fun String.parseDate(): Long {
-            return try {
-                DATE_FORMAT.parse(this)!!.time
-            } catch (_: ParseException) {
-                0L
-            }
-        }
     }
 }
 

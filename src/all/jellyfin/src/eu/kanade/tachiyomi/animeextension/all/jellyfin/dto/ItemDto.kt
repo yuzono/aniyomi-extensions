@@ -215,13 +215,13 @@ data class ItemDto(
 }
 
 @Serializable
-class SessionDto(
+data class SessionDto(
     val mediaSources: List<MediaDto>,
     val playSessionId: String,
 )
 
 @Serializable
-class MediaDto(
+data class MediaDto(
     val size: Long? = null,
     val id: String? = null,
     val bitrate: Long? = null,
@@ -231,7 +231,7 @@ class MediaDto(
     val mediaStreams: List<MediaStreamDto>,
 ) {
     @Serializable
-    class MediaStreamDto(
+    data class MediaStreamDto(
         val codec: String,
         val index: Int,
         val type: String,
