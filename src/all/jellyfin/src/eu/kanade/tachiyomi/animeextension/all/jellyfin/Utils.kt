@@ -1,61 +1,11 @@
 package eu.kanade.tachiyomi.animeextension.all.jellyfin
 
-import android.app.Application
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import eu.kanade.tachiyomi.animeextension.all.jellyfin.dto.DeviceProfileDto
-import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.network.awaitSuccess
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromStream
-import okhttp3.CacheControl
-import okhttp3.FormBody
-import okhttp3.Headers
-import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit.MINUTES
-import kotlin.reflect.KProperty
-
-private val APP: Application by injectLazy()
-private val HANDLER by lazy { Handler(Looper.getMainLooper()) }
-
-fun displayToast(message: String, length: Int = Toast.LENGTH_SHORT) {
-    HANDLER.post {
-        Toast.makeText(APP, message, length).show()
-    }
-}
-
-val JSON_INSTANCE: Json = Json {
-    isLenient = false
-    ignoreUnknownKeys = true
-    allowSpecialFloatingPointValues = true
-    namingStrategy = PascalCaseToCamelCase
-}
-
-inline fun <reified T> Response.parseAs(): T {
-    return body.use { JSON_INSTANCE.decodeFromStream(it.byteStream()) }
-}
-
-fun JsonObject.toBody(): RequestBody {
-    return JSON_INSTANCE.encodeToString(this).toJsonBody()
-}
-
-fun String.toJsonBody(): RequestBody {
-    return this.toRequestBody("application/json; charset=utf-8".toMediaType())
-}
+import java.nio.charset.StandardCharsets
 
 private val NEWLINE_REGEX = Regex("""\n""")
 
@@ -78,7 +28,7 @@ fun getAuthHeader(deviceInfo: Jellyfin.DeviceInfo, token: String? = null): Strin
                 val value = value!!
                     .trim()
                     .replace(NEWLINE_REGEX, " ")
-                    .let { URLEncoder.encode(it, "UTF-8") }
+                    .let { URLEncoder.encode(it, StandardCharsets.UTF_8.name()) }
 
                 """$key="$value""""
             },
@@ -156,32 +106,34 @@ object Constants {
     )
 
     val LANG_CODES = setOf(
-        "aar", "abk", "ace", "ach", "ada", "ady", "afh", "afr", "ain", "aka", "akk", "ale", "alt", "amh", "ang", "anp", "apa",
-        "ara", "arc", "arg", "arn", "arp", "arw", "asm", "ast", "ath", "ava", "ave", "awa", "aym", "aze", "bai", "bak", "bal",
-        "bam", "ban", "bas", "bej", "bel", "bem", "ben", "ber", "bho", "bik", "bin", "bis", "bla", "bod", "bos", "bra", "bre",
-        "bua", "bug", "bul", "byn", "cad", "car", "cat", "ceb", "ces", "cha", "chb", "che", "chg", "chk", "chm", "chn", "cho",
-        "chp", "chr", "chu", "chv", "chy", "cnr", "cop", "cor", "cos", "cre", "crh", "csb", "cym", "dak", "dan", "dar", "del",
-        "den", "deu", "dgr", "din", "div", "doi", "dsb", "dua", "dum", "dyu", "dzo", "efi", "egy", "eka", "ell", "elx", "eng",
-        "enm", "epo", "est", "eus", "ewe", "ewo", "fan", "fao", "fas", "fat", "fij", "fil", "fin", "fiu", "fon", "fra", "frm",
-        "fro", "frr", "frs", "fry", "ful", "fur", "gaa", "gay", "gba", "gez", "gil", "gla", "gle", "glg", "glv", "gmh", "goh",
-        "gon", "gor", "got", "grb", "grc", "grn", "gsw", "guj", "gwi", "hai", "hat", "hau", "haw", "heb", "her", "hil", "hin",
-        "hit", "hmn", "hmo", "hrv", "hsb", "hun", "hup", "hye", "iba", "ibo", "ido", "iii", "ijo", "iku", "ile", "ilo", "ina",
-        "inc", "ind", "inh", "ipk", "isl", "ita", "jav", "jbo", "jpn", "jpr", "jrb", "kaa", "kab", "kac", "kal", "kam", "kan",
-        "kar", "kas", "kat", "kau", "kaw", "kaz", "kbd", "kha", "khm", "kho", "kik", "kin", "kir", "kmb", "kok", "kom", "kon",
-        "kor", "kos", "kpe", "krc", "krl", "kru", "kua", "kum", "kur", "kut", "lad", "lah", "lam", "lao", "lat", "lav", "lez",
-        "lim", "lin", "lit", "lol", "loz", "ltz", "lua", "lub", "lug", "lui", "lun", "luo", "lus", "mad", "mag", "mah", "mai",
-        "mak", "mal", "man", "mar", "mas", "mdf", "mdr", "men", "mga", "mic", "min", "mkd", "mkh", "mlg", "mlt", "mnc", "mni",
-        "moh", "mon", "mos", "mri", "msa", "mus", "mwl", "mwr", "mya", "myv", "nah", "nap", "nau", "nav", "nbl", "nde", "ndo",
-        "nds", "nep", "new", "nia", "nic", "niu", "nld", "nno", "nob", "nog", "non", "nor", "nqo", "nso", "nub", "nwc", "nya",
-        "nym", "nyn", "nyo", "nzi", "oci", "oji", "ori", "orm", "osa", "oss", "ota", "oto", "pag", "pal", "pam", "pan", "pap",
-        "pau", "peo", "phn", "pli", "pol", "pon", "por", "pro", "pus", "que", "raj", "rap", "rar", "roh", "rom", "ron", "run",
-        "rup", "rus", "sad", "sag", "sah", "sam", "san", "sas", "sat", "scn", "sco", "sel", "sga", "shn", "sid", "sin", "slk",
-        "slv", "sma", "sme", "smj", "smn", "smo", "sms", "sna", "snd", "snk", "sog", "som", "son", "sot", "spa", "sqi", "srd",
-        "srn", "srp", "srr", "ssw", "suk", "sun", "sus", "sux", "swa", "swe", "syc", "syr", "tah", "tai", "tam", "tat", "tel",
-        "tem", "ter", "tet", "tgk", "tgl", "tha", "tig", "tir", "tiv", "tkl", "tlh", "tli", "tmh", "tog", "ton", "tpi", "tsi",
-        "tsn", "tso", "tuk", "tum", "tup", "tur", "tvl", "twi", "tyv", "udm", "uga", "uig", "ukr", "umb", "urd", "uzb", "vai",
-        "ven", "vie", "vol", "vot", "wal", "war", "was", "wen", "wln", "wol", "xal", "xho", "yao", "yap", "yid", "yor", "zap",
-        "zbl", "zen", "zgh", "zha", "zho", "zul", "zun", "zza",
+        "aar", "abk", "ace", "ach", "ada", "ady", "afh", "afr", "ain", "aka", "akk", "ale", "alt", "amh", "ang", "anp",
+        "apa", "ara", "arc", "arg", "arn", "arp", "arw", "asm", "ast", "ath", "ava", "ave", "awa", "aym", "aze", "bai",
+        "bak", "bal", "bam", "ban", "bas", "bej", "bel", "bem", "ben", "ber", "bho", "bik", "bin", "bis", "bla", "bod",
+        "bos", "bra", "bre", "bua", "bug", "bul", "byn", "cad", "car", "cat", "ceb", "ces", "cha", "chb", "che", "chg",
+        "chk", "chm", "chn", "cho", "chp", "chr", "chu", "chv", "chy", "cnr", "cop", "cor", "cos", "cre", "crh", "csb",
+        "cym", "dak", "dan", "dar", "del", "den", "deu", "dgr", "din", "div", "doi", "dsb", "dua", "dum", "dyu", "dzo",
+        "efi", "egy", "eka", "ell", "elx", "eng", "enm", "epo", "est", "eus", "ewe", "ewo", "fan", "fao", "fas", "fat",
+        "fij", "fil", "fin", "fiu", "fon", "fra", "frm", "fro", "frr", "frs", "fry", "ful", "fur", "gaa", "gay", "gba",
+        "gez", "gil", "gla", "gle", "glg", "glv", "gmh", "goh", "gon", "gor", "got", "grb", "grc", "grn", "gsw", "guj",
+        "gwi", "hai", "hat", "hau", "haw", "heb", "her", "hil", "hin", "hit", "hmn", "hmo", "hrv", "hsb", "hun", "hup",
+        "hye", "iba", "ibo", "ido", "iii", "ijo", "iku", "ile", "ilo", "ina", "inc", "ind", "inh", "ipk", "isl", "ita",
+        "jav", "jbo", "jpn", "jpr", "jrb", "kaa", "kab", "kac", "kal", "kam", "kan", "kar", "kas", "kat", "kau", "kaw",
+        "kaz", "kbd", "kha", "khm", "kho", "kik", "kin", "kir", "kmb", "kok", "kom", "kon", "kor", "kos", "kpe", "krc",
+        "krl", "kru", "kua", "kum", "kur", "kut", "lad", "lah", "lam", "lao", "lat", "lav", "lez", "lim", "lin", "lit",
+        "lol", "loz", "ltz", "lua", "lub", "lug", "lui", "lun", "luo", "lus", "mad", "mag", "mah", "mai", "mak", "mal",
+        "man", "mar", "mas", "mdf", "mdr", "men", "mga", "mic", "min", "mkd", "mkh", "mlg", "mlt", "mnc", "mni", "moh",
+        "mon", "mos", "mri", "msa", "mus", "mwl", "mwr", "mya", "myv", "nah", "nap", "nau", "nav", "nbl", "nde", "ndo",
+        "nds", "nep", "new", "nia", "nic", "niu", "nld", "nno", "nob", "nog", "non", "nor", "nqo", "nso", "nub", "nwc",
+        "nya", "nym", "nyn", "nyo", "nzi", "oci", "oji", "ori", "orm", "osa", "oss", "ota", "oto", "pag", "pal", "pam",
+        "pan", "pap", "pau", "peo", "phn", "pli", "pol", "pon", "por", "pro", "pus", "que", "raj", "rap", "rar", "roh",
+        "rom", "ron", "run", "rup", "rus", "sad", "sag", "sah", "sam", "san", "sas", "sat", "scn", "sco", "sel", "sga",
+        "shn", "sid", "sin", "slk", "slv", "sma", "sme", "smj", "smn", "smo", "sms", "sna", "snd", "snk", "sog", "som",
+        "son", "sot", "spa", "sqi", "srd", "srn", "srp", "srr", "ssw", "suk", "sun", "sus", "sux", "swa", "swe", "syc",
+        "syr", "tah", "tai", "tam", "tat", "tel", "tem", "ter", "tet", "tgk", "tgl", "tha", "tig", "tir", "tiv", "tkl",
+        "tlh", "tli", "tmh", "tog", "ton", "tpi", "tsi", "tsn", "tso", "tuk", "tum", "tup", "tur", "tvl", "twi", "tyv",
+        "udm", "uga", "uig", "ukr", "umb", "urd", "uzb", "vai", "ven", "vie", "vol", "vot", "wal", "war", "was", "wen",
+        "wln", "wol", "xal", "xho", "yao", "yap", "yid", "yor", "zap", "zbl", "zen", "zgh", "zha", "zho", "zul", "zun",
+        "zza",
     )
 }
 
@@ -270,69 +222,4 @@ fun getDeviceProfile(
         ),
         subtitleProfiles = subtitleProfilesList,
     )
-}
-
-// From https://al-e-shevelev.medium.com/mutable-lazy-in-kotlin-14233bed116d
-@Suppress("unused")
-class LazyMutable<T>(val initializer: () -> T) {
-    private object UninitializedValue
-
-    @Volatile private var propValue: Any? = UninitializedValue
-
-    @Suppress("UNCHECKED_CAST")
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
-        val localValue = propValue
-
-        if (localValue != UninitializedValue) {
-            return localValue as T
-        }
-
-        return synchronized(this) {
-            val localValue2 = propValue
-
-            if (localValue2 != UninitializedValue) {
-                localValue2 as T
-            } else {
-                val initializedValue = initializer()
-                propValue = initializedValue
-                initializedValue
-            }
-        }
-    }
-
-    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        synchronized(this) {
-            propValue = value
-        }
-    }
-}
-
-// TODO(16): Remove with ext lib 16
-private val DEFAULT_CACHE_CONTROL = CacheControl.Builder().maxAge(10, MINUTES).build()
-private val DEFAULT_HEADERS = Headers.Builder().build()
-private val DEFAULT_BODY: RequestBody = FormBody.Builder().build()
-
-suspend fun OkHttpClient.get(
-    url: String,
-    headers: Headers = DEFAULT_HEADERS,
-    cache: CacheControl = DEFAULT_CACHE_CONTROL,
-): Response {
-    return newCall(GET(url, headers, cache)).awaitSuccess()
-}
-
-suspend fun OkHttpClient.get(
-    url: HttpUrl,
-    headers: Headers = DEFAULT_HEADERS,
-    cache: CacheControl = DEFAULT_CACHE_CONTROL,
-): Response {
-    return newCall(GET(url, headers, cache)).awaitSuccess()
-}
-
-suspend fun OkHttpClient.post(
-    url: String,
-    headers: Headers = DEFAULT_HEADERS,
-    body: RequestBody = DEFAULT_BODY,
-    cache: CacheControl = DEFAULT_CACHE_CONTROL,
-): Response {
-    return newCall(POST(url, headers, body, cache)).awaitSuccess()
 }
