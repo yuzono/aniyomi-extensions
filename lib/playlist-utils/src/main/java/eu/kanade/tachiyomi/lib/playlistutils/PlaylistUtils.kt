@@ -163,16 +163,16 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
          *
          */
         return masterPlaylist.substringAfter(PLAYLIST_SEPARATOR).split(PLAYLIST_SEPARATOR).mapNotNull { stream ->
-            val codec = Regex("""CODECS="([^"]+)"""").find(stream)?.groupValues?.get(1)
+            val codec = CODECS_REGEX.find(stream)?.groupValues?.get(1)
             if (!codec.isNullOrBlank()) {
                 // FIXME: Why skip mp4a?
                 if (codec.startsWith("mp4a")) return@mapNotNull null
             }
 
-            val resolution = Regex("""RESOLUTION=([xX\d]+)""").find(stream)
+            val resolution = RESOLUTION_REGEX.find(stream)
                 ?.groupValues?.get(1)
                 ?.let { resolution ->
-                    val standardQuality = Regex("""[xX](\d+)""").find(resolution)
+                    val standardQuality = QUALITY_REGEX.find(resolution)
                         ?.groupValues?.get(1)
                         ?.let { toStandardQuality(it) }
 
@@ -182,7 +182,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
                         resolution
                     }
                 }
-            val bandwidth = Regex("""BANDWIDTH=(\d+)""").find(stream)
+            val bandwidth = BANDWIDTH_REGEX.find(stream)
                     ?.groupValues?.get(1)
                     ?.toLongOrNull()
             val bandwidthFormatted = bandwidth
@@ -428,6 +428,11 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
         private val SUBTITLE_REGEX by lazy { Regex("""#EXT-X-MEDIA:TYPE=SUBTITLES.*?NAME="(.*?)".*?URI="(.*?)"""") }
         private val AUDIO_REGEX by lazy { Regex("""#EXT-X-MEDIA:TYPE=AUDIO.*?NAME="(.*?)".*?URI="(.*?)"""") }
+
+        private val CODECS_REGEX by lazy { Regex("""CODECS="([^"]+)"""") }
+        private val RESOLUTION_REGEX by lazy { Regex("""RESOLUTION=([xX\d]+)""") }
+        private val QUALITY_REGEX by lazy { Regex("""[xX](\d+)""") }
+        private val BANDWIDTH_REGEX by lazy { Regex("""BANDWIDTH=(\d+)""") }
 
         private val STANDARD_QUALITIES = listOf(144, 240, 360, 480, 720, 1080, 1440, 2160)
     }
