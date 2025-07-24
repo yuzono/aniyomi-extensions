@@ -1,5 +1,5 @@
 ext {
-    extName = 'AnimeOwl'
+    extName = 'AnimeOwl (Dead)'
     extClass = '.AnimeOwl'
     extVersionCode = 30
 }
