@@ -33,7 +33,7 @@ import kotlin.math.ceil
 
 class AnimeOwl : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
-    override val name = "AnimeOwl"
+    override val name = "AnimeOwl (Dead)"
 
     override val baseUrl = "https://animeowl.me"
 
