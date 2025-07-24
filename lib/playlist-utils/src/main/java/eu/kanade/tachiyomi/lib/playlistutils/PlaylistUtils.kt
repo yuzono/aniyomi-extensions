@@ -392,8 +392,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
     private fun stnQuality(quality: String): String {
         val intQuality = quality.trim().toIntOrNull() ?: return quality
-        val standardQualities = listOf(144, 240, 360, 480, 720, 1080, 1440, 2160)
-        val result = standardQualities.minBy { abs(it - intQuality) }
+        val result = STANDARD_QUALITIES.minBy { abs(it - intQuality) }
         return "${result}p"
     }
 
@@ -427,5 +426,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
         private val SUBTITLE_REGEX by lazy { Regex("""#EXT-X-MEDIA:TYPE=SUBTITLES.*?NAME="(.*?)".*?URI="(.*?)"""") }
         private val AUDIO_REGEX by lazy { Regex("""#EXT-X-MEDIA:TYPE=AUDIO.*?NAME="(.*?)".*?URI="(.*?)"""") }
+
+        private val STANDARD_QUALITIES = listOf(144, 240, 360, 480, 720, 1080, 1440, 2160)
     }
 }
