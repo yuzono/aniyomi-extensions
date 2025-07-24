@@ -185,9 +185,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             val bandwidth = Regex("""BANDWIDTH=(\d+)""").find(stream)
                     ?.groupValues?.get(1)
                     ?.toLongOrNull()
-            val bandWidthFormated = bandwidth
+            val bandwidthFormatted = bandwidth
                     ?.let(::formatBytes)
-            val streamName = listOfNotNull(resolution, bandWidthFormated).joinToString(" - ")
+            val streamName = listOfNotNull(resolution, bandwidthFormatted).joinToString(" - ")
                 .takeIf { it.isNotBlank() }
                 ?: "Video"
 
@@ -393,7 +393,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     private fun stnQuality(quality: String): String {
         val intQuality = quality.trim().toInt()
         val standardQualities = listOf(144, 240, 360, 480, 720, 1080, 1440, 2160)
-        val result =  standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
+        val result = standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
         return "${result}p"
     }
 
