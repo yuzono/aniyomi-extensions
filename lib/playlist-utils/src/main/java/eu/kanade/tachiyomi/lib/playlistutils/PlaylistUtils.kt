@@ -32,7 +32,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
      */
     fun extractFromHls(
         playlistUrl: String,
-        referer: String = playlistUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
+        referer: String = playlistUrl.toDefaultReferer(),
         masterHeaders: Headers,
         videoHeaders: Headers,
         videoNameGen: (String) -> String = { quality -> quality },
@@ -77,7 +77,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
      */
     fun extractFromHls(
         playlistUrl: String,
-        referer: String = playlistUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
+        referer: String = playlistUrl.toDefaultReferer(),
         masterHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
@@ -253,7 +253,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         videoNameGen: (String) -> String,
         mpdHeaders: Headers,
         videoHeaders: Headers,
-        referer: String = mpdUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
+        referer: String = mpdUrl.toDefaultReferer(),
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
     ): List<Video> {
@@ -294,7 +294,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     fun extractFromDash(
         mpdUrl: String,
         videoNameGen: (String) -> String,
-        referer: String = mpdUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
+        referer: String = mpdUrl.toDefaultReferer(),
         mpdHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
@@ -341,7 +341,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     fun extractFromDash(
         mpdUrl: String,
         videoNameGen: (String, String) -> String,
-        referer: String = mpdUrl.toHttpUrl().let { "${it.scheme}://${it.host}/" },
+        referer: String = mpdUrl.toDefaultReferer(),
         mpdHeadersGen: (Headers, String) -> Headers = ::generateMasterHeaders,
         videoHeadersGen: (Headers, String, String) -> Headers = { baseHeaders, referer, videoUrl ->
             generateMasterHeaders(baseHeaders, referer)
@@ -389,6 +389,10 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
     }
 
     // ============================= Utilities ==============================
+
+    private fun String.toDefaultReferer(): String {
+        return toHttpUrl().let { "${it.scheme}://${it.host}/" }
+    }
 
     private fun stnQuality(quality: String): String {
         val intQuality = quality.trim().toIntOrNull() ?: return quality
