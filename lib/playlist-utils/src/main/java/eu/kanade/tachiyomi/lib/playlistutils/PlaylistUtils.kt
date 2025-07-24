@@ -390,13 +390,11 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
     // ============================= Utilities ==============================
 
-    private fun String.toDefaultReferer(): String {
-        return toHttpUrl().let { "${it.scheme}://${it.host}/" }
-    }
+    private fun String.toDefaultReferer(): String = toHttpUrl().run { "$scheme://$host/" }
 
     private fun stnQuality(quality: String): String {
         val intQuality = quality.trim().toIntOrNull() ?: return quality
-        val result = STANDARD_QUALITIES.minByOrNull { abs(it - intQuality) } ?: quality
+        val result = STANDARD_QUALITIES.minByOrNull { abs(it - intQuality) } ?: intQuality
         return "${result}p"
     }
 

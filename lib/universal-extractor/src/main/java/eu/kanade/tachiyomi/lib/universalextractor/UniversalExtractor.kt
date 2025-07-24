@@ -73,7 +73,7 @@ class UniversalExtractor(private val client: OkHttpClient) {
 
             for (quality in qualities) {
                 val modifiedUrl = resultUrl.replace("M3U8_AUTO_360", "M3U8_AUTO_$quality")
-                val videos = playlistUtils.extractFromHls(modifiedUrl, origRequestUrl, videoNameGen = { "$prefix - $host: $it $quality" + "p" })
+                val videos = playlistUtils.extractFromHls(modifiedUrl, origRequestUrl, videoNameGen = { "$prefix - $host: $it ${quality}p" })
 
                 if (videos.isNotEmpty()) {
                     allVideos.addAll(videos)
