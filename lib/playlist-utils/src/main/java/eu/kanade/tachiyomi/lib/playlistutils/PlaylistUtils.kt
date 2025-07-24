@@ -256,6 +256,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         referer: String = mpdUrl.toDefaultReferer(),
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
+        toStandardQuality: (String) -> String = { quality ->
+            stnQuality(quality)
+        },
     ): List<Video> {
         return extractFromDash(
             mpdUrl,
@@ -267,6 +270,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             { _, _, _ -> videoHeaders },
             subtitleList,
             audioList,
+            toStandardQuality,
         )
     }
 
@@ -301,6 +305,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         },
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
+        toStandardQuality: (String) -> String = { quality ->
+            stnQuality(quality)
+        },
     ): List<Video> {
         return extractFromDash(
             mpdUrl,
@@ -312,6 +319,7 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
             videoHeadersGen,
             subtitleList,
             audioList,
+            toStandardQuality,
         )
     }
 
@@ -348,6 +356,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
         },
         subtitleList: List<Track> = emptyList(),
         audioList: List<Track> = emptyList(),
+        toStandardQuality: (String) -> String = { quality ->
+            stnQuality(quality)
+        },
     ): List<Video> {
         val mpdHeaders = mpdHeadersGen(headers, referer)
 
@@ -362,7 +373,9 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
         return doc.select("Representation[mimetype~=video]").map { videoSrc ->
             val bandwidth = videoSrc.attr("bandwidth")
-            val res = videoSrc.attr("height") + "p"
+            val res = videoSrc.attr("height")
+                .let(toStandardQuality)
+                .let { "$it (${videoSrc.attr("width")}x${videoSrc.attr("height")})" }
             val videoUrl = videoSrc.text()
 
             Video(
