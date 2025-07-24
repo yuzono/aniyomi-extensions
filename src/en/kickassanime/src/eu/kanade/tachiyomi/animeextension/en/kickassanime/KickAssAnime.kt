@@ -303,7 +303,8 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
-        private val SERVERS = arrayOf("DuckStream", "BirdStream", "VidStreaming")
+        // The one with CastStream: https://kaa.to/dekin-no-mogura-acd1/ep-3-1d2d46
+        private val SERVERS = arrayOf("DuckStream", "BirdStream", "VidStreaming", "CastStream")
 
         const val PREFIX_SEARCH = "slug:"
 
@@ -330,7 +331,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_TITLE = "Preferred server"
-        private const val PREF_SERVER_DEFAULT = "DuckStream"
+        private val PREF_SERVER_DEFAULT = SERVERS[0]
         private val PREF_SERVER_VALUES = SERVERS
 
         private const val PREF_DOMAIN_KEY = "preferred_domain"
