@@ -403,7 +403,13 @@ class PlaylistUtils(private val client: OkHttpClient, private val headers: Heade
 
     // ============================= Utilities ==============================
 
-    private fun String.toDefaultReferer(): String = toHttpUrl().run { "$scheme://$host/" }
+    private fun String.toDefaultReferer(): String {
+        return try {
+            toHttpUrl().run { "$scheme://$host/" }
+        } catch (e: IllegalArgumentException) {
+            ""
+        }
+    }
 
     private fun stnQuality(quality: String): String {
         val intQuality = quality.trim().toIntOrNull() ?: return quality
