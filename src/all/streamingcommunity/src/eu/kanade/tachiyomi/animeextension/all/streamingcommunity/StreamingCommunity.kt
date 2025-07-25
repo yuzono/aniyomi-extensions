@@ -496,7 +496,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
     }
 
     companion object {
-        private const val DOMAIN_DEFAULT = "https://streamingunity.cam"
+        private const val DOMAIN_DEFAULT = "https://streamingunity.co"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
 
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
@@ -564,7 +564,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 screen,
                 preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT,
             )
-            summary = "Domain: \"$currentValue\".\nLeave blank to disable. Overrides any domain preferences!"
+            summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
 
             setOnPreferenceChangeListener { _, newValue ->
                 val newDomain = newValue.toString().trim().removeSuffix("/")
