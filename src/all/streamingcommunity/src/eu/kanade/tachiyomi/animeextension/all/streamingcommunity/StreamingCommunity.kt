@@ -560,11 +560,19 @@ class StreamingCommunity(override val lang: String, private val showType: String
             key = PREF_CUSTOM_DOMAIN_KEY
             title = "Custom domain"
             setDefaultValue(null)
-            val currentValue = resolveRedirectedDomain(
-                screen,
-                preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT,
-            )
-            summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
+
+            // Set initial summary with loading state
+            val initialDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT
+            summary = "Current domain: \"$initialDomain\" (checking for redirects...)\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
+
+            // Resolve redirected domain in background thread
+            Thread {
+                val currentValue = resolveRedirectedDomain(screen, initialDomain)
+                // Update UI on main thread
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
+                }
+            }.start()
 
             setOnPreferenceChangeListener { _, newValue ->
                 val newDomain = newValue.toString().trim().removeSuffix("/")
