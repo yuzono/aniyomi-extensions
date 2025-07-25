@@ -251,7 +251,32 @@ data class EpisodeDto(
                 append(title)
             }.toString()
             episode_number = episodeNumber.toFloat()
-            url = "/watch/$contentId"
+            url = "/watch/$contentId/$title"
         }
     }
 }
+
+@Serializable
+data class PlaylistDto(
+    val hls: VideoDto,
+    val versions: VersionPlaylistDto,
+)
+
+@Serializable
+data class VersionPlaylistDto(
+    val hls: List<VideoDto>,
+)
+
+@Serializable
+data class VideoDto(
+    val locale: String,
+    val playlist: String,
+    @SerialName("hard_subs")
+    val hardSubs: List<VideoSubDto>?,
+)
+
+@Serializable
+data class VideoSubDto(
+    val locale: String,
+    val playlist: String,
+)
