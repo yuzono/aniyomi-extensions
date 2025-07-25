@@ -55,8 +55,7 @@ class BLZone : AnimeHttpSource() {
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
         val animeList = mutableListOf<SAnime>()
-        animeList.addAll(document.select("#dt-tvshows .item.tvshows").map { popularAnimeFromElement(it) })
-        animeList.addAll(document.select("#dt-movies .item.tvshows").map { popularAnimeFromElement(it) })
+animeList.addAll(document.select("#dt-tvshows .item.tvshows, #dt-movies .item.tvshows").map { popularAnimeFromElement(it) })
         return AnimesPage(animeList, hasNextPage = false)
     }
 
