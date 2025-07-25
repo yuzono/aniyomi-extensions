@@ -566,11 +566,12 @@ class StreamingCommunity(override val lang: String, private val showType: String
             summary = "Current domain: \"$initialDomain\" (checking for redirects...)\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
 
             // Resolve redirected domain in background thread
+            val prefRef = java.lang.ref.WeakReference(this)
             Thread {
                 val currentValue = resolveRedirectedDomain(screen, initialDomain)
                 // Update UI on main thread
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
+                    prefRef.get()?.summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
                 }
             }.start()
 
