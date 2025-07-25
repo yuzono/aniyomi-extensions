@@ -4,23 +4,17 @@ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
-import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
-import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parallelFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import org.jsoup.nodes.Element
 import uy.kohesive.injekt.injectLazy
 
 class UniqueStreamAnime : AnimeHttpSource() {
@@ -34,6 +28,8 @@ class UniqueStreamAnime : AnimeHttpSource() {
     override val supportsLatest = true
 
     private val json: Json by injectLazy()
+
+    private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
     // ============================== Popular ===============================
 
@@ -246,138 +242,37 @@ class UniqueStreamAnime : AnimeHttpSource() {
     // ============================ Video Links =============================
 
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
-        val videoList = mutableListOf<Video>()
-        val document = client.newCall(
-            GET(baseUrl + episode.url, headers = headers),
-        ).execute().asJsoup()
-
-        val type = if (episode.url.startsWith("/tvshows/")) "tv" else "movie"
-
-        document.select("ul#playeroptionsul > li:not([id=player-option-trailer])").forEach { server ->
-            val postBody = "action=doo_player_ajax&post=${server.attr("data-post")}&nume=${server.attr("data-nume")}&type=$type"
-                .toRequestBody("application/x-www-form-urlencoded".toMediaType())
-
-            val postHeaders = headers.newBuilder()
-                .add("Accept", "*/*")
-                .add("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-                .add("Host", baseUrl.toHttpUrl().host)
-                .add("Origin", baseUrl)
-                .add("Referer", "$baseUrl${episode.url}")
-                .add("X-Requested-With", "XMLHttpRequest")
-                .build()
-
-            val embedResponse = client.newCall(
-                POST("$baseUrl/wp-admin/admin-ajax.php", body = postBody, headers = postHeaders),
-            ).execute()
-
-            val embedUrl = json.decodeFromString<EmbedResponse>(
-                embedResponse.body.string(),
-            ).embed_url.replace(Regex("^//"), "https://")
-
-            val embedHeaders = headers.newBuilder()
-                .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-                .add("Host", embedUrl.toHttpUrl().host)
-                .set("Referer", "$baseUrl/")
-                .build()
-
-            val embedDocument = client.newCall(
-                GET(embedUrl, headers = embedHeaders),
-            ).execute().asJsoup()
-
-            val script = embedDocument.selectFirst("script:containsData(m3u8)")!!.data()
-            val playlistUrl = script
-                .substringAfter("let url = '").substringBefore("'")
-
-            val subtitleList = mutableListOf<Track>()
-            if (script.contains("srt")) {
-                subtitleList.add(
-                    Track(
-                        script.substringAfter("track['file']")
-                            .substringAfter("'")
-                            .substringBefore("'"),
-                        script.substringAfter("track['label']")
-                            .substringAfter("'")
-                            .substringBefore("'"),
-                    ),
-                )
-            }
-
-            val playlistHeaders = headers.newBuilder()
-                .add("Accept", "*/*")
-                .set("Referer", playlistUrl)
-                .build()
-
-            val masterPlaylist = client.newCall(
-                GET(playlistUrl, headers = playlistHeaders),
-            ).execute().body.string()
-
-            val playlistHost = playlistUrl.toHttpUrl().host
-
-            val audioList = mutableListOf<Track>()
-            if (masterPlaylist.contains("#EXT-X-MEDIA:TYPE=AUDIO")) {
-                val line = masterPlaylist.substringAfter("#EXT-X-MEDIA:TYPE=AUDIO")
-                    .substringBefore("\n")
-                var audioUrl = line.substringAfter("URI=\"").substringBefore("\"")
-                if (!audioUrl.startsWith("http")) {
-                    audioUrl = "https://$playlistHost$audioUrl"
-                }
-
-                audioList.add(
-                    Track(
-                        audioUrl,
-                        line.substringAfter("NAME=\"").substringBefore("\""),
-                    ),
-                )
-            }
-
-            masterPlaylist.substringAfter("#EXT-X-STREAM-INF:").split("#EXT-X-STREAM-INF:")
-                .forEach {
-                    val quality = it.substringAfter("RESOLUTION=").substringAfter("x")
-                        .substringBefore("\n").substringBefore(",") + "p"
-                    var videoUrl = it.substringAfter("\n").substringBefore("\n")
-
-                    if (!videoUrl.startsWith("http")) {
-                        videoUrl = "https://$playlistHost$videoUrl"
-                    }
-
-                    if (audioList.isEmpty()) {
-                        videoList.add(Video(videoUrl, quality, videoUrl, headers = playlistHeaders, subtitleTracks = subtitleList))
-                    } else {
-                        videoList.add(
-                            Video(videoUrl, quality, videoUrl, headers = playlistHeaders, subtitleTracks = subtitleList, audioTracks = audioList),
-                        )
-                    }
-                }
+        val contentId = episode.url
+            .substringAfter('/')
+            .substringAfter('/')
+            .substringBefore('/')
+        val playlistDto = client.newCall(
+            GET("$baseUrl/api/v1/episode/$contentId/media/hls/ja-JP"),
+        ).execute().use { response ->
+            response.parseAs<PlaylistDto>()
         }
 
-        require(videoList.isNotEmpty()) { "Failed to fetch videos" }
-
-        return videoList
+        val playlist = listOf(playlistDto.hls) + playlistDto.versions.hls
+        return playlist.flatMap {
+            val audio = it.locale.substringBefore('-').uppercase()
+            val mainVideo = playlistUtils.extractFromHls(
+                playlistUrl = it.playlist,
+                videoNameGen = { quality -> "Audio: $audio - $quality" },
+            )
+            val subVideos = it.hardSubs
+                ?.map { hardSub ->
+                    val sub = hardSub.locale.substringBefore('-').uppercase()
+                    playlistUtils.extractFromHls(
+                        playlistUrl = hardSub.playlist,
+                        videoNameGen = { quality -> "Audio: $audio - Hardsub: $sub - $quality" },
+                    )
+                }
+            listOf(mainVideo) + (subVideos ?: emptyList())
+        }.flatten()
     }
 
     // ============================== Settings ==============================
 
     val prefQualityValues = arrayOf("1080p", "720p", "480p", "360p", "240p")
     val prefQualityEntries = prefQualityValues
-
-    // ============================= Utilities ==============================
-
-    @Serializable
-    data class EmbedResponse(
-        val embed_url: String,
-    )
-
-    private fun Element.getImageUrl(): String? {
-        return when {
-            hasAttr("data-wpfc-original-src") -> attr("abs:data-wpfc-original-src")
-            hasAttr("data-src") -> attr("abs:data-src")
-            hasAttr("data-lazy-src") -> attr("abs:data-lazy-src")
-            hasAttr("srcset") -> attr("abs:srcset").substringBefore(" ")
-            else -> attr("abs:src")
-        }
-    }
-
-    private fun Int.toPage(): String {
-        return if (this == 1) "" else "page/$this/"
-    }
 }
