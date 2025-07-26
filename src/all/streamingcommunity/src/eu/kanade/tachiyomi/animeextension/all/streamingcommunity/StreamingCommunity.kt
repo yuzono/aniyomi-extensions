@@ -29,10 +29,13 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.getPreferencesLazy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -465,9 +468,9 @@ class StreamingCommunity(override val lang: String, private val showType: String
         ).reversed()
     }
 
-    private fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
+    private suspend fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
         return try {
-            runBlocking(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 val headRequest = GET(loadedDomain, headers).newBuilder().head().build()
                 client.newCall(headRequest).execute().use { response ->
                     val redirectedDomain = response.request.url.run { "$scheme://$host" }
@@ -567,13 +570,12 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
             // Resolve redirected domain in background thread
             val prefRef = java.lang.ref.WeakReference(this)
-            Thread {
+            GlobalScope.launch(Dispatchers.IO) {
                 val currentValue = resolveRedirectedDomain(screen, initialDomain)
-                // Update UI on main thread
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                withContext(Dispatchers.Main) {
                     prefRef.get()?.summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
                 }
-            }.start()
+            }
 
             setOnPreferenceChangeListener { _, newValue ->
                 val newDomain = newValue.toString().trim().removeSuffix("/")
