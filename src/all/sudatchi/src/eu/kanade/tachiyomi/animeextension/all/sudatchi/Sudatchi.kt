@@ -58,11 +58,11 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val titleLang = preferences.title
-        return response.parseAs<SeriesDto>().let {
+        return response.parseAs<SeriesDto>().let { series ->
             AnimesPage(
-                it.results.map { it.toSAnime(titleLang) }
+                series.results.map { it.toSAnime(titleLang) }
                     .filterNot { it.status == SAnime.LICENSED },
-                it.hasNextPage,
+                series.hasNextPage,
             )
         }
     }
@@ -75,8 +75,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         val titleLang = preferences.title
         return AnimesPage(
             response.parseAs<HomePageDto>().latestEpisodes
-                .map { it.toSAnime(titleLang, baseUrl) }
-                .filterNot { it.status == SAnime.LICENSED },
+                .map { it.toSAnime(titleLang, baseUrl) },
             false,
         )
     }
