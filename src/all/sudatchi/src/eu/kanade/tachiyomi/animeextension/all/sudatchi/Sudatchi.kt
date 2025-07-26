@@ -165,6 +165,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     override fun episodeListParse(response: Response): List<SEpisode> {
         val anime = response.parseAs<AnimeDetailDto>()
         return anime.episodes.map { it.toEpisode(animeId = anime.id) }.reversed()
+            .ifEmpty { throw IllegalStateException("No episodes found") }
     }
 
     // ============================ Video Links =============================
@@ -174,9 +175,9 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun videoListParse(response: Response): List<Video> {
         val episodeId = response.request.url.queryParameter("episode")?.toIntOrNull()
-            ?: throw Exception("Episode ID not found in request URL")
+            ?: throw IllegalStateException("Episode ID not found in request URL")
         val episode = response.parseAs<AnimeDetailDto>().episodes.firstOrNull { it.id == episodeId }
-            ?: throw Exception("Episode not found")
+            ?: throw IllegalStateException("Episode not found")
 
         val videoUrl = "$baseUrl/api/streams?episodeId=$episodeId"
 
