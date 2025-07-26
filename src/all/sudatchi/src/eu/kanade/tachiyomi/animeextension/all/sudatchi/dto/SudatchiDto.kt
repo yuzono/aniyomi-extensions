@@ -128,9 +128,9 @@ data class AnimeDetailDto(
 
 private fun String.parseStatus() = when (this) {
     "LICENSED" -> SAnime.LICENSED // Not Yet Released
-    "AIRING" -> SAnime.ONGOING
-    "RELEASING" -> SAnime.ONGOING
+    "AIRING", "RELEASING" -> SAnime.ONGOING
     "FINISHED" -> SAnime.COMPLETED
+    "CANCELLED" -> SAnime.CANCELLED
     else -> SAnime.UNKNOWN
 }
 
