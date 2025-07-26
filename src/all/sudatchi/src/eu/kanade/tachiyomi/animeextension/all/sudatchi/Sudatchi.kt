@@ -202,7 +202,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
                     ?: episode.subtitles?.map {
                         Track(
                             url = buildSubtitleUrl(it.url),
-                            lang = "${it.language ?: "???"} (${it.language ?: "???"})",
+                            lang = it.language ?: "???",
                         )
                     }
                     ?: emptyList()
