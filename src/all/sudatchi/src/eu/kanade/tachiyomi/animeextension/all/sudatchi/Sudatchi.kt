@@ -39,7 +39,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val supportsLatest = true
 
-    private val codeRegex by lazy { Regex("""\((.*)\)""") }
+    private val langCodeRegex by lazy { Regex("""\((.*)\)""") }
 
     private val preferences by getPreferencesLazy()
 
@@ -202,7 +202,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
                     ?: episode.subtitles?.map {
                         Track(
                             url = buildSubtitleUrl(it.url),
-                            lang = it.language ?: "???",
+                            lang = "${it.language ?: "???"} (${it.language ?: "???"})",
                         )
                     }
                     ?: emptyList()
@@ -215,8 +215,8 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         val subtitles = preferences.subtitles
         return sortedWith(
             compareBy(
-                { codeRegex.find(it.lang)!!.groupValues[1] != subtitles },
-                { codeRegex.find(it.lang)!!.groupValues[1] != PREF_SUBTITLES_DEFAULT },
+                { langCodeRegex.find(it.lang)!!.groupValues[1] != subtitles },
+                { langCodeRegex.find(it.lang)!!.groupValues[1] != PREF_SUBTITLES_DEFAULT },
                 { it.lang },
             ),
         )
