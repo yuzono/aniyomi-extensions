@@ -30,7 +30,7 @@ data class EpisodeDto(
     fun toSAnime(titleLang: String, baseUrl: String) = SAnime.create().apply {
         url = "/anime/$animeId"
         title = animeTitle?.getTitle(titleLang) ?: this@EpisodeDto.title
-        thumbnail_url = "$baseUrl$coverImage"
+        thumbnail_url = coverImage?.let { "$baseUrl$it" }
     }
 }
 
