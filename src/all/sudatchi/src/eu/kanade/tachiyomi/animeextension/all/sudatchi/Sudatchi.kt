@@ -215,8 +215,8 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
         val subtitles = preferences.subtitles
         return sortedWith(
             compareBy(
-                { langCodeRegex.find(it.lang)!!.groupValues[1] != subtitles },
-                { langCodeRegex.find(it.lang)!!.groupValues[1] != PREF_SUBTITLES_DEFAULT },
+                { (langCodeRegex.find(it.lang)?.groupValues?.get(1) ?: it.lang) != subtitles },
+                { (langCodeRegex.find(it.lang)?.groupValues?.get(1) ?: it.lang) != PREF_SUBTITLES_DEFAULT },
                 { it.lang },
             ),
         )
