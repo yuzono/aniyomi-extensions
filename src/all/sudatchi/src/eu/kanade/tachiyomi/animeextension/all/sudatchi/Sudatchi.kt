@@ -213,13 +213,15 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
     @JvmName("trackSort")
     private fun List<Track>.sort(): List<Track> {
         val subtitles = preferences.subtitles
-        return sortedWith(
-            compareBy(
-                { (langCodeRegex.find(it.lang)?.groupValues?.get(1) ?: it.lang) != subtitles },
-                { (langCodeRegex.find(it.lang)?.groupValues?.get(1) ?: it.lang) != PREF_SUBTITLES_DEFAULT },
-                { it.lang },
-            ),
-        )
+        return map { (langCodeRegex.find(it.lang)?.groupValues?.getOrNull(1) ?: it.lang) to it }
+            .sortedWith(
+                compareBy(
+                    { it.first != subtitles },
+                    { it.first != PREF_SUBTITLES_DEFAULT },
+                    { it.first },
+                ),
+            )
+            .map { it.second }
     }
 
     override fun List<Video>.sort(): List<Video> {
