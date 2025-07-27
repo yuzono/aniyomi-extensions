@@ -6,12 +6,11 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.asObservableSuccess
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.Request
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import rx.Observable
 
 class NineAnimeTv : ZoroTheme(
     "en",
@@ -36,11 +35,10 @@ class NineAnimeTv : ZoroTheme(
 
     private val topViewSelector = "#top-viewed-month li, #top-viewed-week li, #top-viewed-day li"
 
-    @Suppress("OVERRIDE_DEPRECATION")
-    override fun fetchPopularAnime(page: Int): Observable<AnimesPage> {
+    override suspend fun getPopularAnime(page: Int): AnimesPage {
         return client.newCall(popularAnimeRequest(page))
-            .asObservableSuccess()
-            .map { response ->
+            .awaitSuccess()
+            .use { response ->
                 if (page == 1) {
                     val document = response.asJsoup()
 

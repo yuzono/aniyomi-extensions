@@ -37,11 +37,15 @@ import extensions.utils.parseAs
 import extensions.utils.post
 import extensions.utils.toJsonBody
 import extensions.utils.toRequestBody
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -53,8 +57,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Response
 import org.apache.commons.text.StringSubstitutor
-import rx.Single
-import rx.schedulers.Schedulers
 import java.io.IOException
 import java.security.MessageDigest
 
@@ -710,6 +712,8 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
         preferences.apiKey = ""
     }
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    var loginJob: Job? = null
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val mediaLibrarySummary: (String) -> String = {
             if (it.isBlank()) {
@@ -747,14 +751,13 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
         }
 
         fun logIn() {
-            Single.fromCallable {
-                handler.post {
-                    mediaLibraryPref.setEnabled(false)
-                    mediaLibraryPref.summary = "Loading..."
-                    clearCredentials()
-                }
+            mediaLibraryPref.setEnabled(false)
+            mediaLibraryPref.summary = "Loading..."
+            clearCredentials()
 
-                runBlocking(Dispatchers.IO) {
+            loginJob?.cancel()
+            loginJob = scope.launch {
+                try {
                     val loginDto = authenticate(preferences.username, preferences.password)
 
                     preferences.userId = loginDto.sessionInfo.userId
@@ -766,37 +769,33 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
                         addPathSegment("Items")
                     }.build()
 
-                    client.get(getLibrariesUrl).parseAs<ItemListDto>()
+                    val libraryList = client.get(getLibrariesUrl).parseAs<ItemListDto>()
+                        .items
+                        .filterNot { it.collectionType in LIBRARY_BLACKLIST }
+                        .map { MediaLibraryDto(it.name, it.id) }
+                    val libraryListJson = json.encodeToString<List<MediaLibraryDto>>(libraryList)
+
+                    displayToast("Login successful")
+
+                    handler.post {
+                        preferences.libraryList = libraryListJson
+                        onCompleteLogin(true)
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+
+                    val message = when {
+                        e is HttpException && e.code == 401 -> "Invalid credentials"
+                        else -> e.message
+                    }
+
+                    Log.e(LOG_TAG, "Failed to login", e)
+                    displayToast("Login failed: $message")
+                    handler.post {
+                        onCompleteLogin(false)
+                    }
                 }
             }
-                .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .subscribe(
-                    { libraryListDto ->
-                        val libraryList = libraryListDto.items
-                            .filterNot { it.collectionType in LIBRARY_BLACKLIST }
-                            .map { MediaLibraryDto(it.name, it.id) }
-
-                        displayToast("Login successful")
-
-                        handler.post {
-                            preferences.libraryList = json.encodeToString<List<MediaLibraryDto>>(libraryList)
-                            onCompleteLogin(true)
-                        }
-                    },
-                    { e ->
-                        val message = when {
-                            e is HttpException && e.code == 401 -> "Invalid credentials"
-                            else -> e.message
-                        }
-
-                        Log.e(LOG_TAG, "Failed to login", e)
-                        displayToast("Login failed: $message")
-                        handler.post {
-                            onCompleteLogin(false)
-                        }
-                    },
-                )
         }
 
         if (suffix == "1") {
