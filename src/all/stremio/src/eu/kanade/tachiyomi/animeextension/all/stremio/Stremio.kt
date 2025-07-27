@@ -28,18 +28,18 @@ import extensions.utils.get
 import extensions.utils.getSwitchPreference
 import extensions.utils.post
 import extensions.utils.toRequestBody
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.apache.commons.text.StringSubstitutor
-import rx.Single
-import rx.schedulers.Schedulers
 
 class Stremio : Source() {
     override val migration: SharedPreferences.() -> Unit = {
@@ -369,7 +369,7 @@ class Stremio : Source() {
 
     override fun getFilterList(): AnimeFilterList {
         if (preferences.authKey.isNotBlank() && preferences.fetchLibrary) {
-            CoroutineScope(Dispatchers.IO).launch { fetchLibrary() }
+            scope.launch { fetchLibrary() }
         }
 
         val filters = buildList<AnimeFilter<*>> {
@@ -675,6 +675,8 @@ class Stremio : Source() {
             .apply()
     }
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    var loginJob: Job? = null
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val logOutSummary: (String) -> String = {
             if (it.isBlank()) {
@@ -781,14 +783,13 @@ class Stremio : Source() {
         }
 
         fun logIn() {
-            Single.fromCallable {
-                handler.post {
-                    logOutPref.setEnabled(false)
-                    logOutPref.summary = "Loading..."
-                    preferences.clearCredentials()
-                }
+            logOutPref.setEnabled(false)
+            logOutPref.summary = "Loading..."
+            preferences.clearCredentials()
 
-                runBlocking(Dispatchers.IO) {
+            loginJob?.cancel()
+            loginJob = scope.launch {
+                try {
                     val body = buildJsonObject {
                         put("email", preferences.email)
                         put("facebook", false)
@@ -796,29 +797,24 @@ class Stremio : Source() {
                         put("type", "Login")
                     }.toRequestBody()
 
-                    client.post("$API_URL/api/login", body = body).parseAs<ResultDto<LoginDto>>()
+                    val loginDto = client.post("$API_URL/api/login", body = body).parseAs<ResultDto<LoginDto>>()
+                    val authKey = loginDto.result.authKey
+
+                    displayToast("Login successful")
+                    handler.post {
+                        preferences.authKey = authKey
+                        onCompleteLogin(true)
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+
+                    Log.e(LOG_TAG, "Failed to login", e)
+                    displayToast("Login failed")
+                    handler.post {
+                        onCompleteLogin(false)
+                    }
                 }
             }
-                .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.io())
-                .subscribe(
-                    { loginDto ->
-                        val authKey = loginDto.result.authKey
-
-                        displayToast("Login successful")
-                        handler.post {
-                            preferences.authKey = authKey
-                            onCompleteLogin(true)
-                        }
-                    },
-                    { e ->
-                        Log.e(LOG_TAG, "Failed to login", e)
-                        displayToast("Login failed")
-                        handler.post {
-                            onCompleteLogin(false)
-                        }
-                    },
-                )
         }
 
         val emailSummary: (String) -> String = { it.ifBlank { "Log in with account (optional)" } }
