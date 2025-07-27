@@ -358,7 +358,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         private val PREF_DOMAIN_ENTRIES = arrayOf("kaa.to")
         private val PREF_DOMAIN_ENTRY_VALUES = PREF_DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
         private val PREF_DOMAIN_DEFAULT = PREF_DOMAIN_ENTRY_VALUES[0]
-        
         private const val PREF_HOSTER_KEY = "hoster_selection"
         private const val PREF_HOSTER_TITLE = "Enable/Disable Hosts"
         private val PREF_HOSTER_DEFAULT = SERVERS.toSet()
