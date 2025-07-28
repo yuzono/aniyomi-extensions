@@ -11,7 +11,7 @@ import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.multisrc.animestream.AnimeStream
-import keiyoushi.utils.getPreferencesLazy
+import extensions.utils.getPreferencesLazy
 
 class AnimeYTES : AnimeStream(
     "es",

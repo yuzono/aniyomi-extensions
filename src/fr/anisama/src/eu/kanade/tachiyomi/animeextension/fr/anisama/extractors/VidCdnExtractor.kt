@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.animeextension.fr.anisama.extractors
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.parseAs
-import keiyoushi.utils.commonEmptyHeaders
+import extensions.utils.commonEmptyHeaders
 import kotlinx.serialization.Serializable
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
