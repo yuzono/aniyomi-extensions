@@ -42,7 +42,7 @@ data class AnimeInfoDto(
     val season: String,
     val slug: String,
     val status: String,
-    val synopsis: String,
+    val synopsis: String?,
     val title: String,
     val title_en: String = "",
     val year: Int,
