@@ -15,7 +15,7 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parseAs
-import keiyoushi.utils.getPreferencesLazy
+import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject

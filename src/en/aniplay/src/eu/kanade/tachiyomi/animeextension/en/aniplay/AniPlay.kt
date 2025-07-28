@@ -17,7 +17,7 @@ import eu.kanade.tachiyomi.multisrc.anilist.AniListAnimeHttpSource
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parseAs
-import keiyoushi.utils.getPreferencesLazy
+import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import okhttp3.Headers

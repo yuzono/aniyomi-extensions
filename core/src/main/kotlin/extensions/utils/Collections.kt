@@ -1,4 +1,8 @@
-package keiyoushi.utils
+@file:Suppress("unused")
+
+package extensions.utils
+
+// From https://github.com/keiyoushi/extensions-source/blob/main/core/src/main/kotlin/keiyoushi/utils/Collections.kt
 
 /**
  * Returns the first element that is an instances of specified type parameter T.

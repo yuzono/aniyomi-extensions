@@ -35,7 +35,7 @@ android {
 
 dependencies {
     compileOnly(versionCatalogs.named("libs").findBundle("common").get())
-    implementation(project(":utils"))
+    implementation(project(":core"))
 }
 
 tasks {
