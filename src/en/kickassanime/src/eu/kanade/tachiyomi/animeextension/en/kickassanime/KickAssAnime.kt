@@ -381,13 +381,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = PREF_DOMAIN_ENTRY_VALUES
             setDefaultValue(PREF_DOMAIN_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         SwitchPreferenceCompat(screen.context).apply {
@@ -395,11 +388,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             title = PREF_USE_ENGLISH_TITLE
             summary = PREF_USE_ENGLISH_SUMMARY
             setDefaultValue(PREF_USE_ENGLISH_DEFAULT)
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val new = newValue as Boolean
-                preferences.edit().putBoolean(key, new).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
@@ -409,12 +397,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = LOCALE.map { it.first }.toTypedArray()
             setDefaultValue(PREF_AUDIO_LANG_DEFAULT)
             summary = "%s"
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
@@ -433,12 +415,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = PREF_QUALITY_ENTRIES
             setDefaultValue(PREF_QUALITY_DEFAULT)
             summary = "%s"
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
@@ -448,12 +424,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = PREF_SERVER_VALUES
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         MultiSelectListPreference(screen.context).apply {
@@ -462,11 +432,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             entries = SERVERS
             entryValues = SERVERS
             setDefaultValue(PREF_HOSTER_DEFAULT)
-
-            setOnPreferenceChangeListener { _, newValue ->
-                @Suppress("UNCHECKED_CAST")
-                preferences.edit().putStringSet(key, newValue as Set<String>).commit()
-            }
         }.also(screen::addPreference)
     }
 }
