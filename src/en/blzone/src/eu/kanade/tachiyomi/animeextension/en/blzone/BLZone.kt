@@ -178,7 +178,7 @@ class BLZone : AnimeHttpSource() {
 
         val videos = mutableListOf<Video>()
         serverBoxes.forEachIndexed { index, box ->
-            val serverName = serverNames.getOrNull(index) ?: "server${index + 1}"
+            val serverName = serverNames.getOrElse(index) { "server${index + 1}" }
             if (serverName !in supportedServers) return@forEachIndexed
 
             val iframe = box.selectFirst("iframe.metaframe")
