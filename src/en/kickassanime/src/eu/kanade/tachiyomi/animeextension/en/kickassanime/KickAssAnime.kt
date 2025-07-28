@@ -27,6 +27,9 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parseAs
 import keiyoushi.utils.getPreferencesLazy
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -90,7 +93,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // --- FIXED EPISODE RETRIEVAL LOGIC ---
-    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
+    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> = coroutineScope {
         // Fetch what languages are available for this anime
         val languages = client.newCall(
             GET("$apiUrl${anime.url}/language"),
@@ -110,11 +113,11 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             val firstResponse = runCatching { getEpisodeResponse(anime, 1, lang) }.getOrNull()
             if (firstResponse == null || firstResponse.result.isEmpty()) continue
 
-            val items = buildList {
-                addAll(firstResponse.result)
-                firstResponse.pages.drop(1).forEachIndexed { idx, _ ->
-                    addAll(getEpisodeResponse(anime, idx + 2, lang).result)
+            val items = run {
+                val deferredPages = List(firstResponse.pages.drop(1).size) { idx ->
+                    async { getEpisodeResponse(anime, idx + 2, lang).result }
                 }
+                firstResponse.result + deferredPages.awaitAll().flatten()
             }
 
             if (items.isNotEmpty()) {
@@ -131,7 +134,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         // If nothing was found, return empty list
-        return foundEpisodes ?: emptyList()
+        foundEpisodes ?: emptyList()
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
@@ -180,7 +183,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             genre = anime.genres.joinToString()
             status = anime.status.parseStatus()
             description = buildString {
-                append(anime.synopsis + "\n\n")
+                anime.synopsis?.let { append(it + "\n\n") }
                 append("Available Dub Languages: ${languages.result.joinToString(", ") { t -> t.getLocale() }}\n")
                 append(
                     "Season: ${anime.season.replaceFirstChar {
