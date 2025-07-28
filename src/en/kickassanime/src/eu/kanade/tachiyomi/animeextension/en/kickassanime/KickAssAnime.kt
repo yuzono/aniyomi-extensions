@@ -326,7 +326,15 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
-        private val SERVERS = arrayOf("DuckStream", "BirdStream", "VidStreaming")
+        private val SERVERS = arrayOf("VidStreaming", "DuckStream", "BirdStream")
+
+        // Add new locales to the bottom so it doesn't mess with pref indexes
+        private val LOCALE = arrayOf(
+            Pair("ja-JP", "Japanese"),
+            Pair("en-US", "English"),
+            Pair("es-ES", "Spanish (España)"),
+            Pair("ko-KR", "Korean"),
+        )
 
         const val PREFIX_SEARCH = "slug:"
 
@@ -342,21 +350,15 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_AUDIO_LANG_KEY = "preferred_audio_lang"
         private const val PREF_AUDIO_LANG_TITLE = "Preferred audio language"
-        private const val PREF_AUDIO_LANG_DEFAULT = "ja-JP"
+        private val PREF_AUDIO_LANG_DEFAULT = LOCALE[0].first
 
-        // Add new locales to the bottom so it doesn't mess with pref indexes
-        private val LOCALE = arrayOf(
-            Pair("en-US", "English"),
-            Pair("es-ES", "Spanish (España)"),
-            Pair("ja-JP", "Japanese"),
-        )
         private const val PREF_AUDIO_LANG_KEY_2ND = "preferred_audio_lang_2nd"
         private const val PREF_AUDIO_LANG_TITLE_2ND = "Secondary preferred audio language"
         private val PREF_AUDIO_LANG_DEFAULT_2ND = LOCALE[1].first
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_TITLE = "Preferred server"
-        private const val PREF_SERVER_DEFAULT = "DuckStream"
+        private val PREF_SERVER_DEFAULT = SERVERS[0]
         private val PREF_SERVER_VALUES = SERVERS
 
         private const val PREF_DOMAIN_KEY = "preferred_domain"
@@ -364,6 +366,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         private val PREF_DOMAIN_ENTRIES = arrayOf("kaa.to")
         private val PREF_DOMAIN_ENTRY_VALUES = PREF_DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
         private val PREF_DOMAIN_DEFAULT = PREF_DOMAIN_ENTRY_VALUES[0]
+
         private const val PREF_HOSTER_KEY = "hoster_selection"
         private const val PREF_HOSTER_TITLE = "Enable/Disable Hosts"
         private val PREF_HOSTER_DEFAULT = SERVERS.toSet()
