@@ -63,8 +63,8 @@ class BLZone : AnimeHttpSource() {
     private fun popularAnimeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
         val poster = element.selectFirst(".poster")
-        val link = poster?.selectFirst("a")?.attr("href") ?: ""
-        val img = poster?.selectFirst("img")
+        val link = poster?.selectFirst("a")?.attr("href")!!
+        val img = poster.selectFirst("img")
         anime.title = img?.attr("alt") ?: element.selectFirst("h3 a")?.text() ?: "No title"
         anime.thumbnail_url = img?.attr("src")
         anime.setUrlWithoutDomain(link)
@@ -83,11 +83,10 @@ class BLZone : AnimeHttpSource() {
         animeList.addAll(document.select(".items.full .item.tvshows").map { latestAnimeFromElement(it) })
 
         if (response.request.url.encodedPath.endsWith("/anime/")) {
-            try {
+            runCatching {
                 val dramaResponse = client.newCall(GET("$baseUrl/dorama/", headers)).execute()
                 val dramaDoc = dramaResponse.asJsoup()
                 animeList.addAll(dramaDoc.select(".items.full .item.tvshows").map { latestAnimeFromElement(it) })
-            } catch (_: Exception) {
             }
         }
         return AnimesPage(animeList, hasNextPage = hasNextPage(document))
@@ -123,7 +122,7 @@ class BLZone : AnimeHttpSource() {
     private fun searchAnimeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
         val img = element.selectFirst(".thumbnail img")
-        val link = element.selectFirst(".thumbnail a")?.attr("href") ?: ""
+        val link = element.selectFirst(".thumbnail a")?.attr("href")!!
         anime.title = img?.attr("alt") ?: element.selectFirst(".title a")?.text() ?: "No title"
         anime.thumbnail_url = img?.attr("src")
         anime.setUrlWithoutDomain(link)
@@ -135,14 +134,18 @@ class BLZone : AnimeHttpSource() {
         val document = response.asJsoup()
         val anime = SAnime.create()
         val poster = document.selectFirst(".sheader .poster img")
-        anime.title = document.selectFirst(".sheader .data h1")?.text() ?: poster?.attr("alt") ?: ""
+        (document.selectFirst(".sheader .data h1")?.text() ?: poster?.attr("alt"))?.let {
+            anime.title = it
+        }
         anime.thumbnail_url = poster?.attr("src")
         anime.genre = document.select(".sheader .sgeneros a").joinToString { it.text() }
-        anime.description = document.selectFirst(".sbox .wp-content p")?.text() ?: ""
+        val desc = document.selectFirst(".sbox .wp-content p")?.text()
+            ?.takeIf { it.isNotBlank() }
         val altTitle = document.selectFirst(".custom_fields b.variante:contains(Original Title) + span.valor")?.text()
-        if (!altTitle.isNullOrBlank()) {
-            anime.description += "\n\nOriginal Title: $altTitle"
-        }
+            ?.takeIf { it.isNotBlank() }
+        anime.description = listOfNotNull(desc, altTitle)
+            .joinToString("\n\n")
+            .ifBlank { "No description available." }
         return anime
     }
 
@@ -152,14 +155,15 @@ class BLZone : AnimeHttpSource() {
         return document.select("#episodes ul.episodios2 > li").map { episodeFromElement(it) }.reversed()
     }
 
+    private val episodeNumRegex = Regex("""Episode (\d+)""", RegexOption.IGNORE_CASE)
+
     private fun episodeFromElement(element: Element): SEpisode {
         val ep = SEpisode.create()
-        val link = element.selectFirst(".episodiotitle a")?.attr("href") ?: ""
+        val link = element.selectFirst(".episodiotitle a")?.attr("href")!!
         ep.setUrlWithoutDomain(link)
         ep.name = element.selectFirst(".episodiotitle a")?.text() ?: "Episode"
-        val episodeNum = Regex("""Episode (\d+)""", RegexOption.IGNORE_CASE).find(ep.name)?.groupValues?.getOrNull(1)
-        ep.episode_number = episodeNum?.toFloatOrNull() ?: 1f
-        ep.date_upload = 0L
+        val episodeNum = episodeNumRegex.find(ep.name)?.groupValues?.getOrNull(1)
+        episodeNum?.toFloatOrNull()?.let { ep.episode_number = it }
         return ep
     }
 
