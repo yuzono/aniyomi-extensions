@@ -27,9 +27,11 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parseAs
 import keiyoushi.utils.getPreferencesLazy
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -113,12 +115,16 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         var foundEpisodes: List<SEpisode>? = null
 
         for (lang in langOrder) {
-            val firstResponse = runCatching { getEpisodeResponse(anime, 1, lang) }.getOrNull()
+            val firstResponse = withContext(Dispatchers.IO) {
+                runCatching {
+                    getEpisodeResponse(anime, 1, lang)
+                }.getOrNull()
+            }
             if (firstResponse == null || firstResponse.result.isEmpty()) continue
 
             val items = run {
                 val deferredPages = List(firstResponse.pages.drop(1).size) { idx ->
-                    async { getEpisodeResponse(anime, idx + 2, lang).result }
+                    async(Dispatchers.IO) { getEpisodeResponse(anime, idx + 2, lang).result }
                 }
                 firstResponse.result + deferredPages.awaitAll().flatten()
             }
