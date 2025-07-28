@@ -18,6 +18,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.nio.charset.StandardCharsets
 
 class BLZone : AnimeHttpSource() {
 
@@ -55,8 +56,10 @@ class BLZone : AnimeHttpSource() {
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
         val animeList = mutableListOf<SAnime>()
-        animeList.addAll(document.select("#dt-tvshows .item.tvshows").map { popularAnimeFromElement(it) })
-        animeList.addAll(document.select("#dt-movies .item.tvshows").map { popularAnimeFromElement(it) })
+        animeList.addAll(
+            document.select("#dt-tvshows .item.tvshows, #dt-movies .item.tvshows")
+                .map { popularAnimeFromElement(it) },
+        )
         return AnimesPage(animeList, hasNextPage = false)
     }
 
@@ -136,7 +139,7 @@ class BLZone : AnimeHttpSource() {
         anime.genre = document.select(".sheader .sgeneros a").joinToString { it.text() }
         anime.description = document.selectFirst(".sbox .wp-content p")?.text() ?: ""
         val altTitle = document.selectFirst(".custom_fields b.variante:contains(Original Title) + span.valor")?.text()
-        if (altTitle != null && altTitle.isNotBlank()) {
+        if (!altTitle.isNullOrBlank()) {
             anime.description += "\n\nOriginal Title: $altTitle"
         }
         return anime
@@ -153,7 +156,7 @@ class BLZone : AnimeHttpSource() {
         val link = element.selectFirst(".episodiotitle a")?.attr("href") ?: ""
         ep.setUrlWithoutDomain(link)
         ep.name = element.selectFirst(".episodiotitle a")?.text() ?: "Episode"
-        val episodeNum = Regex("""Episode (\d+)""", RegexOption.IGNORE_CASE).find(ep.name!!)?.groupValues?.getOrNull(1)
+        val episodeNum = Regex("""Episode (\d+)""", RegexOption.IGNORE_CASE).find(ep.name)?.groupValues?.getOrNull(1)
         ep.episode_number = episodeNum?.toFloatOrNull() ?: 1f
         ep.date_upload = 0L
         return ep
@@ -181,7 +184,7 @@ class BLZone : AnimeHttpSource() {
             val src = iframe?.attr("src")?.trim().orEmpty()
             if (src.isBlank()) return@forEachIndexed
             val videoUrl = if (src.contains("/diclaimer/?url=")) {
-                java.net.URLDecoder.decode(src.substringAfter("/diclaimer/?url="), "UTF-8")
+                java.net.URLDecoder.decode(src.substringAfter("/diclaimer/?url="), StandardCharsets.UTF_8.name())
             } else {
                 src
             }
