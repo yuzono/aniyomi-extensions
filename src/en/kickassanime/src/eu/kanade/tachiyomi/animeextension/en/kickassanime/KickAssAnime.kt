@@ -92,7 +92,6 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             .parseAs()
     }
 
-    // --- FIXED EPISODE RETRIEVAL LOGIC ---
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> = coroutineScope {
         // Fetch what languages are available for this anime
         val languages = client.newCall(
@@ -100,12 +99,16 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         ).awaitSuccess().parseAs<LanguagesDto>().result
 
         val prefLang = preferences.getString(PREF_AUDIO_LANG_KEY, PREF_AUDIO_LANG_DEFAULT)!!
+        val pref2ndLang = preferences.getString(PREF_AUDIO_LANG_KEY_2ND, PREF_AUDIO_LANG_DEFAULT_2ND)!!
 
         // Try preferred language first, then others
-        val langOrder = buildList {
-            add(prefLang)
-            addAll(languages.filter { it != prefLang })
-        }.distinct()
+        val langOrder = languages
+            .sortedWith(
+                compareBy(
+                    { it != prefLang },
+                    { it != pref2ndLang },
+                ),
+            )
 
         var foundEpisodes: List<SEpisode>? = null
 
@@ -347,6 +350,9 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             Pair("es-ES", "Spanish (España)"),
             Pair("ja-JP", "Japanese"),
         )
+        private const val PREF_AUDIO_LANG_KEY_2ND = "preferred_audio_lang_2nd"
+        private const val PREF_AUDIO_LANG_TITLE_2ND = "Secondary preferred audio language"
+        private val PREF_AUDIO_LANG_DEFAULT_2ND = LOCALE[1].first
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_TITLE = "Preferred server"
@@ -406,6 +412,15 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
                 val entry = entryValues[index] as String
                 preferences.edit().putString(key, entry).commit()
             }
+        }.also(screen::addPreference)
+
+        ListPreference(screen.context).apply {
+            key = PREF_AUDIO_LANG_KEY_2ND
+            title = PREF_AUDIO_LANG_TITLE_2ND
+            entries = LOCALE.map { it.second }.toTypedArray()
+            entryValues = LOCALE.map { it.first }.toTypedArray()
+            setDefaultValue(PREF_AUDIO_LANG_DEFAULT_2ND)
+            summary = "%s"
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
