@@ -1,5 +1,4 @@
 ext {
-    extKmkVersionCode = 1
     extName = 'BLZone'
     extClass = '.BLZone'
     extVersionCode = 1

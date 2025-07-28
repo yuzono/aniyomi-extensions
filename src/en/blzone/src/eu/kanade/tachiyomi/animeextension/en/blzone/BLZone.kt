@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.asJsoup
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -28,26 +29,22 @@ class BLZone : AnimeHttpSource() {
     override val supportsLatest = true
 
     // ---- FILTERS ----
-    private enum class Type(val path: String, val display: String) {
-        ANIME("anime", "Anime"),
-        DRAMA("dorama", "Drama"),
-        BOTH("", "Both"),
-    }
-
-    private class TypeFilter : AnimeFilter.Select<String>(
-        "Type",
-        arrayOf(Type.BOTH.display, Type.ANIME.display, Type.DRAMA.display),
-    )
-
     override fun getFilterList(): AnimeFilterList = AnimeFilterList(TypeFilter())
 
-    private fun getTypeFromFilters(filters: AnimeFilterList): Type {
-        val typeIndex = (filters.getOrNull(0) as? AnimeFilter.Select<*>)?.state ?: 0
-        return when (typeIndex) {
-            1 -> Type.ANIME
-            2 -> Type.DRAMA
-            else -> Type.BOTH
-        }
+    private class TypeFilter : UriPartFilter(
+        "Type",
+        arrayOf(
+            Pair("Both", ""),
+            Pair("Anime", "anime"),
+            Pair("Drama", "dorama"),
+        ),
+    )
+
+    open class UriPartFilter(displayName: String, private val vals: Array<Pair<String, String>>) :
+        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
+        fun toUriPart() = vals[state].second
+        fun isEmpty() = vals[state].second == ""
+        fun isDefault() = state == 0
     }
 
     // ---- POPULAR ----
@@ -104,13 +101,17 @@ class BLZone : AnimeHttpSource() {
 
     // ---- SEARCH ----
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val type = getTypeFromFilters(filters)
-        val q = query.trim()
-        return when (type) {
-            Type.ANIME -> GET("$baseUrl/anime/?s=$q", headers)
-            Type.DRAMA -> GET("$baseUrl/dorama/?s=$q", headers)
-            Type.BOTH -> GET("$baseUrl/?s=$q", headers)
-        }
+        val typeFilter = filters.filterIsInstance<TypeFilter>().firstOrNull()
+        val url = baseUrl.toHttpUrl()
+            .newBuilder().apply {
+                if (typeFilter != null && !typeFilter.isDefault()) {
+                    addPathSegment(typeFilter.toUriPart())
+                    addPathSegment("")
+                }
+                addQueryParameter("s", query.trim())
+            }
+            .build()
+        return GET(url.toString(), headers)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
