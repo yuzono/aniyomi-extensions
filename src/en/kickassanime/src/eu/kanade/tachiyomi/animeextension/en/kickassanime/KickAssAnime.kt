@@ -122,14 +122,14 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             }
             if (firstResponse == null || firstResponse.result.isEmpty()) continue
 
-            val items = run {
+            val items = runCatching {
                 val deferredPages = List(firstResponse.pages.drop(1).size) { idx ->
                     async(Dispatchers.IO) { getEpisodeResponse(anime, idx + 2, lang).result }
                 }
                 firstResponse.result + deferredPages.awaitAll().flatten()
-            }
+            }.getOrNull()
 
-            if (items.isNotEmpty()) {
+            if (!items.isNullOrEmpty()) {
                 foundEpisodes = items.map {
                     SEpisode.create().apply {
                         name = "Ep. ${it.episode_string} - ${it.title}"
@@ -334,8 +334,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     companion object {
         private val SERVERS = arrayOf("VidStreaming", "DuckStream", "BirdStream")
 
-        // Add new locales to the bottom so it doesn't mess with pref indexes
-        private val LOCALE = arrayOf(
+        private val LOCALE = listOf(
             Pair("ja-JP", "Japanese"),
             Pair("en-US", "English"),
             Pair("es-ES", "Spanish (España)"),
