@@ -6,7 +6,7 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
-import keiyoushi.utils.commonEmptyHeaders
+import extensions.utils.commonEmptyHeaders
 import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient

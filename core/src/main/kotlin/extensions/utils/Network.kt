@@ -1,4 +1,4 @@
-package keiyoushi.utils
+package extensions.utils
 
 import okhttp3.Headers
 import okhttp3.RequestBody.Companion.toRequestBody
