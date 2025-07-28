@@ -94,7 +94,7 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         // Fetch what languages are available for this anime
         val languages = client.newCall(
             GET("$apiUrl${anime.url}/language"),
-        ).execute().parseAs<LanguagesDto>().result
+        ).awaitSuccess().parseAs<LanguagesDto>().result
 
         val prefLang = preferences.getString(PREF_AUDIO_LANG_KEY, PREF_AUDIO_LANG_DEFAULT)!!
 
