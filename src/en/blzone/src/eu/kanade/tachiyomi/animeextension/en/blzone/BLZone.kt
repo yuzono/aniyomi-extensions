@@ -18,6 +18,12 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.getPreferencesLazy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -91,14 +97,16 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val document = response.asJsoup()
-        val animeList = mutableListOf<SAnime>()
-        animeList.addAll(document.select(".items.full .item.tvshows").map { latestAnimeFromElement(it) })
+        val animeList = document.select(".items.full .item.tvshows")
+            .map { latestAnimeFromElement(it) }.toMutableList()
 
         if (response.request.url.encodedPath.endsWith("/anime/")) {
             runCatching {
                 val dramaResponse = client.newCall(GET("$baseUrl/dorama/", headers)).execute()
                 val dramaDoc = dramaResponse.asJsoup()
-                animeList.addAll(dramaDoc.select(".items.full .item.tvshows").map { latestAnimeFromElement(it) })
+                animeList.addAll(
+                    dramaDoc.select(".items.full .item.tvshows").map { latestAnimeFromElement(it) },
+                )
             }
         }
         return AnimesPage(animeList, hasNextPage = hasNextPage(document))
@@ -191,42 +199,43 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
         val serverNames = document.select("#playeroptionsul li span.title").map { it.text().trim() }
         val serverBoxes = document.select(".dooplay_player .source-box").drop(1)
 
-        val videos = mutableListOf<Video>()
-        serverBoxes.forEachIndexed { index, box ->
+        return serverBoxes.mapIndexedNotNull { index, box ->
             val serverName = serverNames.getOrElse(index) { "server${index + 1}" }
             val serversNames = SERVER_LIST.firstOrNull { it.equals(serverName, ignoreCase = true) }
             if (serversNames == null) {
-                return@forEachIndexed
+                return@mapIndexedNotNull null
             }
 
             val iframe = box.selectFirst("iframe.metaframe")
             val src = iframe?.attr("src")?.trim().orEmpty()
-            if (src.isBlank()) return@forEachIndexed
+            if (src.isBlank()) return@mapIndexedNotNull null
             val videoUrl = if (src.contains("/diclaimer/?url=")) {
                 java.net.URLDecoder.decode(src.substringAfter("/diclaimer/?url="), StandardCharsets.UTF_8.name())
             } else {
                 src
             }
-            videos += Video(videoUrl, serversNames, videoUrl)
+            Video(videoUrl, serversNames, videoUrl)
         }
-        return videos.sort()
     }
 
     // ---- GET VIDEO LIST ----
+    private val scope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
+
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val response = client.newCall(GET(baseUrl + episode.url)).await()
         val videos = videoListParse(response)
 
-        val extractedVideos = mutableListOf<Video>()
-        for (video in videos) {
-            val currentExtracted = try {
-                serverVideoResolver(video.url)
-            } catch (e: Exception) {
-                emptyList<Video>()
-            }
-            extractedVideos.addAll(currentExtracted)
+        return coroutineScope {
+            videos.map { video ->
+                scope.async(Dispatchers.IO) {
+                    try {
+                        serverVideoResolver(video.url)
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                }
+            }.awaitAll().flatten()
         }
-        return extractedVideos
     }
 
     private fun serverVideoResolver(url: String): List<Video> {
