@@ -1,40 +1,107 @@
 package eu.kanade.tachiyomi.animeextension.all.jellyfin
 
-import android.content.SharedPreferences
-import android.text.Editable
-import android.text.TextWatcher
-import android.widget.Button
+import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
-import androidx.preference.EditTextPreference
-import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animeextension.all.jellyfin.dto.DeviceProfileDto
+import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.awaitSuccess
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromStream
+import okhttp3.CacheControl
+import okhttp3.FormBody
+import okhttp3.Headers
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import uy.kohesive.injekt.injectLazy
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit.MINUTES
+import kotlin.reflect.KProperty
 
-val SharedPreferences.username
-    get() = getString(Jellyfin.USERNAME_KEY, Jellyfin.USERNAME_DEFAULT)!!
+private val APP: Application by injectLazy()
+private val HANDLER by lazy { Handler(Looper.getMainLooper()) }
 
-val SharedPreferences.password
-    get() = getString(Jellyfin.PASSWORD_KEY, Jellyfin.PASSWORD_DEFAULT)!!
+fun displayToast(message: String, length: Int = Toast.LENGTH_SHORT) {
+    HANDLER.post {
+        Toast.makeText(APP, message, length).show()
+    }
+}
 
-val SharedPreferences.apiKey
-    get() = getString(Jellyfin.APIKEY_KEY, "")!!
+val JSON_INSTANCE: Json = Json {
+    isLenient = false
+    ignoreUnknownKeys = true
+    allowSpecialFloatingPointValues = true
+    namingStrategy = PascalCaseToCamelCase
+}
 
-fun SharedPreferences.clearCredentials() {
-    edit()
-        .remove(Jellyfin.APIKEY_KEY)
-        .remove(Jellyfin.USERID_KEY)
-        .apply()
+inline fun <reified T> Response.parseAs(): T {
+    return body.use { JSON_INSTANCE.decodeFromStream(it.byteStream()) }
+}
+
+fun JsonObject.toBody(): RequestBody {
+    return JSON_INSTANCE.encodeToString(this).toJsonBody()
+}
+
+fun String.toJsonBody(): RequestBody {
+    return this.toRequestBody("application/json; charset=utf-8".toMediaType())
+}
+
+private val NEWLINE_REGEX = Regex("""\n""")
+
+// From https://github.com/jellyfin/jellyfin-sdk-kotlin
+fun getAuthHeader(deviceInfo: Jellyfin.DeviceInfo, token: String? = null): String {
+    val params = arrayOf(
+        "Client" to deviceInfo.clientName,
+        "Version" to deviceInfo.version,
+        "DeviceId" to deviceInfo.id,
+        "Device" to deviceInfo.name,
+        "Token" to token,
+    )
+
+    return params
+        .filterNot { (_, value) -> value == null }
+        .joinToString(
+            separator = ", ",
+            prefix = "MediaBrowser ",
+            transform = { (key, value) ->
+                val value = value!!
+                    .trim()
+                    .replace(NEWLINE_REGEX, " ")
+                    .let { URLEncoder.encode(it, "UTF-8") }
+
+                """$key="$value""""
+            },
+        )
 }
 
 fun Long.formatBytes(): String = when {
-    this >= 1_000_000_000 -> "%.2f GB".format(this / 1_000_000_000.0)
-    this >= 1_000_000 -> "%.2f MB".format(this / 1_000_000.0)
-    this >= 1_000 -> "%.2f KB".format(this / 1_000.0)
-    this > 1 -> "$this bytes"
+    this >= 1_000_000_000L -> "%.2f GB".format(this / 1_000_000_000.0)
+    this >= 1_000_000L -> "%.2f MB".format(this / 1_000_000.0)
+    this >= 1_000L -> "%.2f KB".format(this / 1_000.0)
+    this > 1L -> "$this bytes"
     this == 1L -> "$this byte"
     else -> ""
+}
+
+fun String.getImageUrl(baseUrl: String, id: String): String {
+    return baseUrl.toHttpUrl().newBuilder().apply {
+        addPathSegment("Items")
+        addPathSegment(id)
+        addPathSegment("Images")
+        addPathSegment("Primary")
+        addQueryParameter("tag", this@getImageUrl)
+    }.build().toString()
 }
 
 object PascalCaseToCamelCase : JsonNamingStrategy {
@@ -47,109 +114,48 @@ object PascalCaseToCamelCase : JsonNamingStrategy {
     }
 }
 
-val JSON = Json {
-    ignoreUnknownKeys = true
-    namingStrategy = PascalCaseToCamelCase
-}
-
-inline fun <reified T> Response.parseAs(): T {
-    return JSON.decodeFromString(body.string())
-}
-
-fun PreferenceScreen.addEditTextPreference(
-    title: String,
-    default: String,
-    summary: String,
-    dialogMessage: String? = null,
-    inputType: Int? = null,
-    validate: ((String) -> Boolean)? = null,
-    validationMessage: String? = null,
-    key: String = title,
-    restartRequired: Boolean = false,
-    onComplete: () -> Unit = {},
-) {
-    EditTextPreference(context).apply {
-        this.key = key
-        this.title = title
-        this.summary = summary
-        this.setDefaultValue(default)
-        dialogTitle = title
-        this.dialogMessage = dialogMessage
-
-        setOnBindEditTextListener { editText ->
-            if (inputType != null) {
-                editText.inputType = inputType
-            }
-
-            if (validate != null) {
-                editText.addTextChangedListener(
-                    object : TextWatcher {
-                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-                        override fun afterTextChanged(editable: Editable?) {
-                            requireNotNull(editable)
-
-                            val text = editable.toString()
-                            val isValid = text.isBlank() || validate(text)
-
-                            editText.error = if (!isValid) validationMessage else null
-                            editText.rootView.findViewById<Button>(android.R.id.button1)
-                                ?.isEnabled = editText.error == null
-                        }
-                    },
-                )
-            }
-        }
-
-        setOnPreferenceChangeListener { _, newValue ->
-            try {
-                val text = newValue as String
-                val result = text.isBlank() || validate?.invoke(text) ?: true
-
-                if (restartRequired && result) {
-                    Toast.makeText(context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
-                }
-
-                onComplete()
-
-                result
-            } catch (e: Exception) {
-                e.printStackTrace()
-                false
-            }
-        }
-    }.also(::addPreference)
-}
-
 object Constants {
-    val QUALITIES_LIST = arrayOf(
-        Quality(3840, 2160, 120000000, 192000, "4K - 120 Mbps"),
-        Quality(3840, 2160, 80000000, 192000, "4K - 80 Mbps"),
-        Quality(1920, 1080, 59808000, 192000, "1080p - 60 Mbps"),
-        Quality(1920, 1080, 39808000, 192000, "1080p - 40 Mbps"),
-        Quality(1920, 1080, 19808000, 192000, "1080p - 20 Mbps"),
-        Quality(1920, 1080, 14808000, 192000, "1080p - 15 Mbps"),
-        Quality(1920, 1080, 9808000, 192000, "1080p - 10 Mbps"),
-        Quality(1280, 720, 7808000, 192000, "720p - 8 Mbps"),
-        Quality(1280, 720, 5808000, 192000, "720p - 6 Mbps"),
-        Quality(1280, 720, 3808000, 192000, "720p - 4 Mbps"),
-        Quality(854, 480, 2808000, 192000, "480p - 3 Mbps"),
-        Quality(854, 480, 1308000, 192000, "480p - 1.5 Mbps"),
-        Quality(854, 480, 528000, 192000, "480p - 720 kbps"),
-        Quality(480, 360, 292000, 128000, "360p - 420 kbps"),
+    val QUALITY_MIGRATION_MAP = mapOf(
+        "4K - 120 Mbps" to 120_000_000L,
+        "4K - 80 Mbps" to 80_000_000L,
+        "1080p - 60 Mbps" to 60_000_000L,
+        "1080p - 40 Mbps" to 40_000_000L,
+        "1080p - 20 Mbps" to 20_000_000L,
+        "1080p - 15 Mbps" to 15_000_000L,
+        "1080p - 10 Mbps" to 10_000_000L,
+        "720p - 8 Mbps" to 8_000_000L,
+        "720p - 6 Mbps" to 6_000_000L,
+        "720p - 4 Mbps" to 4_000_000L,
+        "480p - 3 Mbps" to 3_000_000L,
+        "480p - 1.5 Mbps" to 1_500_000L,
+        "480p - 720 kbps" to 720_000L,
+        "360p - 420 kbps" to 420_000L,
     )
 
-    class Quality(
-        val width: Int,
-        val height: Int,
-        val videoBitrate: Int,
-        val audioBitrate: Int,
+    val QUALITIES_LIST = listOf(
+        Quality(420_000L, 128_000L, "420 kbps"),
+        Quality(720_000L, 192_000L, "720 kbps"),
+        Quality(1_500_000L, 192_000L, "1.5 Mbps"),
+        Quality(3_000_000L, 192_000L, "3 Mbps"),
+        Quality(4_000_000L, 192_000L, "4 Mbps"),
+        Quality(6_000_000L, 192_000L, "6 Mbps"),
+        Quality(8_000_000L, 192_000L, "8 Mbps"),
+        Quality(10_000_000L, 192_000L, "10 Mbps"),
+        Quality(15_000_000L, 192_000L, "15 Mbps"),
+        Quality(20_000_000L, 192_000L, "20 Mbps"),
+        Quality(40_000_000L, 192_000L, "40 Mbps"),
+        Quality(60_000_000L, 192_000L, "60 Mbps"),
+        Quality(80_000_000L, 192_000L, "80 Mbps"),
+        Quality(120_000_000L, 192_000L, "120 Mbps"),
+    )
+
+    data class Quality(
+        val videoBitrate: Long,
+        val audioBitrate: Long,
         val description: String,
     )
 
-    val LANG_VALUES = arrayOf(
+    val LANG_CODES = setOf(
         "aar", "abk", "ace", "ach", "ada", "ady", "afh", "afr", "ain", "aka", "akk", "ale", "alt", "amh", "ang", "anp", "apa",
         "ara", "arc", "arg", "arn", "arp", "arw", "asm", "ast", "ath", "ava", "ave", "awa", "aym", "aze", "bai", "bak", "bal",
         "bam", "ban", "bas", "bej", "bel", "bem", "ben", "ber", "bho", "bik", "bin", "bis", "bla", "bod", "bos", "bra", "bre",
@@ -177,76 +183,156 @@ object Constants {
         "ven", "vie", "vol", "vot", "wal", "war", "was", "wen", "wln", "wol", "xal", "xho", "yao", "yap", "yid", "yor", "zap",
         "zbl", "zen", "zgh", "zha", "zho", "zul", "zun", "zza",
     )
+}
 
-    val LANG_ENTRIES = arrayOf(
-        "Qafaraf; ’Afar Af; Afaraf; Qafar af", "Аҧсуа бызшәа Aƥsua bızšwa; Аҧсшәа Aƥsua", "بهسا اچيه", "Lwo", "Dangme",
-        "Адыгабзэ; Кӏахыбзэ", "El-Afrihili", "Afrikaans", "アイヌ・イタㇰ Ainu-itak", "Akan", "𒀝𒅗𒁺𒌑", "Уна́ӈам тунуу́; Унаӈан умсуу",
-        "Алтай тили", "አማርኛ Amârıñâ", "Ænglisc; Anglisc; Englisc", "Angika", "Apache languages", "العَرَبِيَّة al'Arabiyyeẗ",
-        "Official Aramaic (700–300 BCE); Imperial Aramaic (700–300 BCE)", "aragonés", "Mapudungun; Mapuche", "Hinónoʼeitíít",
-        "Lokono", "অসমীয়া", "Asturianu; Llïonés", "Athapascan languages", "Магӏарул мацӏ; Авар мацӏ", "Avestan", "अवधी",
-        "Aymar aru", "Azərbaycan dili; آذربایجان دیلی; Азәрбајҹан дили", "Bamiléké", "Башҡорт теле; Başqort tele",
-        "بلوچی", "ߓߊߡߊߣߊߣߞߊߣ", "ᬪᬵᬱᬩᬮᬶ; ᬩᬲᬩᬮᬶ; Basa Bali", "Mbene; Ɓasaá", "Bidhaawyeet", "Беларуская мова Belaruskaâ mova",
-        "Chibemba", "বাংলা Bāŋlā", "Tamaziɣt; Tamazight; ⵜⴰⵎⴰⵣⵉⵖⵜ; ⵝⴰⵎⴰⵣⵉⵗⵝ; ⵜⴰⵎⴰⵣⵉⵗⵜ", "भोजपुरी", "Bikol", "Ẹ̀dó",
-        "Bislama", "ᓱᖽᐧᖿ", "བོད་སྐད་ Bodskad; ལྷ་སའི་སྐད་ Lhas'iskad", "bosanski", "Braj", "Brezhoneg", "буряад хэлэн",
-        "ᨅᨔ ᨕᨘᨁᨗ", "български език bălgarski ezik", "ብሊና; ብሊን", "Hasí:nay", "Kari'nja", "català,valencià", "Sinugbuanong Binisayâ",
-        "čeština; český jazyk", "Finu' Chamoru", "Muysccubun", "Нохчийн мотт; نَاخچیین موٓتت; ნახჩიე მუოთთ", "جغتای",
-        "Chuukese", "марий йылме", "chinuk wawa; wawa; chinook lelang; lelang", "Chahta'", "ᑌᓀᓱᒼᕄᓀ (Dënesųłiné)",
-        "ᏣᎳᎩ ᎦᏬᏂᎯᏍᏗ Tsalagi gawonihisdi", "Славе́нскїй ѧ҆зы́къ", "Чӑвашла", "Tsėhésenėstsestȯtse", "crnogorski / црногорски",
-        "ϯⲙⲉⲑⲣⲉⲙⲛ̀ⲭⲏⲙⲓ; ⲧⲙⲛ̄ⲧⲣⲙ̄ⲛ̄ⲕⲏⲙⲉ", "Kernowek", "Corsu; Lingua corsa", "Cree", "Къырымтатарджа; Къырымтатар тили; Ҡырымтатарҗа; Ҡырымтатар тили",
-        "Kaszëbsczi jãzëk", "Cymraeg; y Gymraeg", "Dakhótiyapi; Dakȟótiyapi", "dansk", "дарган мез", "Delaware", "Dene K'e",
-        "Deutsch", "Dogrib", "Thuɔŋjäŋ", "ދިވެހި; ދިވެހިބަސް Divehi", "𑠖𑠵𑠌𑠤𑠮; डोगरी; ڈوگرى", "Dolnoserbski; Dolnoserbšćina",
-        "Duala", "Dutch, Middle (ca. 1050–1350)", "Julakan", "རྫོང་ཁ་ Ĵoŋkha", "Efik", "Egyptian (Ancient)", "Ekajuk",
-        "Νέα Ελληνικά Néa Ellêniká", "Elamite", "English", "English, Middle (1100–1500)", "Esperanto", "eesti keel",
-        "euskara", "Èʋegbe", "Ewondo", "Fang", "føroyskt", "فارسی Fārsiy", "Mfantse; Fante; Fanti", "Na Vosa Vakaviti",
-        "Wikang Filipino", "suomen kieli", "Finno-Ugrian languages", "Fon gbè", "français", "françois; franceis", "Franceis; François; Romanz",
-        "Frasch; Fresk; Freesk; Friisk", "Oostfreesk; Plattdüütsk", "Frysk", "Fulfulde; Pulaar; Pular", "Furlan",
-        "Gã", "Basa Gayo", "Gbaya", "ግዕዝ", "Taetae ni Kiribati", "Gàidhlig", "Gaeilge", "galego", "Gaelg; Gailck", "Diutsch",
-        "Diutisk", "Gondi", "Bahasa Hulontalo", "Gothic", "Grebo", "Ἑλληνική", "Avañe'ẽ", "Schwiizerdütsch", "ગુજરાતી Gujarātī",
-        "Dinjii Zhu’ Ginjik", "X̱aat Kíl; X̱aadas Kíl; X̱aayda Kil; Xaad kil", "kreyòl ayisyen", "Harshen Hausa; هَرْشَن",
-        "ʻŌlelo Hawaiʻi", "עברית 'Ivriyþ", "Otjiherero", "Ilonggo", "हिन्दी Hindī", "𒉈𒅆𒇷", "lus Hmoob; lug Moob; lol Hmongb; 𖬇𖬰𖬞 𖬌𖬣𖬵",
-        "Hiri Motu", "hrvatski", "hornjoserbšćina", "magyar nyelv", "Na:tinixwe Mixine:whe'", "Հայերէն Hayerèn; Հայերեն Hayeren",
-        "Jaku Iban", "Asụsụ Igbo", "Ido", "ꆈꌠꉙ Nuosuhxop", "Ịjọ", "ᐃᓄᒃᑎᑐᑦ Inuktitut", "Interlingue; Occidental", "Pagsasao nga Ilokano; Ilokano",
-        "Interlingua (International Auxiliary Language Association)", "Indo-Aryan languages", "bahasa Indonesia",
-        "ГӀалгӀай мотт", "Iñupiaq", "íslenska", "italiano; lingua italiana", "ꦧꦱꦗꦮ / Basa Jawa", "la .lojban.", "日本語 Nihongo",
-        "Dzhidi", "عربية يهودية / ערבית יהודית", "Qaraqalpaq tili; Қарақалпақ тили", "Tamaziɣt Taqbaylit; Tazwawt",
-        "Jingpho", "Kalaallisut; Greenlandic", "Kamba", "ಕನ್ನಡ Kannađa", "Karen languages", "कॉशुर / كأشُر", "ქართული Kharthuli",
-        "Kanuri", "ꦧꦱꦗꦮ", "қазақ тілі qazaq tili; қазақша qazaqşa", "Адыгэбзэ (Къэбэрдейбзэ) Adıgăbză (Qăbărdeĭbză)",
-        "কা কতিয়েন খাশি", "ភាសាខ្មែរ Phiəsaakhmær", "Khotanese; Sakan", "Gĩkũyũ", "Ikinyarwanda", "кыргызча kırgızça; кыргыз тили kırgız tili",
-        "Kimbundu", "कोंकणी", "Коми кыв", "Kongo", "한국어 Han'gug'ô", "Kosraean", "Kpɛlɛwoo", "Къарачай-Малкъар тил; Таулу тил",
-        "karjal; kariela; karjala", "कुड़ुख़", "Kuanyama; Kwanyama", "къумукъ тил/qumuq til", "kurdî / کوردی", "Kutenai",
-        "Judeo-español", "بھارت کا", "Lamba", "ພາສາລາວ Phasalaw", "Lingua latīna", "Latviešu valoda", "Лезги чӏал",
-        "Lèmburgs", "Lingala", "lietuvių kalba", "Lomongo", "Lozi", "Lëtzebuergesch", "Cilubà / Tshiluba", "Kiluba",
-        "Luganda", "Cham'teela", "Chilunda", "Dholuo", "Mizo ṭawng", "Madhura", "मगही", "Kajin M̧ajeļ", "मैथिली; মৈথিলী",
-        "Basa Mangkasara' / ᨅᨔ ᨆᨀᨔᨑ", "മലയാളം Malayāļã", "Mandi'nka kango", "मराठी Marāţhī", "ɔl", "мокшень кяль",
-        "Mandar", "Mɛnde yia", "Gaoidhealg", "Míkmawísimk", "Baso Minang", "македонски јазик makedonski jazik", "Mon-Khmer languages",
-        "Malagasy", "Malti", "ᠮᠠᠨᠵᡠ ᡤᡳᠰᡠᠨ Manju gisun", "Manipuri", "Kanien’kéha", "монгол хэл mongol xel; ᠮᠣᠩᠭᠣᠯ ᠬᠡᠯᠡ",
-        "Mooré", "Te Reo Māori", "Bahasa Melayu", "Mvskoke", "mirandés; lhéngua mirandesa", "मारवाड़ी", "မြန်မာစာ Mrãmācā; မြန်မာစကား Mrãmākā:",
-        "эрзянь кель", "Nahuatl languages", "napulitano", "dorerin Naoero", "Diné bizaad; Naabeehó bizaad", "isiNdebele seSewula",
-        "siNdebele saseNyakatho", "ndonga", "Plattdütsch; Plattdüütsch", "नेपाली भाषा Nepālī bhāśā", "नेपाल भाषा; नेवाः भाय्",
-        "Li Niha", "Niger-Kordofanian languages", "ko e vagahau Niuē", "Nederlands; Vlaams", "norsk nynorsk", "norsk bokmål",
-        "Ногай тили", "Dǫnsk tunga; Norrœnt mál", "norsk", "N'Ko", "Sesotho sa Leboa", "لغات نوبية", "पुलां भाय्; पुलाङु नेपाल भाय्",
-        "Chichewa; Chinyanja", "Nyamwezi", "Nyankole", "Runyoro", "Nzima", "occitan; lenga d'òc", "Ojibwa", "ଓଡ଼ିଆ",
-        "Afaan Oromoo", "Wazhazhe ie / 𐓏𐓘𐓻𐓘𐓻𐓟 𐒻𐓟", "Ирон ӕвзаг Iron ævzag", "لسان عثمانى / lisân-ı Osmânî", "Otomian languages",
-        "Salitan Pangasinan", "Pārsīk; Pārsīg", "Amánung Kapampangan; Amánung Sísuan", "ਪੰਜਾਬੀ / پنجابی Pãjābī",
-        "Papiamentu", "a tekoi er a Belau", "Persian, Old (ca. 600–400 B.C.)", "𐤃𐤁𐤓𐤉𐤌 𐤊𐤍𐤏𐤍𐤉𐤌 Dabariym Kana'aniym",
-        "Pāli", "Język polski", "Pohnpeian", "português", "Provençal, Old (to 1500); Old Occitan (to 1500)", "پښتو Pax̌tow",
-        "Runa simi; kichwa simi; Nuna shimi", "राजस्थानी", "Vananga rapa nui", "Māori Kūki 'Āirani", "Rumantsch; Rumàntsch; Romauntsch; Romontsch",
-        "romani čhib", "limba română", "Ikirundi", "armãneashce; armãneashti; rrãmãneshti", "русский язык russkiĭ âzık",
-        "Sandaweeki", "yângâ tî sängö", "Сахалыы", "ארמית", "संस्कृतम् Sąskŕtam; 𑌸𑌂𑌸𑍍𑌕𑍃𑌤𑌮𑍍", "Sasak", "ᱥᱟᱱᱛᱟᱲᱤ", "Sicilianu",
-        "Braid Scots; Lallans", "Selkup", "Goídelc", "ၵႂၢမ်းတႆးယႂ်", "Sidaamu Afoo", "සිංහල Sĩhala", "slovenčina; slovenský jazyk",
-        "slovenski jezik; slovenščina", "Åarjelsaemien gïele", "davvisámegiella", "julevsámegiella", "anarâškielâ",
-        "Gagana faʻa Sāmoa", "sääʹmǩiõll", "chiShona", "سنڌي / सिन्धी / ਸਿੰਧੀ", "Sooninkanxanne", "Sogdian", "af Soomaali",
-        "Songhai languages", "Sesotho [southern]", "español; castellano", "Shqip", "sardu; limba sarda; lingua sarda",
-        "Sranan Tongo", "српски / srpski", "Seereer", "siSwati", "Kɪsukuma", "ᮘᮞ ᮞᮥᮔ᮪ᮓ / Basa Sunda", "Sosoxui", "𒅴𒂠",
-        "Kiswahili", "svenska", "Classical Syriac", "ܠܫܢܐ ܣܘܪܝܝܐ Lešānā Suryāyā", "Reo Tahiti; Reo Mā'ohi", "ภาษาไท; ภาษาไต",
-        "தமிழ் Tamił", "татар теле / tatar tele / تاتار", "తెలుగు Telugu", "KʌThemnɛ", "Terêna", "Lia-Tetun", "тоҷикӣ toçikī",
-        "Wikang Tagalog", "ภาษาไทย Phasathay", "ትግረ; ትግሬ; ኻሳ; ትግራይት", "ትግርኛ", "Tiv", "Tokelau", "Klingon; tlhIngan-Hol",
-        "Lingít", "Tamashek", "chiTonga", "lea faka-Tonga", "Tok Pisin", "Tsimshian", "Setswana", "Xitsonga", "Türkmençe / Түркменче / تورکمن تیلی تورکمنچ; türkmen dili / түркмен дили",
-        "chiTumbuka", "Tupi languages", "Türkçe", "Te Ggana Tuuvalu; Te Gagana Tuuvalu", "Twi", "тыва дыл", "удмурт кыл",
-        "Ugaritic", "ئۇيغۇرچە  ; ئۇيغۇر تىلى", "Українська мова; Українська", "Úmbúndú", "اُردُو Urduw", "Oʻzbekcha / Ózbekça / ўзбекча / ئوزبېچه; oʻzbek tili / ўзбек тили / ئوبېک تیلی",
-        "ꕙꔤ", "Tshivenḓa", "Tiếng Việt", "Volapük", "vađđa ceeli", "Wolaitta; Wolaytta", "Winaray; Samareño; Lineyte-Samarnon; Binisayâ nga Winaray; Binisayâ nga Samar-Leyte; “Binisayâ nga Waray”",
-        "wá:šiw ʔítlu", "Serbsce / Serbski", "Walon", "Wolof", "Хальмг келн / Xaľmg keln", "isiXhosa", "Yao", "Yapese",
-        "ייִדיש; יידיש; אידיש Yidiš", "èdè Yorùbá", "Diidxazá/Dizhsa", "Blissymbols; Blissymbolics; Bliss", "Tuḍḍungiyya",
-        "ⵜⴰⵎⴰⵣⵉⵖⵜ ⵜⴰⵏⴰⵡⴰⵢⵜ", "Vahcuengh / 話僮", "中文 Zhōngwén; 汉语; 漢語 Hànyǔ", "isiZulu", "Shiwi'ma", "kirmanckî; dimilkî; kirdkî; zazakî",
+// From https://github.com/jellyfin/jellyfin-mpv-shim/blob/6cc27da739180a65baadfd981e42662bdf248221/jellyfin_mpv_shim/utils.py#L100
+fun getDeviceProfile(
+    name: String,
+    videoCodec: String,
+    videoBitrate: Long,
+    audioBitrate: Long,
+): DeviceProfileDto {
+    val subtitleProfilesList = buildList {
+        listOf("srt", "ass", "sub", "ssa", "smi").forEach {
+            add(
+                DeviceProfileDto.SubtitleProfileDto(
+                    format = it,
+                    method = "External",
+                ),
+            )
+
+            add(
+                DeviceProfileDto.SubtitleProfileDto(
+                    format = it,
+                    method = "Embed",
+                ),
+            )
+        }
+
+        @Suppress("SpellCheckingInspection")
+        listOf("pgssub", "dvdsub", "dvbsub", "pgs").forEach {
+            add(
+                DeviceProfileDto.SubtitleProfileDto(
+                    format = it,
+                    method = "Embed",
+                ),
+            )
+        }
+    }
+
+    return DeviceProfileDto(
+        name = name,
+        maxStreamingBitrate = videoBitrate,
+        maxStaticBitrate = videoBitrate,
+        musicStreamingTranscodingBitrate = audioBitrate,
+        transcodingProfiles = listOf(
+            DeviceProfileDto.ProfileDto(
+                type = "Audio",
+            ),
+            DeviceProfileDto.ProfileDto(
+                type = "Photo",
+                container = "jpeg",
+            ),
+            DeviceProfileDto.ProfileDto(
+                type = "Video",
+                container = "mp4",
+                protocol = "hls",
+                audioCodec = "aac,mp3,ac3,opus,flac,vorbis",
+                videoCodec = videoCodec,
+                maxAudioChannels = "6",
+            ),
+        ),
+        directPlayProfiles = listOf(
+            DeviceProfileDto.ProfileDto(
+                type = "Audio",
+            ),
+            DeviceProfileDto.ProfileDto(
+                type = "Photo",
+            ),
+            DeviceProfileDto.ProfileDto(
+                type = "Video",
+            ),
+        ),
+        responseProfiles = emptyList(),
+        containerProfiles = emptyList(),
+        codecProfiles = listOf(
+            DeviceProfileDto.ProfileDto(
+                type = "Video",
+                codec = videoCodec,
+                conditions = listOf(
+                    DeviceProfileDto.ProfileDto.ProfileConditionDto(
+                        condition = "Equals",
+                        property = "Width",
+                        value = "0",
+                    ),
+                ),
+            ),
+        ),
+        subtitleProfiles = subtitleProfilesList,
     )
+}
+
+// From https://al-e-shevelev.medium.com/mutable-lazy-in-kotlin-14233bed116d
+@Suppress("unused")
+class LazyMutable<T>(val initializer: () -> T) {
+    private object UninitializedValue
+
+    @Volatile private var propValue: Any? = UninitializedValue
+
+    @Suppress("UNCHECKED_CAST")
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        val localValue = propValue
+
+        if (localValue != UninitializedValue) {
+            return localValue as T
+        }
+
+        return synchronized(this) {
+            val localValue2 = propValue
+
+            if (localValue2 != UninitializedValue) {
+                localValue2 as T
+            } else {
+                val initializedValue = initializer()
+                propValue = initializedValue
+                initializedValue
+            }
+        }
+    }
+
+    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        synchronized(this) {
+            propValue = value
+        }
+    }
+}
+
+// TODO(16): Remove with ext lib 16
+private val DEFAULT_CACHE_CONTROL = CacheControl.Builder().maxAge(10, MINUTES).build()
+private val DEFAULT_HEADERS = Headers.Builder().build()
+private val DEFAULT_BODY: RequestBody = FormBody.Builder().build()
+
+suspend fun OkHttpClient.get(
+    url: String,
+    headers: Headers = DEFAULT_HEADERS,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Response {
+    return newCall(GET(url, headers, cache)).awaitSuccess()
+}
+
+suspend fun OkHttpClient.get(
+    url: HttpUrl,
+    headers: Headers = DEFAULT_HEADERS,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Response {
+    return newCall(GET(url, headers, cache)).awaitSuccess()
+}
+
+suspend fun OkHttpClient.post(
+    url: String,
+    headers: Headers = DEFAULT_HEADERS,
+    body: RequestBody = DEFAULT_BODY,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Response {
+    return newCall(POST(url, headers, body, cache)).awaitSuccess()
 }
