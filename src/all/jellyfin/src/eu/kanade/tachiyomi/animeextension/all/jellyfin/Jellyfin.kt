@@ -29,6 +29,9 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.HttpException
 import extensions.utils.getPreferencesLazy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.buildJsonObject
@@ -157,16 +160,19 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         }.build()
 
         val items = client.get(url).parseAs<ItemListDto>()
-        val animeList = items.items.flatMap { series ->
-            val seasonsUrl = getItemsUrl(1).newBuilder().apply {
-                setQueryParameter("ParentId", series.id)
-                removeAllQueryParameters("StartIndex")
-                removeAllQueryParameters("Limit")
-            }.build()
+        val animeList = coroutineScope {
+            items.items.map { series ->
+                async(Dispatchers.IO) {
+                    val seasonsUrl = getItemsUrl(1).newBuilder().apply {
+                        setQueryParameter("ParentId", series.id)
+                        removeAllQueryParameters("StartIndex")
+                        removeAllQueryParameters("Limit")
+                    }.build()
 
-            val seasonsData = client.get(seasonsUrl).parseAs<ItemListDto>()
-
-            seasonsData.items.map { it.toSAnime(baseUrl, preferences.userId) }
+                    val seasonsData = client.get(seasonsUrl).parseAs<ItemListDto>()
+                    seasonsData.items.map { it.toSAnime(baseUrl, preferences.userId) }
+                }
+            }.awaitAll().flatten()
         }
 
         val hasNextPage = SERIES_FETCH_LIMIT * page < items.totalRecordCount
@@ -209,11 +215,15 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                 it.toSAnime(baseUrl, preferences.userId)
             }.sortedByDescending { it.title }
 
-            animeList.flatMap {
-                episodeListParse(
-                    response = client.get(getEpisodeListUrl(it)),
-                    prefix = "${it.title} - ",
-                )
+            coroutineScope {
+                animeList.map {
+                    async(Dispatchers.IO) {
+                        episodeListParse(
+                            response = client.get(getEpisodeListUrl(it)),
+                            prefix = "${it.title} - ",
+                        )
+                    }
+                }.awaitAll().flatten()
             }
         } else {
             episodeListParse(response, "")
