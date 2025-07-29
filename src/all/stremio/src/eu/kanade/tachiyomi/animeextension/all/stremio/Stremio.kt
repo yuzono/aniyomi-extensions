@@ -58,22 +58,25 @@ class Stremio : Source() {
 
     private val addonDelegate = preferences.delegate(ADDONS_KEY, ADDONS_DEFAULT)
     private val authKeyDelegate = preferences.delegate(AUTHKEY_KEY, "")
-    private val addons by AddonManager(
-        addonDelegate,
-        authKeyDelegate,
-    )
+
+    // KMK -->
+    private val addonManager by lazy {
+        AddonManager(addonDelegate, authKeyDelegate)
+    }
+    private suspend fun addons() = addonManager.getAddons(this)
+    // KMK <--
 
     // ============================== Popular ===============================
 
     override suspend fun getPopularAnime(page: Int): AnimesPage {
-        val popularCatalog = addons.firstNotNullOfOrNull { addon ->
+        val popularCatalog = addons().firstNotNullOfOrNull { addon ->
             addon.manifest.catalogs.firstOrNull { catalog ->
                 catalog.extra.orEmpty().none { it.isRequired == true }
             }?.copy(transportUrl = addon.getTransportUrl().toString())
         } ?: throw Exception("No valid catalog addons found")
 
         try {
-            setCatalogList(addons)
+            setCatalogList(addons())
         } catch (_: Exception) { }
 
         return getSearchAnime(
@@ -433,7 +436,7 @@ class Stremio : Source() {
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
         val (type, id) = anime.url.split("-", limit = 2)
 
-        val validAddons = addons.filter {
+        val validAddons = addons().filter {
             it.manifest.isValidResource(AddonResource.META, type, id)
         }
 
@@ -486,7 +489,7 @@ class Stremio : Source() {
             )
         }
 
-        val validAddons = addons.filter {
+        val validAddons = addons().filter {
             it.manifest.isValidResource(AddonResource.META, type, id)
         }
 
@@ -535,7 +538,7 @@ class Stremio : Source() {
         val subtitles = getSubtitleList(type, id)
         val serverUrl = preferences.serverUrl.takeIf { it.isNotEmpty() }
 
-        return addons
+        return addons()
             .filter { it.manifest.isValidResource(AddonResource.STREAM, type, id) }
             .parallelCatchingFlatMap { addon ->
                 val url = addon.getTransportUrl().newBuilder().apply {
@@ -554,7 +557,7 @@ class Stremio : Source() {
     }
 
     private suspend fun getSubtitleList(type: String, id: String): List<Track> {
-        return addons
+        return addons()
             .filter { it.manifest.isValidResource(AddonResource.SUBTITLES, type, id) }
             .parallelCatchingFlatMap { addon ->
                 val url = addon.getTransportUrl().newBuilder().apply {
