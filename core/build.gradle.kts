@@ -1,5 +1,7 @@
 plugins {
     id("com.android.library")
+    kotlin("android")
+    id("kotlinx-serialization")
 }
 
 android {
@@ -9,7 +11,7 @@ android {
         minSdk = AndroidConfig.minSdk
     }
 
-    namespace = "eu.kanade.tachiyomi.animeextension.core"
+    namespace = "extensions.core"
 
     sourceSets {
         named("main") {
@@ -20,6 +22,9 @@ android {
 
     buildFeatures {
         resValues = false
-        shaders = false
     }
+}
+
+dependencies {
+    compileOnly(versionCatalogs.named("libs").findBundle("common").get())
 }

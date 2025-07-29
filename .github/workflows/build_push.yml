@@ -63,12 +63,14 @@ jobs:
         # But that should be avoided because our own extensions may not be bumped.
       - name: Bump extensions that uses a modified lib
         if: steps.modified-libs.outputs.any_changed == 'true'
+        env:
+          COMMIT_MESSAGE: ${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}
         run: |
           latest_commit_author=$(git log -1 --pretty=%an)
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           chmod +x ./.github/scripts/bump-versions.py
-          ./.github/scripts/bump-versions.py "${{ steps.set-env.outputs.LATEST_COMMIT_MESSAGE }}" ${{ steps.modified-libs.outputs.all_changed_files }}
+          ./.github/scripts/bump-versions.py "$COMMIT_MESSAGE" ${{ steps.modified-libs.outputs.all_changed_files }}
           git push
 
       - name: Set up Java
@@ -84,7 +86,7 @@ jobs:
 
       - name: Get last successful CI commit
         id: last_successful_ci_commit
-        uses: nrwl/nx-set-shas@dbe0650947e5f2c81f59190a38512cf49126fe6b # v4.3.0
+        uses: nrwl/nx-set-shas@826660b82addbef3abff5fa871492ebad618c9e1 # v4.3.3
         with:
           main-branch-name: ${{ github.ref_name }}
 
@@ -195,6 +197,8 @@ jobs:
           # committer_email: github-actions[bot]@users.noreply.github.com
 
       - name: Sync repo
+        env:
+          COMMIT_MESSAGE: ${{ needs.prepare.outputs.latestCommitMessage }}
         run: |
           cd repo
           git config user.name "Yūzōnō"
@@ -203,7 +207,7 @@ jobs:
           git fetch origin
           git reset origin/repo
           git add -A
-          git commit --amend -m "${{ needs.prepare.outputs.latestCommitMessage }}" --no-sign --allow-empty || echo "No changes to commit"
+          git commit --amend -m "$COMMIT_MESSAGE" --no-sign --allow-empty || echo "No changes to commit"
           git push origin HEAD:repo --force
 
       - name: Purge cached index on jsDelivr
