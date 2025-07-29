@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.animeextension.all.jellyfin
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
 
+@Suppress("unused")
 class JellyfinFactory : AnimeSourceFactory {
     override fun createSources(): List<AnimeSource> {
         val firstJellyfin = Jellyfin("1")
