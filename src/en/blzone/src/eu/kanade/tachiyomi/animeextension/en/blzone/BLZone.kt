@@ -1,5 +1,8 @@
 package eu.kanade.tachiyomi.animeextension.en.blzone
 
+import androidx.preference.ListPreference
+import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -14,6 +17,7 @@ import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.asJsoup
+import keiyoushi.utils.getPreferencesLazy
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -21,12 +25,20 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.nio.charset.StandardCharsets
 
-class BLZone : AnimeHttpSource() {
+class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val name = "BLZone"
     override val baseUrl = "https://blzone.net"
     override val lang = "en"
     override val supportsLatest = true
+
+    private val preferences by getPreferencesLazy()
+
+    companion object {
+        private const val PREF_SERVER_KEY = "preferred_server"
+        private const val PREF_SERVER_DEFAULT = "Filemoon"
+        private val SERVER_LIST = arrayOf("Filemoon", "StreamTape", "MixDrop", "VidGuard")
+    }
 
     // ---- FILTERS ----
     override fun getFilterList(): AnimeFilterList = AnimeFilterList(TypeFilter())
@@ -176,14 +188,16 @@ class BLZone : AnimeHttpSource() {
     // ---- VIDEO LIST PARSE ----
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        val supportedServers = setOf("filemoon", "streamtape", "mixdrop", "vidguard")
-        val serverNames = document.select("#playeroptionsul li span.title").map { it.text().trim().lowercase() }
+        val serverNames = document.select("#playeroptionsul li span.title").map { it.text().trim() }
         val serverBoxes = document.select(".dooplay_player .source-box").drop(1)
 
         val videos = mutableListOf<Video>()
         serverBoxes.forEachIndexed { index, box ->
             val serverName = serverNames.getOrElse(index) { "server${index + 1}" }
-            if (serverName !in supportedServers) return@forEachIndexed
+            val serversNames = SERVER_LIST.firstOrNull { it.equals(serverName, ignoreCase = true) }
+            if (serversNames == null) {
+                return@forEachIndexed
+            }
 
             val iframe = box.selectFirst("iframe.metaframe")
             val src = iframe?.attr("src")?.trim().orEmpty()
@@ -193,9 +207,9 @@ class BLZone : AnimeHttpSource() {
             } else {
                 src
             }
-            videos += Video(videoUrl, serverName, videoUrl)
+            videos += Video(videoUrl, serversNames, videoUrl)
         }
-        return videos
+        return videos.sort()
     }
 
     // ---- GET VIDEO LIST ----
@@ -205,16 +219,48 @@ class BLZone : AnimeHttpSource() {
 
         val extractedVideos = mutableListOf<Video>()
         for (video in videos) {
-            val url = video.url
-            val videoName = video.quality.lowercase()
-            when {
-                url.contains("filemoon") -> extractedVideos += filemoonExtractor.videosFromUrl(url)
-                url.contains("streamtape") -> extractedVideos += streamtapeExtractor.videosFromUrl(url)
-                url.contains("mixdrop") -> extractedVideos += mixDropExtractor.videosFromUrl(url)
-                url.contains("vgembed") || videoName.contains("vidguard") -> extractedVideos += vidGuardExtractor.videosFromUrl(url)
-                else -> extractedVideos += Video(url, video.quality.replaceFirstChar { it.uppercase() }, url)
+            val currentExtracted = try {
+                serverVideoResolver(video.url)
+            } catch (e: Exception) {
+                emptyList<Video>()
             }
+            extractedVideos.addAll(currentExtracted)
         }
         return extractedVideos
+    }
+
+    private fun serverVideoResolver(url: String): List<Video> {
+        return when {
+            url.contains("filemoon") -> filemoonExtractor.videosFromUrl(url, "FileMoon")
+            url.contains("streamtape") -> streamtapeExtractor.videosFromUrl(url, "StreamTape")
+            url.contains("mixdrop") -> mixDropExtractor.videosFromUrl(url, "MixDrop")
+            url.contains("vgembed") || url.contains("vidguard") -> vidGuardExtractor.videosFromUrl(url, "VidGuard")
+            else -> emptyList()
+        }
+    }
+
+    override fun List<Video>.sort(): List<Video> {
+        val preferredServer = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
+        return this.sortedWith(
+            compareByDescending { it.quality.equals(preferredServer, ignoreCase = true) },
+        )
+    }
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        ListPreference(screen.context).apply {
+            key = PREF_SERVER_KEY
+            title = "Preferred server"
+            entries = SERVER_LIST
+            entryValues = SERVER_LIST
+            setDefaultValue(PREF_SERVER_DEFAULT)
+            summary = "%s"
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val selected = newValue as String
+                val index = findIndexOfValue(selected)
+                val entry = entryValues[index] as String
+                preferences.edit().putString(key, entry).commit()
+            }
+        }.also(screen::addPreference)
     }
 }
