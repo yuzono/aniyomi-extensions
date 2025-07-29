@@ -313,7 +313,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         mediaSource.mediaStreams.forEach { media ->
             when (media.type) {
                 "Video" -> {
-                    referenceBitrate = media.bitRate!!
+                    referenceBitrate = media.bitRate ?: referenceBitrate
                 }
                 "Subtitle" -> {
                     if (media.supportsExternalStream) {
