@@ -12,18 +12,14 @@ import extensions.utils.get
 import extensions.utils.parseAs
 import extensions.utils.post
 import extensions.utils.toRequestBody
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 
 @Suppress("SpellCheckingInspection")
 class AddonManager(
     addonDelegate: LazyMutablePreference<String>,
     authKeyDelegate: LazyMutablePreference<String>,
-) : ReadOnlyProperty<Source, List<AddonDto>> {
+) {
     private val addonValue by addonDelegate
     private val authKeyValue by authKeyDelegate
 
@@ -31,6 +27,7 @@ class AddonManager(
     private var cachedAuthKey: String? = null
     private var addons: List<AddonDto>? = null
 
+    /* KMK -->
     override fun getValue(
         thisRef: Source,
         property: KProperty<*>,
@@ -55,6 +52,27 @@ class AddonManager(
             } else {
                 cachedAuthKey = authKeyValue
             }
+        }
+
+        return addons ?: emptyList()
+    }
+    KMK <-- */
+
+    suspend fun getAddons(thisRef: Source): List<AddonDto> {
+        val useAddons = addonValue.isNotBlank()
+        val hasChanged = when {
+            useAddons -> addonValue != cachedAddons
+            else -> authKeyValue != cachedAuthKey
+        }
+
+        if (hasChanged) {
+            addons = when {
+                useAddons -> getFromPref(thisRef, addonValue)
+                authKeyValue.isNotBlank() -> getFromUser(thisRef, authKeyValue)
+                else -> throw Exception("Addons must be manually added if not logged in")
+            }
+            cachedAddons = addonValue
+            cachedAuthKey = authKeyValue
         }
 
         return addons ?: emptyList()
