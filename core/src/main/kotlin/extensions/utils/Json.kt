@@ -40,5 +40,5 @@ fun String.toJsonBody(): RequestBody =
 /**
  * Converts the object to a JSON request body.
  */
-inline fun <reified T> T.toRequestBody(): RequestBody =
-    this.toJsonString().toJsonBody()
+inline fun <reified T> T.toRequestBody(json: Json = jsonInstance): RequestBody =
+    this.toJsonString(json).toJsonBody()
