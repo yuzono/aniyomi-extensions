@@ -400,7 +400,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             videoList.add(staticVideo)
         }
 
-        val transcodingUrl = sessionData.mediaSources.first().transcodingUrl
+        val transcodingUrl = sessionData.mediaSources.firstOrNull()?.transcodingUrl
             ?.takeIf { mediaSource.supportsTranscoding }
             ?.let { (baseUrl + it).toHttpUrl() }
             ?: return videoList
@@ -422,7 +422,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
             )
         }
 
-        return videoList.sort()
+        return videoList
     }
 
     override fun List<Video>.sort(): List<Video> {

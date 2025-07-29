@@ -46,7 +46,7 @@ val JSON_INSTANCE: Json = Json {
 }
 
 inline fun <reified T> Response.parseAs(): T {
-    return JSON_INSTANCE.decodeFromStream(body.byteStream())
+    return body.use { JSON_INSTANCE.decodeFromStream(it.byteStream()) }
 }
 
 fun JsonObject.toBody(): RequestBody {
