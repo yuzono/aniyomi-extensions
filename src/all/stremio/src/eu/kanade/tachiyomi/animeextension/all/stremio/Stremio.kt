@@ -167,7 +167,7 @@ class Stremio : Source() {
         return AnimesPage(entries, data.hasMore == true)
     }
 
-    fun getLibraryAnime(
+    private fun getLibraryAnime(
         page: Int,
         query: String,
         filters: AnimeFilterList,
@@ -197,7 +197,7 @@ class Stremio : Source() {
     }
 
     // From https://github.com/Stremio/stremio-core
-    fun List<LibraryItemDto>.sortedWith(librarySort: LibrarySort): List<LibraryItemDto> {
+    private fun List<LibraryItemDto>.sortedWith(librarySort: LibrarySort): List<LibraryItemDto> {
         return sortedWith { a, b ->
             when (librarySort) {
                 LibrarySort.LAST_WATCHED -> b.state.lastWatched.compareTo(a.state.lastWatched)
@@ -231,7 +231,7 @@ class Stremio : Source() {
 
     open class UriPartFilter<T>(
         name: String,
-        val vals: Array<Pair<String, T>>,
+        private val vals: Array<Pair<String, T>>,
         state: Int = 0,
     ) : AnimeFilter.Select<String>(
         name,
@@ -243,10 +243,10 @@ class Stremio : Source() {
         }
     }
 
-    var selectedCatalogIndex: Int = 0
-    var catalogList: Array<Pair<String, CatalogDto>>? = null
+    private var selectedCatalogIndex: Int = 0
+    private var catalogList: Array<Pair<String, CatalogDto>>? = null
 
-    fun setCatalogList(addons: List<AddonDto>) {
+    private fun setCatalogList(addons: List<AddonDto>) {
         catalogList = addons.flatMap { addon ->
             addon.manifest.catalogs.map { catalog ->
                 buildString {
@@ -273,9 +273,9 @@ class Stremio : Source() {
         }.toTypedArray()
     }
 
-    var genreList: Array<Pair<String, String>>? = null
+    private var genreList: Array<Pair<String, String>>? = null
 
-    fun setGenreList(catalog: CatalogDto) {
+    private fun setGenreList(catalog: CatalogDto) {
         val genreExtra = catalog.extra?.firstOrNull { it.type == ExtraType.GENRE }
         val genreOptions = genreExtra?.options
 
@@ -294,7 +294,7 @@ class Stremio : Source() {
         }
     }
 
-    var libraryItems: List<LibraryItemDto>? = null
+    private var libraryItems: List<LibraryItemDto>? = null
     private var filtersState = FilterState.Unfetched
     private var filterAttempts = 0
 
@@ -343,7 +343,7 @@ class Stremio : Source() {
         values: Array<Pair<String, String>>,
     ) : UriPartFilter<String>("Genre", values)
 
-    var libraryTypes: List<String>? = null
+    private var libraryTypes: List<String>? = null
 
     class LibraryTypeFilter(
         values: Array<Pair<String, String>>,
@@ -618,7 +618,7 @@ class Stremio : Source() {
         |- {episodeNumber}: Episode number
         |- {seasonNumber}: Season number
         |- {description}: Episode description
-        |If you wish to place some text between curly brackets, place the escape character "${'$'}"
+        |If you wish to place some text between curly brackets, place the escape character "$"
         |before the opening curly bracket, e.g. ${'$'}{name}.
         """.trimMargin()
 
@@ -679,7 +679,7 @@ class Stremio : Source() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    var loginJob: Job? = null
+    private var loginJob: Job? = null
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         val logOutSummary: (String) -> String = {
             if (it.isBlank()) {

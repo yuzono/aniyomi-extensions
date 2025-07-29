@@ -1,12 +1,12 @@
 ext {
     extName = 'Jellyfin'
     extClass = '.JellyfinFactory'
-    extVersionCode = 25
+    extVersionCode = 26
     extNames = ["Jellyfin (1)", "Jellyfin (2)", "Jellyfin (3)"]
 }
 
 apply from: "$rootDir/common.gradle"
 
 dependencies {
-    implementation("org.apache.commons:commons-text:1.11.0")
+    implementation("org.apache.commons:commons-text:1.14.0")
 }
