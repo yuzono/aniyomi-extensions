@@ -198,11 +198,9 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
         val serverBoxes = document.select(".dooplay_player .source-box").drop(1)
 
         return serverBoxes.mapIndexedNotNull { index, box ->
-            val serverName = serverNames.getOrElse(index) { "server${index + 1}" }
-            val serversNames = SERVER_LIST.firstOrNull { it.equals(serverName, ignoreCase = true) }
-            if (serversNames == null) {
-                return@mapIndexedNotNull null
-            }
+            val matchedServerName = serverNames.getOrNull(index)?.let { serverName ->
+                SERVER_LIST.firstOrNull { serverName.contains(it, ignoreCase = true) }
+            } ?: return@mapIndexedNotNull null
 
             val iframe = box.selectFirst("iframe.metaframe")
             val src = iframe?.attr("src")?.trim().orEmpty()
@@ -212,7 +210,7 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
             } else {
                 src
             }
-            Video(videoUrl, serversNames, videoUrl)
+            Video(videoUrl, matchedServerName, videoUrl)
         }
     }
 
