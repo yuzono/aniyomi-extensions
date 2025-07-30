@@ -100,11 +100,13 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
 
         if (response.request.url.encodedPath.endsWith("/anime/")) {
             runCatching {
-                val dramaResponse = client.newCall(GET("$baseUrl/dorama/", headers)).execute()
-                val dramaDoc = dramaResponse.asJsoup()
-                animeList.addAll(
-                    dramaDoc.select(".items.full .item.tvshows").map { latestAnimeFromElement(it) },
-                )
+                client.newCall(GET("$baseUrl/dorama/", headers)).execute()
+                    .use { response ->
+                        response.asJsoup()
+                            .select(".items.full .item.tvshows")
+                            .map { latestAnimeFromElement(it) }
+                            .let { animeList.addAll(it) }
+                    }
             }
         }
         return AnimesPage(animeList, hasNextPage = hasNextPage(document))
