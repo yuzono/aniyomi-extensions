@@ -488,11 +488,9 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
     }
 
     private fun getDeviceInfo(context: Application): DeviceInfo {
-        val deviceId = preferences.deviceId?.takeIf { it.isNotBlank() } ?: run {
-            val newId = UUID.randomUUID().toString().replace("-", "").take(16)
-            preferences.edit().putString(DEVICEID_KEY, newId).apply()
-            newId
-        }
+        val deviceId = preferences.deviceId?.takeIf { it.isNotBlank() }
+            ?: UUID.randomUUID().toString().replace("-", "").take(16)
+                .also { preferences.edit().putString(DEVICEID_KEY, it).apply() }
         val name = context.getDeviceName()
 
         return DeviceInfo(
