@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.all.jellyfin
 
-import android.annotation.SuppressLint
 import android.app.Application
 import android.content.SharedPreferences
 import android.os.Build
@@ -59,6 +58,7 @@ import okhttp3.Response
 import org.apache.commons.text.StringSubstitutor
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.UUID
 
 @Suppress("SpellCheckingInspection")
 class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
@@ -488,14 +488,15 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
     }
 
     private fun getDeviceInfo(context: Application): DeviceInfo {
-        @SuppressLint("HardwareIds")
-        val id = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        val deviceId = preferences.deviceId?.takeIf { it.isNotBlank() }
+            ?: UUID.randomUUID().toString().replace("-", "").take(16)
+                .also { preferences.edit().putString(DEVICEID_KEY, it).apply() }
         val name = context.getDeviceName()
 
         return DeviceInfo(
             clientName = "Aniyomi",
             version = BuildConfig.VERSION_NAME,
-            id = id,
+            id = deviceId,
             name = name,
         )
     }
@@ -560,6 +561,9 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
         }
     }
 
+    private val SharedPreferences.deviceId
+        get() = getString(DEVICEID_KEY, null)
+
     companion object {
         private const val SEASONS_FETCH_LIMIT = 20
         private const val SERIES_FETCH_LIMIT = 5
@@ -572,6 +576,7 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             "livetv",
         )
 
+        private const val DEVICEID_KEY = "device_id"
         const val APIKEY_KEY = "api_key"
         const val USERID_KEY = "user_id"
         const val LIBRARY_LIST_KEY = "media_library_list"
