@@ -243,7 +243,7 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
             url.contains("filemoon") -> filemoonExtractor.videosFromUrl(url, "FileMoon")
             url.contains("streamtape") -> streamtapeExtractor.videosFromUrl(url, "StreamTape")
             url.contains("mixdrop") -> mixDropExtractor.videosFromUrl(url, "MixDrop")
-            url.contains("vgembed") || url.contains("vidguard") -> vidGuardExtractor.videosFromUrl(url, "VidGuard")
+            url.contains("vgembed") -> vidGuardExtractor.videosFromUrl(url, "VidGuard")
             else -> emptyList()
         }
     }
