@@ -247,7 +247,7 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
     override fun List<Video>.sort(): List<Video> {
         val preferredServer = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
         return this.sortedWith(
-            compareByDescending { it.quality.equals(preferredServer, ignoreCase = true) },
+            compareByDescending { it.quality.contains(preferredServer, ignoreCase = true) },
         )
     }
 
