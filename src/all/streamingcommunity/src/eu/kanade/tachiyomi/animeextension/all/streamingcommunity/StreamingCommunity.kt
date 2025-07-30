@@ -29,10 +29,13 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.getPreferencesLazy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -465,9 +468,9 @@ class StreamingCommunity(override val lang: String, private val showType: String
         ).reversed()
     }
 
-    private fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
+    private suspend fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
         return try {
-            runBlocking(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 val headRequest = GET(loadedDomain, headers).newBuilder().head().build()
                 client.newCall(headRequest).execute().use { response ->
                     val redirectedDomain = response.request.url.run { "$scheme://$host" }
@@ -496,7 +499,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
     }
 
     companion object {
-        private const val DOMAIN_DEFAULT = "https://streamingunity.cam"
+        private const val DOMAIN_DEFAULT = "https://streamingunity.co"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
 
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
@@ -560,11 +563,19 @@ class StreamingCommunity(override val lang: String, private val showType: String
             key = PREF_CUSTOM_DOMAIN_KEY
             title = "Custom domain"
             setDefaultValue(null)
-            val currentValue = resolveRedirectedDomain(
-                screen,
-                preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT,
-            )
-            summary = "Domain: \"$currentValue\".\nLeave blank to disable. Overrides any domain preferences!"
+
+            // Set initial summary with loading state
+            val initialDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT
+            summary = "Current domain: \"$initialDomain\" (checking for redirects...)\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
+
+            // Resolve redirected domain in background thread
+            val prefRef = java.lang.ref.WeakReference(this)
+            GlobalScope.launch(Dispatchers.IO) {
+                val currentValue = resolveRedirectedDomain(screen, initialDomain)
+                withContext(Dispatchers.Main) {
+                    prefRef.get()?.summary = "Current domain: \"$currentValue\"\nLeave blank to reset to default domain.\n\nWhen you open this screen, it will automatically detect & update domain for you!"
+                }
+            }
 
             setOnPreferenceChangeListener { _, newValue ->
                 val newDomain = newValue.toString().trim().removeSuffix("/")
