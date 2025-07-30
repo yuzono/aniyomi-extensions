@@ -18,9 +18,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.getPreferencesLazy
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -219,15 +217,13 @@ class BLZone : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     // ---- GET VIDEO LIST ----
-    private val scope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
-
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val response = client.newCall(GET(baseUrl + episode.url)).await()
         val videos = videoListParse(response)
 
         return coroutineScope {
             videos.map { video ->
-                scope.async(Dispatchers.IO) {
+                async(Dispatchers.IO) {
                     try {
                         serverVideoResolver(video.url)
                     } catch (e: Exception) {
