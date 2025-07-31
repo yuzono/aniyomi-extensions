@@ -93,12 +93,10 @@ class HiAnime : ZoroTheme(
         private val DOMAIN_ENTRIES = arrayOf(
             "hianime.to",
             "hianime.nz",
-            "hianime.mn",
             "hianime.sx",
             "hianime.is",
             "hianime.bz",
             "hianime.pe",
-            "hianimez.to",
             "hianimez.is",
         )
         private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
