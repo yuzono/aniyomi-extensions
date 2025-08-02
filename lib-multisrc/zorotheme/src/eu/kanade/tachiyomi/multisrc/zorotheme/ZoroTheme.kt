@@ -20,7 +20,6 @@ import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
-import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -28,7 +27,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.injectLazy
+import kotlin.getValue
 
 abstract class ZoroTheme(
     override val lang: String,
@@ -39,17 +38,20 @@ abstract class ZoroTheme(
 
     override val supportsLatest = true
 
-    private val json: Json by injectLazy()
-
-    val preferences by getPreferencesLazy {
+    protected val preferences by getPreferencesLazy {
         clearOldHosts()
     }
 
-    protected val docHeaders = headers.newBuilder().apply {
-        add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-        add("Host", baseUrl.toHttpUrl().host)
-        add("Referer", "$baseUrl/")
-    }.build()
+    protected val docHeaders by lazy {
+        headers.newBuilder().apply {
+            add(
+                "Accept",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            )
+            add("Host", baseUrl.toHttpUrl().host)
+            add("Referer", "$baseUrl/")
+        }.build()
+    }
 
     protected open val ajaxRoute = ""
 
@@ -345,12 +347,9 @@ abstract class ZoroTheme(
             setDefaultValue(PREF_TITLE_LANG_DEFAULT)
             summary = "%s"
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
+            setOnPreferenceChangeListener { _, _ ->
                 Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
-                preferences.edit().putString(key, entry).commit()
+                true
             }
         }.also(screen::addPreference)
 
@@ -360,7 +359,7 @@ abstract class ZoroTheme(
             setDefaultValue(MARK_FILLERS_DEFAULT)
             setOnPreferenceChangeListener { _, newValue ->
                 Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
-                preferences.edit().putBoolean(key, newValue as Boolean).commit()
+                true
             }
         }.also(screen::addPreference)
 
@@ -371,13 +370,6 @@ abstract class ZoroTheme(
             entryValues = arrayOf("1080", "720", "480", "360")
             setDefaultValue(PREF_QUALITY_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
@@ -387,13 +379,6 @@ abstract class ZoroTheme(
             entryValues = hosterNames.toTypedArray()
             setDefaultValue(hosterNames.first())
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
@@ -403,13 +388,6 @@ abstract class ZoroTheme(
             entryValues = TYPES_ENTRIES
             setDefaultValue(PREF_LANG_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         MultiSelectListPreference(screen.context).apply {
@@ -418,11 +396,6 @@ abstract class ZoroTheme(
             entries = hosterNames.toTypedArray()
             entryValues = hosterNames.toTypedArray()
             setDefaultValue(hosterNames.toSet())
-
-            setOnPreferenceChangeListener { _, newValue ->
-                @Suppress("UNCHECKED_CAST")
-                preferences.edit().putStringSet(key, newValue as Set<String>).commit()
-            }
         }.also(screen::addPreference)
 
         MultiSelectListPreference(screen.context).apply {
@@ -431,11 +404,6 @@ abstract class ZoroTheme(
             entries = TYPES_ENTRIES
             entryValues = TYPES_ENTRY_VALUES
             setDefaultValue(PREF_TYPES_TOGGLE_DEFAULT)
-
-            setOnPreferenceChangeListener { _, newValue ->
-                @Suppress("UNCHECKED_CAST")
-                preferences.edit().putStringSet(key, newValue as Set<String>).commit()
-            }
         }.also(screen::addPreference)
     }
 }

@@ -11,24 +11,25 @@ import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
 import okhttp3.Request
 import org.jsoup.nodes.Element
+import kotlin.getValue
 
-class HiAnime : ZoroTheme(
-    "en",
-    "HiAnime",
-    "https://hianime.to",
-    hosterNames = listOf(
-        "HD-1",
-        "HD-2",
-        "HD-3",
-        "StreamTape",
-    ),
-) {
+class HiAnime :
+    ZoroTheme(
+        "en",
+        "HiAnime",
+        "https://hianime.to",
+        hosterNames = listOf(
+            "HD-1",
+            "HD-2",
+            "HD-3",
+            "StreamTape",
+        ),
+    ) {
     override val id = 6706411382606718900L
 
     override val ajaxRoute = "/v2"
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
-
     private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers) }
 
     override val baseUrl: String
