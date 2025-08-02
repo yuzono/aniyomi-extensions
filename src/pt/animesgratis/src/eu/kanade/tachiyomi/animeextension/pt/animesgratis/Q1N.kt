@@ -137,6 +137,7 @@ class Q1N : DooPlay(
             "noa" in name -> noaExtractor.videosFromUrl(url)
             "mdplayer" in name -> noaExtractor.videosFromUrl(url, "MDPLAYER")
             "/player/" in url -> bloggerExtractor.videosFromUrl(url, headers)
+            "blogger.com" in url -> bloggerExtractor.videosFromUrl(url, headers)
             else -> universalExtractor.videosFromUrl(url, headers)
         }
     }
