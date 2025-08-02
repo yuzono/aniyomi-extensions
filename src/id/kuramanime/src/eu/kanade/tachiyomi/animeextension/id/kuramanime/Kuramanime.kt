@@ -23,7 +23,7 @@ import org.jsoup.nodes.Element
 class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val name = "Kuramanime"
 
-    override val baseUrl = "https://v8.kuramanime.run"
+    override val baseUrl = "https://v8.kuramanime.tel"
 
     override val lang = "id"
 
