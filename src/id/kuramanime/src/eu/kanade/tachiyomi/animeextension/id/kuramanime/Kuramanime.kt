@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import keiyoushi.utils.getPreferencesLazy
@@ -145,11 +146,12 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoListSelector() = "video#player > source"
 
     // Shall we add "archive", "archive-v2"? archive.org usually returns a beautiful 403 xD
-    private val supportedHosters = listOf("kuramadrive", "kuramadrive-v2", "filelions", "filemoon", "mega", "streamwish", "streamtape")
+    private val supportedHosters = listOf("kuramadrive", "kuramadrive-v2", "filelions", "filemoon", "mega", "streamwish", "streamtape", "vidguard")
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
+    private val vidguardExtractor by lazy { VidGuardExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
         val doc = response.asJsoup()
@@ -202,6 +204,7 @@ class Kuramanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     // server == "mega" && url != null -> streamtapeExtractor.videosFromUrl(url)
                     server == "streamwish" && url != null -> streamWishExtractor.videosFromUrl(url)
                     server == "streamtape" && url != null -> streamtapeExtractor.videosFromUrl(url)
+                    server == "vidguard" && url != null -> vidguardExtractor.videosFromUrl(url)
                     else -> {
                         playerDoc.select("video#player > source").map {
                             val src = it.attr("src")

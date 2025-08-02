@@ -10,4 +10,5 @@ dependencies {
     implementation(project(":lib:streamtape-extractor"))
     implementation(project(":lib:streamwish-extractor"))
     implementation(project(":lib:filemoon-extractor"))
+    implementation(project(":lib:vidguard-extractor"))
 }
