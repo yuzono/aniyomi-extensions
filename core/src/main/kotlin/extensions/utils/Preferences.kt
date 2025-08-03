@@ -226,15 +226,18 @@ fun PreferenceScreen.getEditTextPreference(
         }
 
         setOnPreferenceChangeListener { pref, newValue ->
-            if (restartRequired) {
-                Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
-            }
+            val value = newValue as String
+            val isValid = onChange(pref, value)
+            if (isValid) {
+                if (restartRequired) {
+                    Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
+                }
 
-            val text = newValue as String
-            this.summary = getSummary(text)
-            lazyDelegate?.updateValue(text)
-            onComplete(text)
-            onChange(pref, text)
+                this.summary = getSummary(value)
+                lazyDelegate?.updateValue(value)
+                onComplete(value)
+            }
+            isValid
         }
     }
 }
@@ -327,13 +330,16 @@ fun PreferenceScreen.getListPreference(
         setDefaultValue(default)
         setEnabled(enabled)
         setOnPreferenceChangeListener { pref, newValue ->
-            if (restartRequired) {
-                Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
+            val value = newValue as String
+            val isValid = onChange(pref, value)
+            if (isValid) {
+                if (restartRequired) {
+                    Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
+                }
+                lazyDelegate?.updateValue(value)
+                onComplete(value)
             }
-            val newValue = newValue as String
-            lazyDelegate?.updateValue(newValue)
-            onComplete(newValue)
-            onChange(pref, newValue)
+            isValid
         }
     }
 }
@@ -417,14 +423,17 @@ fun PreferenceScreen.getSetPreference(
         setEnabled(enabled)
 
         setOnPreferenceChangeListener { pref, newValues ->
-            if (restartRequired) {
-                Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
-            }
             @Suppress("UNCHECKED_CAST")
-            val newValues = newValues as Set<String>
-            lazyDelegate?.updateValue(newValues)
-            onComplete(newValues)
-            onChange(pref, newValues)
+            val values = newValues as Set<String>
+            val isValid = onChange(pref, values)
+            if (isValid) {
+                if (restartRequired) {
+                    Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
+                }
+                lazyDelegate?.updateValue(values)
+                onComplete(values)
+            }
+            isValid
         }
     }
 }
@@ -502,14 +511,16 @@ fun PreferenceScreen.getSwitchPreference(
         setEnabled(enabled)
 
         setOnPreferenceChangeListener { pref, newValue ->
-            val prefValue = newValue as Boolean
-
-            if (restartRequired) {
-                Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
+            val value = newValue as Boolean
+            val isValid = onChange(pref, value)
+            if (isValid) {
+                if (restartRequired) {
+                    Toast.makeText(context, RESTART_MESSAGE, Toast.LENGTH_LONG).show()
+                }
+                lazyDelegate?.updateValue(value)
+                onComplete(value)
             }
-            lazyDelegate?.updateValue(prefValue)
-            onComplete(prefValue)
-            onChange(pref, prefValue)
+            isValid
         }
     }
 }
