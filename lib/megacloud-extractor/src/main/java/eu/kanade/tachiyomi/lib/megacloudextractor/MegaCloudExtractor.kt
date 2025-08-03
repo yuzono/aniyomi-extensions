@@ -60,7 +60,8 @@ class MegaCloudExtractor(
             .add("Referer", "${SERVER_URL}/")
             .build()
 
-        val responseNonce= client.newCall(GET(url, megaCloudHeaders)).execute().body.string()
+        val responseNonce = client.newCall(GET(url, megaCloudHeaders))
+            .execute().use { it.body.string() }
         val match1 = Regex("""\b[a-zA-Z0-9]{48}\b""").find(responseNonce)
         val match2 = Regex("""\b([a-zA-Z0-9]{16})\b.*?\b([a-zA-Z0-9]{16})\b.*?\b([a-zA-Z0-9]{16})\b""").find(responseNonce)
 
@@ -69,8 +70,7 @@ class MegaCloudExtractor(
         }
 
         val srcRes = client.newCall(GET("${SERVER_URL}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
-            .execute()
-            .body.string()
+            .execute().use { it.body.string() }
 
         val data = json.decodeFromString<SourceResponseDto>(srcRes)
         val encoded = data.sources.jsonPrimitive.content
@@ -88,7 +88,8 @@ class MegaCloudExtractor(
                 append("&secret=").append(URLEncoder.encode(key, "UTF-8"))
             }
 
-            val decryptedResponse = client.newCall(GET(fullUrl)).execute().body.string()
+            val decryptedResponse = client.newCall(GET(fullUrl))
+                .execute().use { it.body.string() }
             Regex("\"file\":\"(.*?)\"")
                 .find(decryptedResponse)
                 ?.groupValues?.get(1)
