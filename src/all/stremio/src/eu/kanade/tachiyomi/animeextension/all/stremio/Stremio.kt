@@ -702,7 +702,7 @@ class Stremio : Source() {
                 preferences.clearCredentials()
                 preferences.clearLogin()
 
-                false
+                true
             },
         )
 
