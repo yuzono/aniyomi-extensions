@@ -121,7 +121,7 @@ class RapidCloudExtractor(
     }
 
     private fun tryDecrypting(ciphered: String, type: String, attempts: Int = 0): String {
-        if (attempts > 2) throw Exception("PLEASE NUKE ANIWATCH AND CLOUDFLARE")
+        if (attempts > 2) throw Exception("Maximum decryption attempts exceeded")
         val (ciphertext, password) = cipherTextCleaner(ciphered, type)
         return CryptoAES.decrypt(ciphertext, password).ifEmpty {
             // Update index pairs
