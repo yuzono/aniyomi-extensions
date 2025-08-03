@@ -21,7 +21,7 @@ class AniWatchtv : ZoroTheme(
 
     override val ajaxRoute = "/v2"
 
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, preferences) }
+    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers) }
 
     override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/recently-updated?page=$page", docHeaders)
 

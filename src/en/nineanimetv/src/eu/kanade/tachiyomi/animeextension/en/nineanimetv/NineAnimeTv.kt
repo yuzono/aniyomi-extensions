@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.animeextension.en.nineanimetv
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
-import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
@@ -91,11 +90,11 @@ class NineAnimeTv : ZoroTheme(
         return if (full && value != null) "\n$tag $value" else value
     }
 
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, preferences) }
+    // private val rapidCloudExtractor by lazy { RapidCloudExtractor(client, headers, preferences) }
 
     override fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
-            "DouVideo", "Vidstreaming", "Vidcloud" -> megaCloudExtractor.getVideosFromUrl(server.link, server.type, server.name)
+            // "DouVideo", "Vidstreaming", "Vidcloud" -> rapidCloudExtractor.getVideosFromUrl(server.link, server.type, server.name)
             else -> emptyList()
         }
     }

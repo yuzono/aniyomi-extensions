@@ -28,7 +28,7 @@ class HiAnime : ZoroTheme(
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
 
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, preferences) }
+    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers) }
 
     override val baseUrl: String
         get() = preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT) ?: PREF_DOMAIN_DEFAULT

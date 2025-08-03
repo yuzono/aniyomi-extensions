@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.kaido
 
 import eu.kanade.tachiyomi.animesource.model.Video
-import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 
@@ -16,7 +15,7 @@ class Kaido : ZoroTheme(
     ),
 ) {
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, preferences) }
+    // private val rapidCloudExtractor by lazy { RapidCloudExtractor(client, headers, preferences) }
 
     override fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
@@ -25,7 +24,7 @@ class Kaido : ZoroTheme(
                     ?.let(::listOf)
                     ?: emptyList()
             }
-            "Vidstreaming", "Vidcloud" -> megaCloudExtractor.getVideosFromUrl(server.link, server.type, server.name)
+            // "Vidstreaming", "Vidcloud" -> rapidCloudExtractor.getVideosFromUrl(server.link, server.type, server.name)
             else -> emptyList()
         }
     }
