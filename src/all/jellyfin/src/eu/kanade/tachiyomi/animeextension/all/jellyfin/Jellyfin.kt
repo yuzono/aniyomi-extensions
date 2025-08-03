@@ -835,18 +835,19 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
             validate = { it.toHttpUrlOrNull() != null && !it.endsWith("/") },
             validationMessage = { "The URL is invalid, malformed, or ends with a slash" },
-        ) {
-            baseUrl = it
-            hostUrlDelegate.updateValue(it)
+            onComplete = {
+                baseUrl = it
+                hostUrlDelegate.updateValue(it)
 
-            if (it.isBlank()) {
-                onCompleteLogin(false)
-            } else {
-                if (preferences.username.isNotBlank() && preferences.password.isNotBlank()) {
-                    logIn()
+                if (it.isBlank()) {
+                    onCompleteLogin(false)
+                } else {
+                    if (preferences.username.isNotBlank() && preferences.password.isNotBlank()) {
+                        logIn()
+                    }
                 }
-            }
-        }
+            },
+        )
 
         val userNameSummary: (String) -> String = { it.ifBlank { "The user account name" } }
         screen.addEditTextPreference(
@@ -855,16 +856,17 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             title = "Username",
             summary = userNameSummary(preferences.username),
             getSummary = userNameSummary,
-        ) {
-            usernameDelegate.updateValue(it)
-            if (it.isBlank()) {
-                onCompleteLogin(false)
-            } else {
-                if (baseUrl.isNotBlank() && preferences.password.isNotBlank()) {
-                    logIn()
+            onComplete = {
+                usernameDelegate.updateValue(it)
+                if (it.isBlank()) {
+                    onCompleteLogin(false)
+                } else {
+                    if (baseUrl.isNotBlank() && preferences.password.isNotBlank()) {
+                        logIn()
+                    }
                 }
-            }
-        }
+            },
+        )
 
         val passwordSummary: (String) -> String = {
             if (it.isBlank()) "The user account password" else "•".repeat(it.length)
@@ -876,16 +878,17 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             summary = passwordSummary(preferences.password),
             getSummary = passwordSummary,
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
-        ) {
-            passwordDelegate.updateValue(it)
-            if (it.isBlank()) {
-                onCompleteLogin(false)
-            } else {
-                if (baseUrl.isNotBlank() && preferences.username.isNotBlank()) {
-                    logIn()
+            onComplete = {
+                passwordDelegate.updateValue(it)
+                if (it.isBlank()) {
+                    onCompleteLogin(false)
+                } else {
+                    if (baseUrl.isNotBlank() && preferences.username.isNotBlank()) {
+                        logIn()
+                    }
                 }
-            }
-        }
+            },
+        )
 
         screen.addPreference(mediaLibraryPref)
 

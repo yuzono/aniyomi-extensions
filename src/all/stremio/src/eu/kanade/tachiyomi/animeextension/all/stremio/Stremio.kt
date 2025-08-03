@@ -732,10 +732,11 @@ class Stremio : Source() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
             validate = { it.toHttpUrlOrNull() != null && !it.endsWith("/") },
             validationMessage = { "The URL is invalid, malformed, or ends with a slash" },
-        ) {
-            baseUrl = it
-            webUIDelegate.updateValue(it)
-        }
+            onComplete = {
+                baseUrl = it
+                webUIDelegate.updateValue(it)
+            },
+        )
 
         val serverUrlSummary: (String) -> String = { it.ifBlank { "Server url for torrent streams (optional)" } }
         screen.addEditTextPreference(
@@ -830,11 +831,12 @@ class Stremio : Source() {
             dialogMessage = "Email address",
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
             lazyDelegate = emailDelegate,
-        ) {
-            if (preferences.password.isNotBlank()) {
-                logIn()
-            }
-        }
+            onComplete = {
+                if (preferences.password.isNotBlank()) {
+                    logIn()
+                }
+            },
+        )
 
         val passwordSummary: (String) -> String = {
             if (it.isBlank()) "The user account password" else "•".repeat(it.length)
@@ -847,11 +849,12 @@ class Stremio : Source() {
             getSummary = passwordSummary,
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             lazyDelegate = passwordDelegate,
-        ) {
-            if (preferences.email.isNotBlank()) {
-                logIn()
-            }
-        }
+            onComplete = {
+                if (preferences.email.isNotBlank()) {
+                    logIn()
+                }
+            },
+        )
 
         screen.addEditTextPreference(
             key = PREF_EPISODE_NAME_TEMPLATE_KEY,
