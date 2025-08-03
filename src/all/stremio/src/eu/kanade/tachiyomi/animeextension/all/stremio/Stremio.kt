@@ -695,15 +695,16 @@ class Stremio : Source() {
             summary = logOutSummary(preferences.authKey),
             restartRequired = true,
             enabled = preferences.authKey.isNotBlank(),
-        ) { pref, _ ->
-            pref.setEnabled(false)
-            pref.summary = logOutSummary("")
+            onChange = { pref, _ ->
+                pref.setEnabled(false)
+                pref.summary = logOutSummary("")
 
-            preferences.clearCredentials()
-            preferences.clearLogin()
+                preferences.clearCredentials()
+                preferences.clearLogin()
 
-            false
-        }
+                true
+            },
+        )
 
         val getLibrarySummary: (String) -> String = {
             if (it.isBlank()) {
