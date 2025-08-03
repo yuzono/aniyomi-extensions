@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.aniwatch
 
+import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
@@ -21,7 +22,7 @@ class AniWatchtv : ZoroTheme(
 
     override val ajaxRoute = "/v2"
 
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, preferences) }
+    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
 
     override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/recently-updated?page=$page", docHeaders)
 

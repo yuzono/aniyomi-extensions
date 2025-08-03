@@ -8,6 +8,13 @@ assert !ext.has("libVersion")
 
 assert extName.chars().max().asInt < 0x180 : "Extension name should be romanized"
 
+// Load local.properties for local development
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+
 Project theme = ext.has("themePkg") ? project(":lib-multisrc:$themePkg") : null
 if (theme != null) evaluationDependsOn(theme.path)
 
@@ -78,6 +85,12 @@ android {
         resValues false
         shaders false
         buildConfig true
+    }
+
+    buildTypes {
+        all {
+            buildConfigField "String", "MEGACLOUD_API", "\"${System.getenv("MEGACLOUD_API") ?: localProperties.getProperty("MEGACLOUD_API", "")}\""
+        }
     }
 
     packaging {

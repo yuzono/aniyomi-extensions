@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.animeextension.en.zoro
 import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
@@ -28,7 +29,7 @@ class HiAnime : ZoroTheme(
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
 
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, preferences) }
+    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
 
     override val baseUrl: String
         get() = preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT) ?: PREF_DOMAIN_DEFAULT

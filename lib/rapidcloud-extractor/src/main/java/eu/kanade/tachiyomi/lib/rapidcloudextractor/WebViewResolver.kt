@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.lib.megacloudextractor
+package eu.kanade.tachiyomi.lib.rapidcloudextractor
 
 import android.annotation.SuppressLint
 import android.app.Application
@@ -10,7 +10,7 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor.VideoDto
+import eu.kanade.tachiyomi.lib.rapidcloudextractor.RapidCloudExtractor.VideoDto
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import uy.kohesive.injekt.injectLazy
