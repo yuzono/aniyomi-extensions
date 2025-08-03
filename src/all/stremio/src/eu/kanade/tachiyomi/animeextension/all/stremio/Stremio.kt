@@ -695,15 +695,16 @@ class Stremio : Source() {
             summary = logOutSummary(preferences.authKey),
             restartRequired = true,
             enabled = preferences.authKey.isNotBlank(),
-        ) { pref, _ ->
-            pref.setEnabled(false)
-            pref.summary = logOutSummary("")
+            onChange = { pref, _ ->
+                pref.setEnabled(false)
+                pref.summary = logOutSummary("")
 
-            preferences.clearCredentials()
-            preferences.clearLogin()
+                preferences.clearCredentials()
+                preferences.clearLogin()
 
-            false
-        }
+                false
+            },
+        )
 
         val getLibrarySummary: (String) -> String = {
             if (it.isBlank()) {
@@ -732,11 +733,10 @@ class Stremio : Source() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
             validate = { it.toHttpUrlOrNull() != null && !it.endsWith("/") },
             validationMessage = { "The URL is invalid, malformed, or ends with a slash" },
-            onComplete = {
-                baseUrl = it
-                webUIDelegate.updateValue(it)
-            },
-        )
+        ) {
+            baseUrl = it
+            webUIDelegate.updateValue(it)
+        }
 
         val serverUrlSummary: (String) -> String = { it.ifBlank { "Server url for torrent streams (optional)" } }
         screen.addEditTextPreference(
@@ -831,12 +831,11 @@ class Stremio : Source() {
             dialogMessage = "Email address",
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
             lazyDelegate = emailDelegate,
-            onComplete = {
-                if (preferences.password.isNotBlank()) {
-                    logIn()
-                }
-            },
-        )
+        ) {
+            if (preferences.password.isNotBlank()) {
+                logIn()
+            }
+        }
 
         val passwordSummary: (String) -> String = {
             if (it.isBlank()) "The user account password" else "•".repeat(it.length)
@@ -849,12 +848,11 @@ class Stremio : Source() {
             getSummary = passwordSummary,
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
             lazyDelegate = passwordDelegate,
-            onComplete = {
-                if (preferences.email.isNotBlank()) {
-                    logIn()
-                }
-            },
-        )
+        ) {
+            if (preferences.email.isNotBlank()) {
+                logIn()
+            }
+        }
 
         screen.addEditTextPreference(
             key = PREF_EPISODE_NAME_TEMPLATE_KEY,

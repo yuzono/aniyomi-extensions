@@ -170,8 +170,8 @@ private const val RESTART_MESSAGE = "Restart the app to apply the new setting."
  * @param validationMessage Validation message if text isn't valid, based on text value
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getEditTextPreference(
     key: String,
@@ -186,8 +186,8 @@ fun PreferenceScreen.getEditTextPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<String>? = null,
-    onComplete: (String) -> Unit = {},
     onChange: (Preference, String) -> Boolean = { _, _ -> true },
+    onComplete: (String) -> Unit = {},
 ): EditTextPreference {
     return EditTextPreference(context).apply {
         this.key = key
@@ -256,8 +256,8 @@ fun PreferenceScreen.getEditTextPreference(
  * @param validationMessage Validation message if text isn't valid, based on text value
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addEditTextPreference(
     key: String,
@@ -272,8 +272,8 @@ fun PreferenceScreen.addEditTextPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<String>? = null,
-    onComplete: (String) -> Unit = {},
     onChange: (Preference, String) -> Boolean = { _, _ -> true },
+    onComplete: (String) -> Unit = {},
 ) {
     getEditTextPreference(
         key = key,
@@ -288,8 +288,8 @@ fun PreferenceScreen.addEditTextPreference(
         restartRequired = restartRequired,
         enabled = enabled,
         lazyDelegate = lazyDelegate,
-        onComplete = onComplete,
         onChange = onChange,
+        onComplete = onComplete,
     ).also(::addPreference)
 }
 
@@ -304,8 +304,8 @@ fun PreferenceScreen.addEditTextPreference(
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getListPreference(
     key: String,
@@ -317,8 +317,8 @@ fun PreferenceScreen.getListPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<String>? = null,
-    onComplete: (String) -> Unit = {},
     onChange: (Preference, String) -> Boolean = { _, _ -> true },
+    onComplete: (String) -> Unit = {},
 ): ListPreference {
     return ListPreference(context).apply {
         this.key = key
@@ -355,8 +355,8 @@ fun PreferenceScreen.getListPreference(
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addListPreference(
     key: String,
@@ -368,8 +368,8 @@ fun PreferenceScreen.addListPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<String>? = null,
-    onComplete: (String) -> Unit = {},
     onChange: (Preference, String) -> Boolean = { _, _ -> true },
+    onComplete: (String) -> Unit = {},
 ) {
     getListPreference(
         key = key,
@@ -381,8 +381,8 @@ fun PreferenceScreen.addListPreference(
         restartRequired = restartRequired,
         enabled = enabled,
         lazyDelegate = lazyDelegate,
-        onComplete = onComplete,
         onChange = onChange,
+        onComplete = onComplete,
     ).also(::addPreference)
 }
 
@@ -397,8 +397,8 @@ fun PreferenceScreen.addListPreference(
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getSetPreference(
     key: String,
@@ -410,8 +410,8 @@ fun PreferenceScreen.getSetPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<Set<String>>? = null,
-    onComplete: (Set<String>) -> Unit = {},
     onChange: (Preference, Set<String>) -> Boolean = { _, _ -> true },
+    onComplete: (Set<String>) -> Unit = {},
 ): MultiSelectListPreference {
     return MultiSelectListPreference(context).apply {
         this.key = key
@@ -449,8 +449,8 @@ fun PreferenceScreen.getSetPreference(
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addSetPreference(
     key: String,
@@ -462,8 +462,8 @@ fun PreferenceScreen.addSetPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<Set<String>>? = null,
-    onComplete: (Set<String>) -> Unit = {},
     onChange: (Preference, Set<String>) -> Boolean = { _, _ -> true },
+    onComplete: (Set<String>) -> Unit = {},
 ) {
     getSetPreference(
         key = key,
@@ -475,8 +475,8 @@ fun PreferenceScreen.addSetPreference(
         restartRequired = restartRequired,
         enabled = enabled,
         lazyDelegate = lazyDelegate,
-        onComplete = onComplete,
         onChange = onChange,
+        onComplete = onComplete,
     ).also(::addPreference)
 }
 
@@ -489,8 +489,8 @@ fun PreferenceScreen.addSetPreference(
  * @param summary Preference summary
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getSwitchPreference(
     key: String,
@@ -500,8 +500,8 @@ fun PreferenceScreen.getSwitchPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<Boolean>? = null,
-    onComplete: (Boolean) -> Unit = {},
     onChange: (Preference, Boolean) -> Boolean = { _, _ -> true },
+    onComplete: (Boolean) -> Unit = {},
 ): SwitchPreferenceCompat {
     return SwitchPreferenceCompat(context).apply {
         this.key = key
@@ -534,8 +534,8 @@ fun PreferenceScreen.getSwitchPreference(
  * @param summary Preference summary
  * @param restartRequired Show restart required toast on preference change
  * @param lazyDelegate Lazy delegate for preference
- * @param onComplete Run block on completion with text value as parameter
  * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addSwitchPreference(
     key: String,
@@ -545,8 +545,8 @@ fun PreferenceScreen.addSwitchPreference(
     restartRequired: Boolean = false,
     enabled: Boolean = true,
     lazyDelegate: LazyMutablePreference<Boolean>? = null,
-    onComplete: (Boolean) -> Unit = {},
     onChange: (Preference, Boolean) -> Boolean = { _, _ -> true },
+    onComplete: (Boolean) -> Unit = {},
 ) {
     getSwitchPreference(
         key = key,
@@ -556,7 +556,7 @@ fun PreferenceScreen.addSwitchPreference(
         restartRequired = restartRequired,
         enabled = enabled,
         lazyDelegate = lazyDelegate,
-        onComplete = onComplete,
         onChange = onChange,
+        onComplete = onComplete,
     ).also(::addPreference)
 }
