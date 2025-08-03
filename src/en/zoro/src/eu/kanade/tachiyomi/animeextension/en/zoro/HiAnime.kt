@@ -7,6 +7,7 @@ import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
+import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.delegate
 import okhttp3.Request
@@ -30,7 +31,7 @@ class HiAnime :
     override val ajaxRoute = "/v2"
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers) }
+    private var megaCloudExtractor by LazyMutable { MegaCloudExtractor(client, docHeaders) }
 
     override var baseUrl: String
         by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
@@ -78,6 +79,7 @@ class HiAnime :
         ) {
             baseUrl = it
             docHeaders = newHeaders()
+            megaCloudExtractor = MegaCloudExtractor(client, docHeaders)
         }
     }
 
