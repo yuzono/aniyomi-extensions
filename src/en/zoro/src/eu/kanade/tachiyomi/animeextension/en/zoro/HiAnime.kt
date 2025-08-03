@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.zoro
 
-import android.widget.Toast
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -9,6 +7,8 @@ import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import okhttp3.Request
 import org.jsoup.nodes.Element
 import kotlin.getValue
@@ -32,8 +32,8 @@ class HiAnime :
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers) }
 
-    override val baseUrl: String
-        get() = preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT) ?: PREF_DOMAIN_DEFAULT
+    override var baseUrl: String
+        by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
     override fun latestUpdatesRequest(page: Int): Request = GET(
         "$baseUrl/recently-updated?page=$page",
@@ -68,30 +68,22 @@ class HiAnime :
     // Added the setupPreferenceScreen method here
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         super.setupPreferenceScreen(screen)
-        screen.addPreference(
-            ListPreference(screen.context).apply {
-                key = PREF_DOMAIN_KEY
-                title = "Preferred domain"
-                entries = DOMAIN_ENTRIES
-                entryValues = DOMAIN_VALUES
-                setDefaultValue(PREF_DOMAIN_DEFAULT)
-                summary = "%s"
-
-                setOnPreferenceChangeListener { _, _ ->
-                    Toast.makeText(
-                        screen.context,
-                        "Restart App to apply changes",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    true
-                }
-            },
-        )
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = "Preferred domain",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        ) {
+            baseUrl = it
+            docHeaders = newHeaders()
+        }
     }
 
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
-        private val DOMAIN_ENTRIES = arrayOf(
+        private val DOMAIN_ENTRIES = listOf(
             "hianime.to",
             "hianime.nz",
             "hianime.sx",
@@ -100,7 +92,7 @@ class HiAnime :
             "hianime.pe",
             "hianimez.is",
         )
-        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
         private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
     }
 }

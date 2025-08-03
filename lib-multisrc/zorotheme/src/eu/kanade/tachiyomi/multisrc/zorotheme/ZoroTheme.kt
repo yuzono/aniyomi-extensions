@@ -1,11 +1,7 @@
 package eu.kanade.tachiyomi.multisrc.zorotheme
 
 import android.content.SharedPreferences
-import android.widget.Toast
-import androidx.preference.ListPreference
-import androidx.preference.MultiSelectListPreference
 import androidx.preference.PreferenceScreen
-import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -19,6 +15,11 @@ import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.LazyMutable
+import extensions.utils.addListPreference
+import extensions.utils.addSetPreference
+import extensions.utils.addSwitchPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -42,8 +43,12 @@ abstract class ZoroTheme(
         clearOldHosts()
     }
 
-    protected val docHeaders by lazy {
-        headers.newBuilder().apply {
+    protected var docHeaders by LazyMutable {
+        newHeaders()
+    }
+
+    protected fun newHeaders(): Headers {
+        return headers.newBuilder().apply {
             add(
                 "Accept",
                 "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -55,8 +60,7 @@ abstract class ZoroTheme(
 
     protected open val ajaxRoute = ""
 
-    private val useEnglish by lazy { preferences.getTitleLang == "English" }
-    private val markFiller by lazy { preferences.markFiller }
+    private var useEnglish by LazyMutable { preferences.getTitleLang == "English" }
 
     // ============================== Popular ===============================
 
@@ -189,7 +193,7 @@ abstract class ZoroTheme(
         episode_number = element.attr("data-number").toFloatOrNull() ?: 1F
         name = "Ep. ${element.attr("data-number")}: ${element.attr("title")}"
         setUrlWithoutDomain(element.attr("href"))
-        if (element.hasClass("ssl-item-filler") && markFiller) {
+        if (element.hasClass("ssl-item-filler") && preferences.markFiller) {
             scanlator = "Filler Episode"
         }
     }
@@ -248,6 +252,7 @@ abstract class ZoroTheme(
     // ============================= Utilities ==============================
 
     private fun SharedPreferences.clearOldHosts(): SharedPreferences {
+        val hostToggle = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet()) ?: return this
         if (hostToggle.all { hosterNames.contains(it) }) {
             return this
         }
@@ -291,31 +296,31 @@ abstract class ZoroTheme(
         )
     }
 
-    private val SharedPreferences.getTitleLang
-        get() = getString(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)!!
+    private var SharedPreferences.getTitleLang
+        by preferences.delegate(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)
 
-    private val SharedPreferences.markFiller
-        get() = getBoolean(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT)
+    private var SharedPreferences.markFiller
+        by preferences.delegate(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT)
 
-    private val SharedPreferences.prefQuality
-        get() = getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
+    private var SharedPreferences.prefQuality
+        by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
 
-    private val SharedPreferences.prefServer
-        get() = getString(PREF_SERVER_KEY, hosterNames.first())!!
+    private var SharedPreferences.prefServer
+        by preferences.delegate(PREF_SERVER_KEY, hosterNames.first())
 
-    private val SharedPreferences.prefLang
-        get() = getString(PREF_LANG_KEY, PREF_LANG_DEFAULT)!!
+    private var SharedPreferences.prefLang
+        by preferences.delegate(PREF_LANG_KEY, PREF_LANG_DEFAULT)
 
-    private val SharedPreferences.hostToggle
-        get() = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!!
+    private var SharedPreferences.hostToggle
+        by preferences.delegate(PREF_HOSTER_KEY, hosterNames.toSet())
 
-    private val SharedPreferences.typeToggle
-        get() = getStringSet(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)!!
+    private var SharedPreferences.typeToggle
+        by preferences.delegate(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)
 
     companion object {
         private const val PREF_TITLE_LANG_KEY = "preferred_title_lang"
         private const val PREF_TITLE_LANG_DEFAULT = "Romaji"
-        private val PREF_TITLE_LANG_LIST = arrayOf("Romaji", "English")
+        private val PREF_TITLE_LANG_LIST = listOf("Romaji", "English")
 
         private const val MARK_FILLERS_KEY = "mark_fillers"
         private const val MARK_FILLERS_DEFAULT = true
@@ -331,79 +336,88 @@ abstract class ZoroTheme(
         private const val PREF_HOSTER_KEY = "hoster_selection"
 
         private const val PREF_TYPE_TOGGLE_KEY = "type_selection"
-        private val TYPES_ENTRIES = arrayOf("Sub", "Dub", "Mixed", "Raw")
-        private val TYPES_ENTRY_VALUES = arrayOf("servers-sub", "servers-dub", "servers-mixed", "servers-raw")
+        private val TYPES_ENTRIES = listOf("Sub", "Dub", "Mixed", "Raw")
+        private val TYPES_ENTRY_VALUES = listOf("servers-sub", "servers-dub", "servers-mixed", "servers-raw")
         private val PREF_TYPES_TOGGLE_DEFAULT = TYPES_ENTRY_VALUES.toSet()
     }
 
     // ============================== Settings ==============================
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        ListPreference(screen.context).apply {
-            key = PREF_TITLE_LANG_KEY
-            title = "Preferred title language"
-            entries = PREF_TITLE_LANG_LIST
-            entryValues = PREF_TITLE_LANG_LIST
-            setDefaultValue(PREF_TITLE_LANG_DEFAULT)
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_TITLE_LANG_KEY,
+            title = "Preferred title language",
+            entries = PREF_TITLE_LANG_LIST,
+            entryValues = PREF_TITLE_LANG_LIST,
+            default = PREF_TITLE_LANG_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.getTitleLang = it
+            useEnglish = it == "English"
+        }
 
-            setOnPreferenceChangeListener { _, _ ->
-                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
-                true
-            }
-        }.also(screen::addPreference)
+        screen.addSwitchPreference(
+            key = MARK_FILLERS_KEY,
+            title = "Mark filler episodes",
+            summary = "Mark filler episodes in the episode list",
+            default = MARK_FILLERS_DEFAULT,
+        ) {
+            preferences.markFiller = it
+        }
 
-        SwitchPreferenceCompat(screen.context).apply {
-            key = MARK_FILLERS_KEY
-            title = "Mark filler episodes"
-            setDefaultValue(MARK_FILLERS_DEFAULT)
-            setOnPreferenceChangeListener { _, newValue ->
-                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
-                true
-            }
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred quality",
+            entries = listOf("1080p", "720p", "480p", "360p"),
+            entryValues = listOf("1080", "720", "480", "360"),
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.prefQuality = it
+        }
 
-        ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = "Preferred quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p")
-            entryValues = arrayOf("1080", "720", "480", "360")
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_SERVER_KEY,
+            title = "Preferred Server",
+            entries = hosterNames,
+            entryValues = hosterNames,
+            default = hosterNames.first(),
+            summary = "%s",
+        ) {
+            preferences.prefServer = it
+        }
 
-        ListPreference(screen.context).apply {
-            key = PREF_SERVER_KEY
-            title = "Preferred Server"
-            entries = hosterNames.toTypedArray()
-            entryValues = hosterNames.toTypedArray()
-            setDefaultValue(hosterNames.first())
-            summary = "%s"
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_LANG_KEY,
+            title = "Preferred Type",
+            entries = TYPES_ENTRIES,
+            entryValues = TYPES_ENTRIES,
+            default = PREF_LANG_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.prefLang = it
+        }
 
-        ListPreference(screen.context).apply {
-            key = PREF_LANG_KEY
-            title = "Preferred Type"
-            entries = TYPES_ENTRIES
-            entryValues = TYPES_ENTRIES
-            setDefaultValue(PREF_LANG_DEFAULT)
-            summary = "%s"
-        }.also(screen::addPreference)
+        screen.addSetPreference(
+            key = PREF_HOSTER_KEY,
+            title = "Enable/Disable Hosts",
+            summary = "Select which video hosts to show in the episode list",
+            entries = hosterNames,
+            entryValues = hosterNames,
+            default = hosterNames.toSet(),
+        ) {
+            preferences.hostToggle = it
+        }
 
-        MultiSelectListPreference(screen.context).apply {
-            key = PREF_HOSTER_KEY
-            title = "Enable/Disable Hosts"
-            entries = hosterNames.toTypedArray()
-            entryValues = hosterNames.toTypedArray()
-            setDefaultValue(hosterNames.toSet())
-        }.also(screen::addPreference)
-
-        MultiSelectListPreference(screen.context).apply {
-            key = PREF_TYPE_TOGGLE_KEY
-            title = "Enable/Disable Types"
-            entries = TYPES_ENTRIES
-            entryValues = TYPES_ENTRY_VALUES
-            setDefaultValue(PREF_TYPES_TOGGLE_DEFAULT)
-        }.also(screen::addPreference)
+        screen.addSetPreference(
+            key = PREF_TYPE_TOGGLE_KEY,
+            title = "Enable/Disable Types",
+            summary = "Select which video types to show in the episode list",
+            entries = TYPES_ENTRIES,
+            entryValues = TYPES_ENTRY_VALUES,
+            default = PREF_TYPES_TOGGLE_DEFAULT,
+        ) {
+            preferences.typeToggle = it
+        }
     }
 }
