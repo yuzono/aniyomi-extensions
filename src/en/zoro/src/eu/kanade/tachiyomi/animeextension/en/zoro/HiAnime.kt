@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.zoro
 
-import android.widget.Toast
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -9,29 +7,34 @@ import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
+import extensions.utils.LazyMutable
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import okhttp3.Request
 import org.jsoup.nodes.Element
+import kotlin.getValue
 
-class HiAnime : ZoroTheme(
-    "en",
-    "HiAnime",
-    "https://hianime.to",
-    hosterNames = listOf(
-        "HD-1",
-        "HD-2",
-        "StreamTape",
-    ),
-) {
+class HiAnime :
+    ZoroTheme(
+        "en",
+        "HiAnime",
+        "https://hianime.to",
+        hosterNames = listOf(
+            "HD-1",
+            "HD-2",
+            "HD-3",
+            "StreamTape",
+        ),
+    ) {
     override val id = 6706411382606718900L
 
     override val ajaxRoute = "/v2"
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
+    private var megaCloudExtractor by LazyMutable { MegaCloudExtractor(client, docHeaders) }
 
-    private val megaCloudExtractor by lazy { MegaCloudExtractor(client, headers) }
-
-    override val baseUrl: String
-        get() = preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT) ?: PREF_DOMAIN_DEFAULT
+    override var baseUrl: String
+        by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
     override fun latestUpdatesRequest(page: Int): Request = GET(
         "$baseUrl/recently-updated?page=$page",
@@ -53,7 +56,7 @@ class HiAnime : ZoroTheme(
                 )?.let(::listOf) ?: emptyList()
             }
 
-            "HD-1", "HD-2" -> megaCloudExtractor.getVideosFromUrl(
+            "HD-1", "HD-2", "HD-3" -> megaCloudExtractor.getVideosFromUrl(
                 server.link,
                 server.type,
                 server.name,
@@ -66,32 +69,32 @@ class HiAnime : ZoroTheme(
     // Added the setupPreferenceScreen method here
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         super.setupPreferenceScreen(screen)
-        screen.addPreference(
-            ListPreference(screen.context).apply {
-                key = PREF_DOMAIN_KEY
-                title = "Preferred domain"
-                entries = arrayOf("hianime.to", "hianimez.to", "hianimez.is", "hianime.nz", "hianime.pe")
-                entryValues = arrayOf("https://hianime.to", "https://hianimez.to", "https://hianimez.is", "https://hianime.nz", "https://hianime.pe")
-                setDefaultValue(PREF_DOMAIN_DEFAULT)
-                summary = "%s"
-
-                setOnPreferenceChangeListener { _, newValue ->
-                    val selected = newValue as String
-                    val index = findIndexOfValue(selected)
-                    val entry = entryValues[index] as String
-                    Toast.makeText(
-                        screen.context,
-                        "Restart App to apply changes",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    preferences.edit().putString(key, entry).commit()
-                }
-            },
-        )
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = "Preferred domain",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        ) {
+            baseUrl = it
+            docHeaders = newHeaders()
+            megaCloudExtractor = MegaCloudExtractor(client, docHeaders)
+        }
     }
 
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
-        private const val PREF_DOMAIN_DEFAULT = "https://hianime.to"
+        private val DOMAIN_ENTRIES = listOf(
+            "hianime.to",
+            "hianime.nz",
+            "hianime.sx",
+            "hianime.is",
+            "hianime.bz",
+            "hianime.pe",
+            "hianimez.is",
+        )
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
+        private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
     }
 }
