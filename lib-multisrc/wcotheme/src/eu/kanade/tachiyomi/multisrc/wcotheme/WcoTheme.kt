@@ -259,7 +259,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     open fun iframeParse(iframeLink: String): List<Video> {
-        return if (iframeLink.contains("embed.watchanimesub")) {
+        return if (iframeLink.contains("embed.wcostream")) {
             // Dub or Hard-sub
             val iframeSoup = client.newCall(GET(iframeLink, headers))
                 .execute().asJsoup()
