@@ -128,7 +128,7 @@ class UniversalExtractor(private val client: OkHttpClient) {
                     }
                 }
                 // Default jwplayer instance
-                playerInstance?.play();
+                try { jwplayer(0).play(); } catch {}
             }, 2500)
             """.trimIndent()
         }

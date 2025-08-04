@@ -39,10 +39,10 @@ class Q1N : DooPlay(
 
     // ============================== Popular ===============================
     override fun popularAnimeSelector() = "div.items.featured article div.poster"
-    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/a/", headers)
+    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/animes/", headers)
 
     // =============================== Latest ===============================
-    override val latestUpdatesPath = "e"
+    override val latestUpdatesPath = "episodio"
 
     // =============================== Search ===============================
     override fun searchAnimeSelector() = "div.result-item article div.thumbnail > a"
@@ -136,7 +136,8 @@ class Q1N : DooPlay(
             "mixdrop" in name -> mixDropExtractor.videoFromUrl(url)
             "streamtape" in name -> streamTapeExtractor.videosFromUrl(url)
             "noa" in name -> noaExtractor.videosFromUrl(url)
-            "mdplayer" in name -> noaExtractor.videosFromUrl(url, "MDPLAYER")
+            "mdplayer" in name -> noaExtractor.videosFromUrl(url, name)
+            "/antivirus3/" in url -> noaExtractor.videosFromUrl(url, name)
             "/player/" in url -> bloggerExtractor.videosFromUrl(url, headers)
             "blogger.com" in url -> bloggerExtractor.videosFromUrl(url, headers)
             else -> universalExtractor.videosFromUrl(url, headers, name)
