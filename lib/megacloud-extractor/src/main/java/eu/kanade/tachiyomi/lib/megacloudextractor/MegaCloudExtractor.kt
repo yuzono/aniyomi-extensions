@@ -27,7 +27,6 @@ class MegaCloudExtractor(
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
     companion object {
-        private const val SERVER_URL = "https://megacloud.tv"
         private const val SOURCES_URL = "/embed-2/v3/e-1/getSources?id="
         private const val SOURCES_SPLITTER = "/e-1/"
     }
@@ -54,10 +53,17 @@ class MegaCloudExtractor(
             .substringBefore("?", "")
             .ifEmpty { throw Exception("Failed to extract ID from URL") }
 
+        val host = try {
+            url.toHttpUrl().host
+        } catch (e: IllegalArgumentException) {
+            throw Exception("MegaCloud host is invalid")
+        }
+        val megaCloudServerUrl = "https://$host"
+
         val megaCloudHeaders = headers.newBuilder()
             .add("Accept", "*/*")
             .add("X-Requested-With", "XMLHttpRequest")
-            .add("Referer", "${SERVER_URL}/")
+            .add("Referer", "${megaCloudServerUrl}/")
             .build()
 
         val responseNonce = client.newCall(GET(url, megaCloudHeaders))
@@ -65,11 +71,13 @@ class MegaCloudExtractor(
         val match1 = Regex("""\b[a-zA-Z0-9]{48}\b""").find(responseNonce)
         val match2 = Regex("""\b([a-zA-Z0-9]{16})\b.*?\b([a-zA-Z0-9]{16})\b.*?\b([a-zA-Z0-9]{16})\b""").find(responseNonce)
 
-        val nonce = match1?.value ?: match2?.let {
-            it.groupValues[1] + it.groupValues[2] + it.groupValues[3]
+        val nonce = when {
+            match1 != null -> match1.value
+            match2 != null -> match2.groupValues[1] + match2.groupValues[2] + match2.groupValues[3]
+            else -> throw Exception("Failed to extract nonce from response")
         }
 
-        val srcRes = client.newCall(GET("${SERVER_URL}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
+        val srcRes = client.newCall(GET("${megaCloudServerUrl}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
             .execute().use { it.body.string() }
 
         val data = json.decodeFromString<SourceResponseDto>(srcRes)
