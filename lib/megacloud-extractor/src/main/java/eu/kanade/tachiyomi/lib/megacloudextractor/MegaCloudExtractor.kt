@@ -27,7 +27,6 @@ class MegaCloudExtractor(
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
     companion object {
-        private const val SERVER_URL = "https://megacloud.tv"
         private const val SOURCES_URL = "/embed-2/v3/e-1/getSources?id="
         private const val SOURCES_SPLITTER = "/e-1/"
     }
@@ -54,10 +53,16 @@ class MegaCloudExtractor(
             .substringBefore("?", "")
             .ifEmpty { throw Exception("Failed to extract ID from URL") }
 
+        val host = runCatching {
+            url.toHttpUrl().host
+        }.getOrNull() ?: throw IllegalStateException("MegaCloud host is invalid: $url")
+
+        val megaCloudServerUrl = "https://$host"
+
         val megaCloudHeaders = headers.newBuilder()
             .add("Accept", "*/*")
             .add("X-Requested-With", "XMLHttpRequest")
-            .add("Referer", "${SERVER_URL}/")
+            .add("Referer", "${megaCloudServerUrl}/")
             .build()
 
         val responseNonce = client.newCall(GET(url, megaCloudHeaders))
@@ -67,9 +72,9 @@ class MegaCloudExtractor(
 
         val nonce = match1?.value ?: match2?.let {
             it.groupValues[1] + it.groupValues[2] + it.groupValues[3]
-        }
+        } ?: throw IllegalStateException("Failed to extract nonce from response")
 
-        val srcRes = client.newCall(GET("${SERVER_URL}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
+        val srcRes = client.newCall(GET("${megaCloudServerUrl}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
             .execute().use { it.body.string() }
 
         val data = json.decodeFromString<SourceResponseDto>(srcRes)
@@ -79,7 +84,7 @@ class MegaCloudExtractor(
         val m3u8: String = if (".m3u8" in encoded) {
             encoded
         } else {
-            val decodeUrl = "https://script.google.com/macros/s/AKfycbx-yHTwupis_JD0lNzoOnxYcEYeXmJZrg7JeMxYnEZnLBy5V0--UxEvP-y9txHyy1TX9Q/exec"
+            val decodeUrl = "https://script.google.com/macros/s/AKfycbxHbYHbrGMXYD2-bC-C43D3njIbU-wGiYQuJL61H4vyy6YVXkybMNNEPJNPPuZrD1gRVA/exec"
 
             val fullUrl = buildString {
                 append(decodeUrl)
