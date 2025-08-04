@@ -53,11 +53,10 @@ class MegaCloudExtractor(
             .substringBefore("?", "")
             .ifEmpty { throw Exception("Failed to extract ID from URL") }
 
-        val host = try {
+        val host = runCatching {
             url.toHttpUrl().host
-        } catch (e: IllegalArgumentException) {
-            throw Exception("MegaCloud host is invalid")
-        }
+        }.getOrNull() ?: throw IllegalStateException("MegaCloud host is invalid: $url")
+
         val megaCloudServerUrl = "https://$host"
 
         val megaCloudHeaders = headers.newBuilder()
@@ -71,11 +70,9 @@ class MegaCloudExtractor(
         val match1 = Regex("""\b[a-zA-Z0-9]{48}\b""").find(responseNonce)
         val match2 = Regex("""\b([a-zA-Z0-9]{16})\b.*?\b([a-zA-Z0-9]{16})\b.*?\b([a-zA-Z0-9]{16})\b""").find(responseNonce)
 
-        val nonce = when {
-            match1 != null -> match1.value
-            match2 != null -> match2.groupValues[1] + match2.groupValues[2] + match2.groupValues[3]
-            else -> throw Exception("Failed to extract nonce from response")
-        }
+        val nonce = match1?.value ?: match2?.let {
+            it.groupValues[1] + it.groupValues[2] + it.groupValues[3]
+        } ?: throw IllegalStateException("Failed to extract nonce from response")
 
         val srcRes = client.newCall(GET("${megaCloudServerUrl}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
             .execute().use { it.body.string() }
