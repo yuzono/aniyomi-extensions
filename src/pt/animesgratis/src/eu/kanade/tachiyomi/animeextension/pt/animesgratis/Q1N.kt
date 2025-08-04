@@ -128,6 +128,7 @@ class Q1N : DooPlay(
         val name = player.selectFirst("span.title")!!.text().lowercase()
         val url = getPlayerUrl(player) ?: return emptyList()
         Log.d(tag, "Fetching videos from: $url")
+
         return when {
             "ruplay" in name -> ruplayExtractor.videosFromUrl(url)
             "streamwish" in name -> streamWishExtractor.videosFromUrl(url)
@@ -138,7 +139,7 @@ class Q1N : DooPlay(
             "mdplayer" in name -> noaExtractor.videosFromUrl(url, "MDPLAYER")
             "/player/" in url -> bloggerExtractor.videosFromUrl(url, headers)
             "blogger.com" in url -> bloggerExtractor.videosFromUrl(url, headers)
-            else -> universalExtractor.videosFromUrl(url, headers)
+            else -> universalExtractor.videosFromUrl(url, headers, name)
         }
     }
 
@@ -187,7 +188,7 @@ class Q1N : DooPlay(
 
     private fun Element.tryGetAttr(vararg attributeKeys: String): String? {
         val attributeKey = attributeKeys.first { hasAttr(it) }
-        return attributeKey?.let { attr(attributeKey) }
+        return attr(attributeKey)
     }
 
     override fun List<Video>.sort(): List<Video> {
