@@ -150,14 +150,12 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
-        return document.select(episodeListSelector()).map { episodeFromElement(it) }
-            .reversed()
-            .mapIndexed { index, episode ->
-                episode.apply {
-                    episode_number = (index + 1).toFloat()
-                }
+        val episodes = document.select(episodeListSelector()).map { episodeFromElement(it) }
+        return episodes.mapIndexed { index, episode ->
+            episode.apply {
+                episode_number = (episodes.size - index).toFloat()
             }
-            .reversed()
+        }
             // If opening an episode link instead of anime link, there is no episode list available.
             // So we return the same episode with the title from the page.
             .ifEmpty {
