@@ -67,10 +67,12 @@ class M3u8HttpServer(
         return response
     }
 
-    private fun handleM3u8Request(session: IHTTPSession): Response {
+        private fun handleM3u8Request(session: IHTTPSession): Response {
         val url = session.parameters["url"]?.first()
+        val headers = extractHeadersFromSession(session)
 
         Log.d(tag, "Processing M3U8 request for URL: $url")
+        Log.d(tag, "Headers: $headers")
 
         if (url.isNullOrBlank()) {
             Log.w(tag, "Missing URL parameter in M3U8 request")
@@ -79,7 +81,7 @@ class M3u8HttpServer(
 
         return try {
             Log.d(tag, "Starting M3U8 processing for: $url")
-            val processedContent = runBlocking { processM3u8Url(url) }
+            val processedContent = runBlocking { processM3u8Url(url, headers) }
             Log.d(tag, "M3U8 processing completed successfully, content length: ${processedContent.length}")
             newFixedLengthResponse(Response.Status.OK, "application/vnd.apple.mpegurl", processedContent)
         } catch (e: Exception) {
@@ -88,10 +90,12 @@ class M3u8HttpServer(
         }
     }
 
-    private fun handleSegmentRequest(session: IHTTPSession): Response {
+        private fun handleSegmentRequest(session: IHTTPSession): Response {
         val url = session.parameters["url"]?.first()
+        val headers = extractHeadersFromSession(session)
 
         Log.d(tag, "Processing segment request for URL: $url")
+        Log.d(tag, "Headers: $headers")
 
         if (url.isNullOrBlank()) {
             Log.w(tag, "Missing URL parameter in segment request")
@@ -100,7 +104,7 @@ class M3u8HttpServer(
 
         return try {
             Log.d(tag, "Starting segment processing for: $url")
-            val segmentData = runBlocking { processSegmentUrl(url) }
+            val segmentData = runBlocking { processSegmentUrl(url, headers) }
             Log.d(tag, "Segment processing completed successfully, data size: ${segmentData.size} bytes")
             val inputStream = ByteArrayInputStream(segmentData)
             newChunkedResponse(Response.Status.OK, "video/mp2t", inputStream)
@@ -118,12 +122,32 @@ class M3u8HttpServer(
     }
 
     /**
+     * Extract headers from the HTTP session
+     */
+    private fun extractHeadersFromSession(session: IHTTPSession): Map<String, String> {
+        val headers = mutableMapOf<String, String>()
+
+        // Extract common headers that might be needed for video requests
+        session.headers.forEach { (key, value) ->
+            when (key.lowercase()) {
+                "user-agent", "referer", "origin", "accept", "accept-language",
+                "accept-encoding", "connection", "cache-control", "pragma" -> {
+                    headers[key] = value
+                }
+            }
+        }
+
+        Log.d(tag, "Extracted headers: $headers")
+        return headers
+    }
+
+        /**
      * Process M3U8 content through the server
      */
-    suspend fun processM3u8Url(url: String): String = withContext(Dispatchers.IO) {
+    suspend fun processM3u8Url(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
         try {
-            Log.d(tag, "Fetching M3U8 content from: $url")
-            val m3u8Content = fetchM3u8Content(url)
+            Log.d(tag, "Fetching M3U8 content from: $url with headers: $headers")
+            val m3u8Content = fetchM3u8Content(url, headers)
             Log.d(tag, "Original M3U8 content length: ${m3u8Content.length}")
 
             val modifiedContent = modifyM3u8Content(m3u8Content, port)
@@ -140,10 +164,10 @@ class M3u8HttpServer(
     /**
      * Process segment with automatic detection
      */
-    suspend fun processSegmentUrl(url: String): ByteArray = withContext(Dispatchers.IO) {
+    suspend fun processSegmentUrl(url: String, headers: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
         try {
-            Log.d(tag, "Fetching segment from: $url")
-            val segmentData = fetchSegmentWithAutoDetection(url)
+            Log.d(tag, "Fetching segment from: $url with headers: $headers")
+            val segmentData = fetchSegmentWithAutoDetection(url, headers)
             Log.d(tag, "Segment processing completed, final size: ${segmentData.size} bytes")
             segmentData
         } catch (e: Exception) {
@@ -163,9 +187,15 @@ class M3u8HttpServer(
         }
     }
 
-    private suspend fun fetchM3u8Content(url: String): String = withContext(Dispatchers.IO) {
-        Log.d(tag, "Making HTTP request to fetch M3U8 content")
-        val request = Request.Builder().url(url).build()
+        private suspend fun fetchM3u8Content(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
+        Log.d(tag, "Making HTTP request to fetch M3U8 content with headers: $headers")
+
+        val requestBuilder = Request.Builder().url(url)
+        headers.forEach { (key, value) ->
+            requestBuilder.addHeader(key, value)
+        }
+        val request = requestBuilder.build()
+
         val response = client.newCall(request).execute()
 
         Log.d(tag, "M3U8 HTTP response code: ${response.code}")
@@ -185,9 +215,15 @@ class M3u8HttpServer(
         content
     }
 
-    private suspend fun fetchSegmentWithAutoDetection(url: String): ByteArray = withContext(Dispatchers.IO) {
-        Log.d(tag, "Making HTTP request to fetch segment")
-        val request = Request.Builder().url(url).build()
+        private suspend fun fetchSegmentWithAutoDetection(url: String, headers: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
+        Log.d(tag, "Making HTTP request to fetch segment with headers: $headers")
+
+        val requestBuilder = Request.Builder().url(url)
+        headers.forEach { (key, value) ->
+            requestBuilder.addHeader(key, value)
+        }
+        val request = requestBuilder.build()
+
         val response = client.newCall(request).execute()
 
         Log.d(tag, "Segment HTTP response code: ${response.code}")
