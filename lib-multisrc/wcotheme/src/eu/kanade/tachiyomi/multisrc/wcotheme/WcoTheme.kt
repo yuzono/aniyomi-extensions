@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.multisrc.wcotheme
 
 import android.util.Base64
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -15,6 +14,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.addListPreference
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -150,7 +150,12 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
-        return document.select(episodeListSelector()).map { episodeFromElement(it) }
+        val episodes = document.select(episodeListSelector()).map { episodeFromElement(it) }
+        return episodes.mapIndexed { index, episode ->
+            episode.apply {
+                episode_number = (episodes.size - index).toFloat()
+            }
+        }
             // If opening an episode link instead of anime link, there is no episode list available.
             // So we return the same episode with the title from the page.
             .ifEmpty {
@@ -252,7 +257,7 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     open fun iframeParse(iframeLink: String): List<Video> {
-        return if (iframeLink.contains("embed.watchanimesub")) {
+        return if (iframeLink.contains("embed.wcostream")) {
             // Dub or Hard-sub
             val iframeSoup = client.newCall(GET(iframeLink, headers))
                 .execute().asJsoup()
@@ -318,21 +323,14 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================== Settings ==============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = PREF_QUALITY_TITLE
-            entries = PREF_QUALITY_ENTRIES
-            entryValues = PREF_QUALITY_VALUES
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = PREF_QUALITY_TITLE,
+            entries = PREF_QUALITY_ENTRIES,
+            entryValues = PREF_QUALITY_VALUES,
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
     }
     override val supportsRelatedAnimes = false
 
@@ -342,8 +340,8 @@ abstract class WcoTheme : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         const val PREF_QUALITY_KEY = "preferred_quality"
         const val PREF_QUALITY_TITLE = "Preferred quality"
         const val PREF_QUALITY_DEFAULT = "720"
-        val PREF_QUALITY_ENTRIES = arrayOf("1080p", "720p", "480p")
-        val PREF_QUALITY_VALUES = arrayOf("1080", "720", "480")
+        val PREF_QUALITY_ENTRIES = listOf("1080p", "720p", "480p")
+        val PREF_QUALITY_VALUES = listOf("1080", "720", "480")
 
         const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 Edg/88.0.705.63"
     }
