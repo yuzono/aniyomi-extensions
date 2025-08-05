@@ -67,7 +67,9 @@ class M3u8Integration(
      * @return true if it's an M3U8
      */
     private fun isM3u8Url(url: String): Boolean {
-        return url.contains(".m3u8") || url.contains("application/vnd.apple.mpegurl")
+        val m3u8Regex = Regex("""\.m3u8($|\?|#)""", RegexOption.IGNORE_CASE)
+        return m3u8Regex.containsMatchIn(url) ||
+            url.contains("application/vnd.apple.mpegurl", ignoreCase = true)
     }
 
     /**
