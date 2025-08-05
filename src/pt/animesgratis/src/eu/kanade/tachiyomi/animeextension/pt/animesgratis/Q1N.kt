@@ -188,8 +188,8 @@ class Q1N : DooPlay(
     }
 
     private fun Element.tryGetAttr(vararg attributeKeys: String): String? {
-        val attributeKey = attributeKeys.first { hasAttr(it) }
-        return attr(attributeKey)
+        return attributeKeys.firstOrNull { hasAttr(it) }
+            ?.let { attr(it) }
     }
 
     override fun List<Video>.sort(): List<Video> {
