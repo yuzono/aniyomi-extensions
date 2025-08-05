@@ -15,7 +15,7 @@ import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.multisrc.dooplay.DooPlay
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -106,10 +106,19 @@ class Q1N : DooPlay(
     }
 
     // ============================ Video Links =============================
-    override fun videoListParse(response: Response): List<Video> {
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
+        return client.newCall(videoListRequest(episode))
+            .execute()
+            .use { response ->
+                videoListParseSuspend(response)
+            }
+    }
+
+    override fun videoListParse(response: Response) = throw UnsupportedOperationException()
+    private suspend fun videoListParseSuspend(response: Response): List<Video> {
         val document = response.asJsoup()
         val players = document.select("ul#playeroptionsul li")
-        return players.parallelCatchingFlatMapBlocking(::getPlayerVideos)
+        return players.parallelCatchingFlatMap(::getPlayerVideos)
     }
 
     override val prefQualityValues = arrayOf("360p", "480p", "720p", "1080p")
@@ -124,7 +133,7 @@ class Q1N : DooPlay(
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
 
-    private fun getPlayerVideos(player: Element): List<Video> {
+    private suspend fun getPlayerVideos(player: Element): List<Video> {
         val name = player.selectFirst("span.title")!!.text().lowercase()
         val url = getPlayerUrl(player) ?: return emptyList()
         Log.d(tag, "Fetching videos from: $url")
@@ -187,6 +196,7 @@ class Q1N : DooPlay(
         } ?: document
     }
 
+    @Suppress("SameParameterValue")
     private fun Element.tryGetAttr(vararg attributeKeys: String): String? {
         return attributeKeys.firstOrNull { hasAttr(it) }
             ?.let { attr(it) }
