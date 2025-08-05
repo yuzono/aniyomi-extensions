@@ -13,13 +13,11 @@ class M3u8Integration(
 ) {
 
     private val tag by lazy { javaClass.simpleName }
-    private var isInitialized = false
 
     private fun initializeServer() {
-        if (!isInitialized && !serverManager.isRunning()) {
+        if (!serverManager.isRunning()) {
             try {
                 serverManager.startServer() // Uses random port by default
-                isInitialized = true
                 Log.d(tag, "M3U8 server initialized on port: ${serverManager.getServerUrl()}")
             } catch (e: Exception) {
                 // Log error but don't crash
