@@ -196,23 +196,23 @@ class M3u8HttpServer(
         }
         val request = requestBuilder.build()
 
-        val response = client.newCall(request).execute()
+        client.newCall(request).execute().use { response ->
+            Log.d(tag, "M3U8 HTTP response code: ${response.code}")
 
-        Log.d(tag, "M3U8 HTTP response code: ${response.code}")
+            if (!response.isSuccessful) {
+                Log.e(tag, "Failed to fetch M3U8 content, HTTP code: ${response.code}")
+                throw IOException("Failed to fetch m3u8: ${response.code}")
+            }
 
-        if (!response.isSuccessful) {
-            Log.e(tag, "Failed to fetch M3U8 content, HTTP code: ${response.code}")
-            throw IOException("Failed to fetch m3u8: ${response.code}")
+            val content = response.body.string()
+            if (content.isBlank()) {
+                Log.e(tag, "Empty M3U8 response body")
+                throw IOException("Empty response body")
+            }
+
+            Log.d(tag, "Successfully fetched M3U8 content")
+            content
         }
-
-        val content = response.body.string()
-        if (content.isBlank()) {
-            Log.e(tag, "Empty M3U8 response body")
-            throw IOException("Empty response body")
-        }
-
-        Log.d(tag, "Successfully fetched M3U8 content")
-        content
     }
 
     private suspend fun fetchSegmentWithAutoDetection(url: String, headers: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
@@ -224,41 +224,41 @@ class M3u8HttpServer(
         }
         val request = requestBuilder.build()
 
-        val response = client.newCall(request).execute()
+        client.newCall(request).execute().use { response ->
+            Log.d(tag, "Segment HTTP response code: ${response.code}")
 
-        Log.d(tag, "Segment HTTP response code: ${response.code}")
+            if (!response.isSuccessful) {
+                Log.e(tag, "Failed to fetch segment, HTTP code: ${response.code}")
+                throw IOException("Failed to fetch segment: ${response.code}")
+            }
 
-        if (!response.isSuccessful) {
-            Log.e(tag, "Failed to fetch segment, HTTP code: ${response.code}")
-            throw IOException("Failed to fetch segment: ${response.code}")
+            val inputStream = response.body.byteStream()
+            val outputStream = ByteArrayOutputStream()
+
+            // Read first 4KB to detect format
+            val buffer = ByteArray(4096)
+            val bytesRead = inputStream.read(buffer)
+            Log.d(tag, "Read $bytesRead bytes from segment for format detection")
+
+            if (bytesRead > 0) {
+                val skipBytes = AutoDetector.detectSkipBytes(buffer.copyOf(bytesRead))
+                Log.d(tag, "AutoDetector determined skip bytes: $skipBytes")
+
+                // Write data from detected offset
+                val validBytes = bytesRead - skipBytes
+                outputStream.write(buffer, skipBytes, validBytes)
+                Log.d(tag, "Wrote $validBytes bytes from detected offset")
+
+                // Copy remaining data
+                val remainingBytes = inputStream.copyTo(outputStream)
+                Log.d(tag, "Copied $remainingBytes remaining bytes")
+            }
+
+            inputStream.close()
+            val finalData = outputStream.toByteArray()
+            Log.d(tag, "Final segment data size: ${finalData.size} bytes")
+            finalData
         }
-
-        val inputStream = response.body.byteStream()
-        val outputStream = ByteArrayOutputStream()
-
-        // Read first 4KB to detect format
-        val buffer = ByteArray(4096)
-        val bytesRead = inputStream.read(buffer)
-        Log.d(tag, "Read $bytesRead bytes from segment for format detection")
-
-        if (bytesRead > 0) {
-            val skipBytes = AutoDetector.detectSkipBytes(buffer.copyOf(bytesRead))
-            Log.d(tag, "AutoDetector determined skip bytes: $skipBytes")
-
-            // Write data from detected offset
-            val validBytes = bytesRead - skipBytes
-            outputStream.write(buffer, skipBytes, validBytes)
-            Log.d(tag, "Wrote $validBytes bytes from detected offset")
-
-            // Copy remaining data
-            val remainingBytes = inputStream.copyTo(outputStream)
-            Log.d(tag, "Copied $remainingBytes remaining bytes")
-        }
-
-        inputStream.close()
-        val finalData = outputStream.toByteArray()
-        Log.d(tag, "Final segment data size: ${finalData.size} bytes")
-        finalData
     }
 
     private fun modifyM3u8Content(content: String, serverPort: Int): String {
