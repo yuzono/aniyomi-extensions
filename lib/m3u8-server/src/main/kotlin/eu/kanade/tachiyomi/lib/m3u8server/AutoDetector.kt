@@ -1,7 +1,5 @@
 package eu.kanade.tachiyomi.lib.m3u8server
 
-import java.nio.ByteBuffer
-
 /**
  * Automatic file format detector and offset calculator
  */
@@ -71,8 +69,8 @@ class AutoDetector {
          * Checks if it starts with JPEG header
          */
         private fun isJpegHeader(data: ByteArray): Boolean {
-            return data.size >= 3 &&
-                   data[0] == JPEG_HEADER[0] &&
+            if (data.size < 3) return false
+            return data[0] == JPEG_HEADER[0] &&
                    data[1] == JPEG_HEADER[1] &&
                    data[2] == JPEG_HEADER[2]
         }
@@ -81,8 +79,8 @@ class AutoDetector {
          * Checks if it starts with PNG header
          */
         private fun isPngHeader(data: ByteArray): Boolean {
-            return data.size >= 4 &&
-                   data[0] == PNG_HEADER[0] &&
+            if (data.size < 4) return false
+            return data[0] == PNG_HEADER[0] &&
                    data[1] == PNG_HEADER[1] &&
                    data[2] == PNG_HEADER[2] &&
                    data[3] == PNG_HEADER[3]
@@ -92,8 +90,8 @@ class AutoDetector {
          * Checks if it starts with GIF header
          */
         private fun isGifHeader(data: ByteArray): Boolean {
-            return data.size >= 3 &&
-                   data[0] == GIF_HEADER[0] &&
+            if (data.size < 3) return false
+            return data[0] == GIF_HEADER[0] &&
                    data[1] == GIF_HEADER[1] &&
                    data[2] == GIF_HEADER[2]
         }
