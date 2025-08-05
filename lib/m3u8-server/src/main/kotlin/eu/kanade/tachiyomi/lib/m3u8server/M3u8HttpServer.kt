@@ -8,7 +8,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import kotlin.text.Charsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -22,7 +22,7 @@ class M3u8HttpServer(
     private val client: OkHttpClient = OkHttpClient()
 ) : NanoHTTPD(port) {
 
-    public val port: Int
+    val port: Int
         get() = super.getListeningPort()
 
     private val tag by lazy { javaClass.simpleName }
@@ -67,7 +67,7 @@ class M3u8HttpServer(
         return response
     }
 
-        private fun handleM3u8Request(session: IHTTPSession): Response {
+    private fun handleM3u8Request(session: IHTTPSession): Response {
         val url = session.parameters["url"]?.first()
         val headers = extractHeadersFromSession(session)
 
@@ -90,7 +90,7 @@ class M3u8HttpServer(
         }
     }
 
-        private fun handleSegmentRequest(session: IHTTPSession): Response {
+    private fun handleSegmentRequest(session: IHTTPSession): Response {
         val url = session.parameters["url"]?.first()
         val headers = extractHeadersFromSession(session)
 
@@ -141,7 +141,7 @@ class M3u8HttpServer(
         return headers
     }
 
-        /**
+    /**
      * Process M3U8 content through the server
      */
     suspend fun processM3u8Url(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
@@ -187,7 +187,7 @@ class M3u8HttpServer(
         }
     }
 
-        private suspend fun fetchM3u8Content(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
+    private suspend fun fetchM3u8Content(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
         Log.d(tag, "Making HTTP request to fetch M3U8 content with headers: $headers")
 
         val requestBuilder = Request.Builder().url(url)
@@ -205,8 +205,8 @@ class M3u8HttpServer(
             throw IOException("Failed to fetch m3u8: ${response.code}")
         }
 
-        val content = response.body?.string()
-        if (content.isNullOrEmpty()) {
+        val content = response.body.string()
+        if (content.isBlank()) {
             Log.e(tag, "Empty M3U8 response body")
             throw IOException("Empty response body")
         }
@@ -215,7 +215,7 @@ class M3u8HttpServer(
         content
     }
 
-        private suspend fun fetchSegmentWithAutoDetection(url: String, headers: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
+    private suspend fun fetchSegmentWithAutoDetection(url: String, headers: Map<String, String> = emptyMap()): ByteArray = withContext(Dispatchers.IO) {
         Log.d(tag, "Making HTTP request to fetch segment with headers: $headers")
 
         val requestBuilder = Request.Builder().url(url)
@@ -233,12 +233,7 @@ class M3u8HttpServer(
             throw IOException("Failed to fetch segment: ${response.code}")
         }
 
-        val inputStream = response.body?.byteStream()
-        if (inputStream == null) {
-            Log.e(tag, "Empty segment response body")
-            throw IOException("Empty response body")
-        }
-
+        val inputStream = response.body.byteStream()
         val outputStream = ByteArrayOutputStream()
 
         // Read first 4KB to detect format
@@ -280,7 +275,7 @@ class M3u8HttpServer(
                 }
                 line.isNotBlank() && !line.startsWith("#") -> {
                     // This is a segment URL
-                    val encodedUrl = URLEncoder.encode(line, StandardCharsets.UTF_8.name())
+                    val encodedUrl = URLEncoder.encode(line, Charsets.UTF_8.name())
                     val localUrl = "http://localhost:$serverPort/segment?url=$encodedUrl"
                     modifiedLines.add(localUrl)
                     segmentCount++

@@ -33,7 +33,7 @@ class M3u8Integration(
      * @param originalVideo Original video with M3U8 URL
      * @return Processed video with local URL
      */
-    suspend fun processM3u8Video(originalVideo: Video): Video {
+    private suspend fun processM3u8Video(originalVideo: Video): Video {
         val processedUrl = serverManager.processM3u8Url(originalVideo.url)
         return Video(
             url = processedUrl ?: originalVideo.url,
