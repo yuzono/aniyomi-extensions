@@ -25,11 +25,7 @@ class NoaExtractor(private val client: OkHttpClient, private val headers: Header
                     .split("{")
                     .drop(1)
                     .map {
-                        val label =
-                            it.substringAfter("label", "")
-                                .substringAfter(":\"")
-                                .substringBefore('"')
-                                .ifEmpty { "Default" }
+                        val label = LABEL_REGEX.find(it)?.groupValues?.get(1) ?: "Default"
                         val videoUrl = it.substringAfter("file")
                             .substringAfter(":")
                             .substringAfter('"')
@@ -41,5 +37,9 @@ class NoaExtractor(private val client: OkHttpClient, private val headers: Header
 
             else -> emptyList()
         }
+    }
+
+    companion object {
+        private val LABEL_REGEX by lazy { Regex("""label.*?:"([^"]+)"""") }
     }
 }
