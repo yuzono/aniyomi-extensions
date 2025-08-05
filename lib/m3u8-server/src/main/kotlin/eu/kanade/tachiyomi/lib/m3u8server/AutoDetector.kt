@@ -28,14 +28,8 @@ class AutoDetector {
                 // If it's already a valid MPEG-TS, don't need to skip anything
                 isMpegTsValid(data) -> 0
 
-                // If it's JPEG disguising another format
-                isJpegHeader(data) -> detectJpegDisguise(data)
-
-                // If it's PNG disguising another format
-                isPngHeader(data) -> detectPngDisguise(data)
-
-                // If it's GIF disguising another format
-                isGifHeader(data) -> detectGifDisguise(data)
+                // If it's JPEG/PNG/GIF disguising another format
+                isJpegHeader(data) || isPngHeader(data) || isGifHeader(data) -> detectDisguise(data)
 
                 // If it's already a valid video format
                 isVideoFormat(data) -> 0
@@ -97,63 +91,13 @@ class AutoDetector {
         }
 
         /**
-         * Detects if JPEG is disguising another format
+         * Detects if a video is disguised under another format
          */
-        private fun detectJpegDisguise(data: ByteArray): Int {
+        private fun detectDisguise(data: ByteArray): Int {
             // Look for MP4 "ftyp" box
             val ftypOffset = findPattern(data, MP4_FTYP)
             if (ftypOffset > 0) {
                 return ftypOffset - 4 // "ftyp" is preceded by 4 bytes of size
-            }
-
-            // Look for AVI "RIFF"
-            val riffOffset = findPattern(data, AVI_RIFF)
-            if (riffOffset > 0) {
-                return riffOffset
-            }
-
-            // Look for MPEG-TS sync byte
-            val mpegTsOffset = findMpegTsSync(data)
-            if (mpegTsOffset > 0) {
-                return mpegTsOffset
-            }
-
-            return 0
-        }
-
-        /**
-         * Detects if PNG is disguising another format
-         */
-        private fun detectPngDisguise(data: ByteArray): Int {
-            // Look for AVI "RIFF"
-            val riffOffset = findPattern(data, AVI_RIFF)
-            if (riffOffset > 0) {
-                return riffOffset
-            }
-
-            // Look for MP4 "ftyp" box
-            val ftypOffset = findPattern(data, MP4_FTYP)
-            if (ftypOffset > 0) {
-                return ftypOffset - 4
-            }
-
-            // Look for MPEG-TS sync byte
-            val mpegTsOffset = findMpegTsSync(data)
-            if (mpegTsOffset > 0) {
-                return mpegTsOffset
-            }
-
-            return 0
-        }
-
-        /**
-         * Detects if GIF is disguising another format
-         */
-        private fun detectGifDisguise(data: ByteArray): Int {
-            // Look for MP4 "ftyp" box
-            val ftypOffset = findPattern(data, MP4_FTYP)
-            if (ftypOffset > 0) {
-                return ftypOffset - 4
             }
 
             // Look for AVI "RIFF"
