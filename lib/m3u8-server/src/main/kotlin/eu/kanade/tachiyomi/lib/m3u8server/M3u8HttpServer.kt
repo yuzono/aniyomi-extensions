@@ -242,7 +242,7 @@ class M3u8HttpServer(
         Log.d(tag, "Read $bytesRead bytes from segment for format detection")
 
         if (bytesRead > 0) {
-            val skipBytes = AutoDetector.detectSkipBytes(buffer)
+            val skipBytes = AutoDetector.detectSkipBytes(buffer.copyOf(bytesRead))
             Log.d(tag, "AutoDetector determined skip bytes: $skipBytes")
 
             // Write data from detected offset
