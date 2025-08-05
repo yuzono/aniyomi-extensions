@@ -90,7 +90,7 @@ manager.startServer(8080)
 
 // Process M3U8 URL
 val originalUrl = "https://example.com/playlist.m3u8"
-val processedUrl = manager.processM3u8Url(originalUrl)
+val processedUrl = runBlocking { manager.processM3u8Url(originalUrl) }
 
 println("Original: $originalUrl")
 println("Processed: $processedUrl")
@@ -119,4 +119,4 @@ M3u8HttpServer (NanoHTTPD)
 AutoDetector
 ```
 
-The library uses NanoHTTPD to provide a real HTTP server that's compatible with Android and can handle M3U8 processing requests with header preservation. 
+The library uses NanoHTTPD to provide a real HTTP server that's compatible with Android and can handle M3U8 processing requests with header preservation.
