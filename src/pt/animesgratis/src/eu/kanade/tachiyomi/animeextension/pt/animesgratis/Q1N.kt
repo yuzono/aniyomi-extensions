@@ -192,7 +192,7 @@ class Q1N : DooPlay(
 
         return document.selectFirst("div.pag_episodes div.item > a:has(i.fa-th)")?.let {
             client.newCall(GET(it.attr("href"), headers)).execute()
-                .asJsoup()
+                .use { response -> response.asJsoup() }
         } ?: document
     }
 

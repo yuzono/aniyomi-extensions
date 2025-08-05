@@ -7,17 +7,19 @@ import okhttp3.OkHttpClient
 
 class RuplayExtractor(private val client: OkHttpClient) {
     fun videosFromUrl(url: String): List<Video> {
-        return client.newCall(GET(url)).execute()
-            .body.string()
-            .substringAfter("Playerjs({")
-            .substringAfter("file:\"")
-            .substringBefore("\"")
-            .split(",")
-            .map {
-                val videoUrl = it.substringAfter("]")
-                val quality = it.substringAfter("[", "").substringBefore("]").ifEmpty { "Default" }
-                val headers = Headers.headersOf("Referer", videoUrl)
-                Video(videoUrl, "Ruplay - $quality", videoUrl, headers = headers)
-            }
+        return client.newCall(GET(url)).execute().use { response ->
+            response.body.string()
+                .substringAfter("Playerjs({")
+                .substringAfter("file:\"")
+                .substringBefore("\"")
+                .split(",")
+                .map {
+                    val videoUrl = it.substringAfter("]")
+                    val quality =
+                        it.substringAfter("[", "").substringBefore("]").ifEmpty { "Default" }
+                    val headers = Headers.headersOf("Referer", videoUrl)
+                    Video(videoUrl, "Ruplay - $quality", videoUrl, headers = headers)
+                }
+        }
     }
 }

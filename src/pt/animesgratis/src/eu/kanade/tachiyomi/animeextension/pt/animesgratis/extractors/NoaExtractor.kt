@@ -8,7 +8,7 @@ import okhttp3.OkHttpClient
 class NoaExtractor(private val client: OkHttpClient, private val headers: Headers) {
     fun videosFromUrl(url: String, name: String = "NOA"): List<Video> {
         val body = client.newCall(GET(url)).execute()
-            .body.string()
+            .use { response -> response.body.string() }
 
         return when {
             "file: jw.file" in body -> {
