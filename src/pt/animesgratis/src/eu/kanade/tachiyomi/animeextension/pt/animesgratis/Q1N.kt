@@ -56,7 +56,7 @@ class Q1N : DooPlay(
         val sheader = doc.selectFirst("div.sheader")!!
         return SAnime.create().apply {
             setUrlWithoutDomain(doc.location())
-            sheader.selectFirst("div.poster > img")!!.let {
+            sheader.selectFirst("div.poster img")!!.let {
                 thumbnail_url = it.getImageUrl()
                 title = it.attr("alt").ifEmpty {
                     sheader.selectFirst("div.data > h1")!!.text()
