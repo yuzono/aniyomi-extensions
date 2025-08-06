@@ -6,6 +6,7 @@ import okhttp3.Request
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.URI
 import java.net.URLEncoder
 import kotlin.text.Charsets
 import kotlinx.coroutines.Dispatchers
@@ -155,7 +156,7 @@ class M3u8HttpServer(
             val m3u8Content = fetchM3u8Content(url, headers)
             Log.d(tag, "Original M3U8 content length: ${m3u8Content.length}")
 
-            val modifiedContent = modifyM3u8Content(m3u8Content, port)
+            val modifiedContent = modifyM3u8Content(m3u8Content, url, port)
             Log.d(tag, "Modified M3U8 content length: ${modifiedContent.length}")
             Log.d(tag, "M3U8 processing completed successfully")
 
@@ -276,11 +277,19 @@ class M3u8HttpServer(
         return "http://localhost:$port/m3u8?url=$encodedUrl"
     }
 
-    private fun modifyM3u8Content(content: String, serverPort: Int): String {
+    private fun modifyM3u8Content(content: String, originalUrl: String, serverPort: Int): String {
         Log.d(tag, "Modifying M3U8 content for server port: $serverPort")
         val lines = content.lines().toMutableList()
         val modifiedLines = mutableListOf<String>()
         var segmentCount = 0
+
+        // Determine base URL from the original URL
+        val baseUrl = try {
+            URI(originalUrl).resolve(".").toString()
+        } catch (e: Exception) {
+            Log.e(tag, "Invalid base URL from original URL '$originalUrl': ${e.message}")
+            ""
+        }
 
         for (line in lines) {
             when {
@@ -289,8 +298,18 @@ class M3u8HttpServer(
                     modifiedLines.add(line)
                 }
                 line.isNotBlank() && !line.startsWith("#") -> {
-                    // This is a segment URL
-                    val encodedUrl = URLEncoder.encode(line, Charsets.UTF_8.name())
+                    // This is a segment URL, resolve against base URL
+                    val resolvedUrl = if (baseUrl.isNotBlank()) {
+                        try {
+                            URI(baseUrl).resolve(line).toString()
+                        } catch (e: Exception) {
+                            Log.e(tag, "Error resolving URL '$line' against base URL '$baseUrl': ${e.message}")
+                            line // Fallback to original line on error
+                        }
+                    } else {
+                        line // No base URL, use original line
+                    }
+                    val encodedUrl = URLEncoder.encode(resolvedUrl, Charsets.UTF_8.name())
                     val localUrl = "http://localhost:$serverPort/segment?url=$encodedUrl"
                     modifiedLines.add(localUrl)
                     segmentCount++
