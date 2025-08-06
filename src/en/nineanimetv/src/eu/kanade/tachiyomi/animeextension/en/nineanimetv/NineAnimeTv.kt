@@ -93,7 +93,7 @@ class NineAnimeTv : ZoroTheme(
 
     private val rapidCloudExtractor by lazy { RapidCloudExtractor(client, headers, preferences) }
 
-    override fun extractVideo(server: VideoData): List<Video> {
+    override suspend fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
             "DouVideo", "Vidstreaming", "Vidcloud" -> rapidCloudExtractor.getVideosFromUrl(server.link, server.type, server.name)
             else -> emptyList()

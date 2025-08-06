@@ -32,7 +32,7 @@ class AniWatchtv : ZoroTheme(
         }
     }
 
-    override fun extractVideo(server: VideoData): List<Video> {
+    override suspend fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
             "VidSrc", "MegaCloud" -> megaCloudExtractor.getVideosFromUrl(server.link, server.type, server.name)
             else -> emptyList()
