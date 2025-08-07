@@ -15,7 +15,7 @@ import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.multisrc.dooplay.DooPlay
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -39,10 +39,10 @@ class Q1N : DooPlay(
 
     // ============================== Popular ===============================
     override fun popularAnimeSelector() = "div.items.featured article div.poster"
-    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/a/", headers)
+    override fun popularAnimeRequest(page: Int) = GET("$baseUrl/animes/", headers)
 
     // =============================== Latest ===============================
-    override val latestUpdatesPath = "e"
+    override val latestUpdatesPath = "episodio"
 
     // =============================== Search ===============================
     override fun searchAnimeSelector() = "div.result-item article div.thumbnail > a"
@@ -56,7 +56,7 @@ class Q1N : DooPlay(
         val sheader = doc.selectFirst("div.sheader")!!
         return SAnime.create().apply {
             setUrlWithoutDomain(doc.location())
-            sheader.selectFirst("div.poster > img")!!.let {
+            sheader.selectFirst("div.poster img")!!.let {
                 thumbnail_url = it.getImageUrl()
                 title = it.attr("alt").ifEmpty {
                     sheader.selectFirst("div.data > h1")!!.text()
@@ -106,10 +106,19 @@ class Q1N : DooPlay(
     }
 
     // ============================ Video Links =============================
-    override fun videoListParse(response: Response): List<Video> {
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
+        return client.newCall(videoListRequest(episode))
+            .execute()
+            .use { response ->
+                videoListParseSuspend(response)
+            }
+    }
+
+    override fun videoListParse(response: Response) = throw UnsupportedOperationException()
+    private suspend fun videoListParseSuspend(response: Response): List<Video> {
         val document = response.asJsoup()
         val players = document.select("ul#playeroptionsul li")
-        return players.parallelCatchingFlatMapBlocking(::getPlayerVideos)
+        return players.parallelCatchingFlatMap(::getPlayerVideos)
     }
 
     override val prefQualityValues = arrayOf("360p", "480p", "720p", "1080p")
@@ -124,10 +133,11 @@ class Q1N : DooPlay(
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
 
-    private fun getPlayerVideos(player: Element): List<Video> {
+    private suspend fun getPlayerVideos(player: Element): List<Video> {
         val name = player.selectFirst("span.title")!!.text().lowercase()
         val url = getPlayerUrl(player) ?: return emptyList()
         Log.d(tag, "Fetching videos from: $url")
+
         return when {
             "ruplay" in name -> ruplayExtractor.videosFromUrl(url)
             "streamwish" in name -> streamWishExtractor.videosFromUrl(url)
@@ -135,9 +145,11 @@ class Q1N : DooPlay(
             "mixdrop" in name -> mixDropExtractor.videoFromUrl(url)
             "streamtape" in name -> streamTapeExtractor.videosFromUrl(url)
             "noa" in name -> noaExtractor.videosFromUrl(url)
-            "mdplayer" in name -> noaExtractor.videosFromUrl(url, "MDPLAYER")
+            "mdplayer" in name -> noaExtractor.videosFromUrl(url, name)
+            "/antivirus3/" in url -> noaExtractor.videosFromUrl(url, name)
             "/player/" in url -> bloggerExtractor.videosFromUrl(url, headers)
-            else -> universalExtractor.videosFromUrl(url, headers)
+            "blogger.com" in url -> bloggerExtractor.videosFromUrl(url, headers)
+            else -> universalExtractor.videosFromUrl(url, headers, name)
         }
     }
 
@@ -180,13 +192,14 @@ class Q1N : DooPlay(
 
         return document.selectFirst("div.pag_episodes div.item > a:has(i.fa-th)")?.let {
             client.newCall(GET(it.attr("href"), headers)).execute()
-                .asJsoup()
+                .use { response -> response.asJsoup() }
         } ?: document
     }
 
+    @Suppress("SameParameterValue")
     private fun Element.tryGetAttr(vararg attributeKeys: String): String? {
-        val attributeKey = attributeKeys.first { hasAttr(it) }
-        return attributeKey?.let { attr(attributeKey) }
+        return attributeKeys.firstOrNull { hasAttr(it) }
+            ?.let { attr(it) }
     }
 
     override fun List<Video>.sort(): List<Video> {
