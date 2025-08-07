@@ -50,17 +50,20 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val jOe = jObject.jsonObject["schedule"]!!.jsonObject.entries
-        val animeList = mutableListOf<SAnime>()
-        jOe.forEach {
-            val itJ = it.value.jsonArray
-            for (item in itJ) {
-                val anime = SAnime.create()
-                anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
-                anime.setUrlWithoutDomain("$baseUrl/shows/${item.jsonObject["page"]!!.jsonPrimitive.content}")
-                anime.thumbnail_url = baseUrl + item.jsonObject["image_url"]?.jsonPrimitive?.content
-                animeList.add(anime)
+        val animeList = jOe.map {
+            it.value.jsonArray.mapNotNull { item ->
+                try {
+                    SAnime.create().apply {
+                        title = item.jsonObject["title"]!!.jsonPrimitive.content
+                        setUrlWithoutDomain("$baseUrl/shows/${item.jsonObject["page"]!!.jsonPrimitive.content}")
+                        thumbnail_url =
+                            baseUrl + item.jsonObject["image_url"]?.jsonPrimitive?.content
+                    }
+                } catch (_: Exception) {
+                    null
+                }
             }
-        }
+        }.flatten()
         return AnimesPage(animeList, hasNextPage = false)
     }
 
@@ -83,18 +86,18 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         epE.forEach {
             val itJ = it.value.jsonObject
             val episode = SEpisode.create()
-            val num = itJ["episode"]!!.jsonPrimitive.content
-            val ep = num.takeWhile { it.isDigit() || it == '.' }.toFloatOrNull()
+            val num = itJ["episode"]?.jsonPrimitive?.content
+            val ep = num?.takeWhile { it.isDigit() || it == '.' }?.toFloatOrNull()
             if (ep == null) {
                 if (episodeList.size > 0) {
-                    episode.episode_number = episodeList.get(episodeList.size - 1).episode_number - 0.5F
+                    episode.episode_number = episodeList.last().episode_number - 0.5F
                 } else {
                     episode.episode_number = 0F
                 }
             } else {
                 episode.episode_number = ep
             }
-            episode.name = "Episode $num"
+            episode.name = "Episode ${num ?: episode.episode_number}"
             episode.setUrlWithoutDomain("$url&num=$num")
             episodeList.add(episode)
         }
@@ -127,24 +130,32 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jsonData = jsonLine ?: return emptyList()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val epE = jObject["episode"]!!.jsonObject.entries
-        val videoList = mutableListOf<Video>()
-        epE.forEach {
+        return epE.mapNotNull {
             val itJ = it.value.jsonObject
-            val epN = itJ["episode"]!!.jsonPrimitive.content
-            if (num == epN) {
-                val dowArray = itJ["downloads"]!!.jsonArray
-                for (item in dowArray) {
-                    val quality = item.jsonObject["res"]!!.jsonPrimitive.content + "p"
-                    val videoUrl = item.jsonObject["magnet"]!!.jsonPrimitive.content
-                    if (preferences.getString(PREF_DEBRID_KEY, "none") == "none") {
-                        videoList.add(Video(videoUrl, quality, videoUrl))
-                    } else {
-                        videoList.add(Video(debrid(videoUrl), quality, debrid(videoUrl)))
-                    }
+            try {
+                val epN = itJ["episode"]!!.jsonPrimitive.content
+                if (num == epN) {
+                    itJ["downloads"]!!.jsonArray
+                        .mapNotNull { item ->
+                            try {
+                                val quality = item.jsonObject["res"]!!.jsonPrimitive.content + "p"
+                                val videoUrl = item.jsonObject["magnet"]!!.jsonPrimitive.content
+                                if (preferences.getString(PREF_DEBRID_KEY, "none") == "none") {
+                                    Video(videoUrl, quality, videoUrl)
+                                } else {
+                                    Video(debrid(videoUrl), quality, debrid(videoUrl))
+                                }
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                } else {
+                    null
                 }
+            } catch (_: Exception) {
+                null
             }
-        }
-        return videoList
+        }.flatten()
     }
 
     override fun List<Video>.sort(): List<Video> {
@@ -165,14 +176,17 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val jE = jObject.entries
-        val animeList = mutableListOf<SAnime>()
-        jE.forEach {
+        val animeList = jE.mapNotNull {
             val itJ = it.value.jsonObject
-            val anime = SAnime.create()
-            anime.title = itJ.jsonObject["show"]!!.jsonPrimitive.content
-            anime.setUrlWithoutDomain("$baseUrl/shows/${itJ.jsonObject["page"]!!.jsonPrimitive.content}")
-            anime.thumbnail_url = baseUrl + itJ.jsonObject["image_url"]?.jsonPrimitive?.content
-            animeList.add(anime)
+            try {
+                SAnime.create().apply {
+                    title = itJ.jsonObject["show"]!!.jsonPrimitive.content
+                    setUrlWithoutDomain("$baseUrl/shows/${itJ.jsonObject["page"]!!.jsonPrimitive.content}")
+                    thumbnail_url = baseUrl + itJ.jsonObject["image_url"]?.jsonPrimitive?.content
+                }
+            } catch (_:Exception) {
+                null
+            }
         }
         return AnimesPage(animeList, hasNextPage = false)
     }
@@ -188,9 +202,9 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // Latest
 
-    override fun latestUpdatesParse(response: Response): AnimesPage = throw Exception("Not used")
+    override fun latestUpdatesParse(response: Response): AnimesPage = throw UnsupportedOperationException("Not used")
 
-    override fun latestUpdatesRequest(page: Int): Request = throw Exception("Not used")
+    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException("Not used")
 
     // Preferences
 
