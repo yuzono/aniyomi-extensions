@@ -8,7 +8,7 @@ import okhttp3.OkHttpClient
 class NoaExtractor(private val client: OkHttpClient, private val headers: Headers) {
     fun videosFromUrl(url: String, name: String = "NOA"): List<Video> {
         val body = client.newCall(GET(url)).execute()
-            .body.string()
+            .use { response -> response.body.string() }
 
         return when {
             "file: jw.file" in body -> {
@@ -25,10 +25,10 @@ class NoaExtractor(private val client: OkHttpClient, private val headers: Header
                     .split("{")
                     .drop(1)
                     .map {
-                        val label =
-                            it.substringAfter("label").substringAfter(":\"").substringBefore('"')
+                        val label = LABEL_REGEX.find(it)?.groupValues?.get(1) ?: "Default"
                         val videoUrl = it.substringAfter("file")
-                            .substringAfter(":\"")
+                            .substringAfter(":")
+                            .substringAfter('"')
                             .substringBefore('"')
                             .replace("\\", "")
                         Video(videoUrl, "$name - $label", videoUrl, headers)
@@ -37,5 +37,9 @@ class NoaExtractor(private val client: OkHttpClient, private val headers: Header
 
             else -> emptyList()
         }
+    }
+
+    companion object {
+        private val LABEL_REGEX by lazy { Regex("""label.*?:"([^"]+)"""") }
     }
 }
