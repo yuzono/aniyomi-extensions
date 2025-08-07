@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.lib.m3u8server
 
 import android.util.Log
-import fi.iki.elonen.NanoHTTPD
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayInputStream
@@ -12,6 +11,12 @@ import kotlin.text.Charsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.nanohttpd.protocols.http.IHTTPSession
+import org.nanohttpd.protocols.http.NanoHTTPD
+import org.nanohttpd.protocols.http.response.Response
+import org.nanohttpd.protocols.http.response.Response.newChunkedResponse
+import org.nanohttpd.protocols.http.response.Response.newFixedLengthResponse
+import org.nanohttpd.protocols.http.response.Status
 
 /**
  * Real HTTP server for M3U8 processing using NanoHTTPD
@@ -47,7 +52,7 @@ class M3u8HttpServer(
 
     fun isRunning(): Boolean = isRunning
 
-    override fun serve(session: IHTTPSession): Response {
+    override fun handle(session: IHTTPSession): Response {
         val uri = session.uri
         val method = session.method
 
@@ -59,7 +64,7 @@ class M3u8HttpServer(
             uri.startsWith("/health") -> handleHealthRequest()
             else -> {
                 Log.w(tag, "Unknown endpoint: $uri")
-                newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
+                newFixedLengthResponse(Status.NOT_FOUND, MIME_PLAINTEXT, "Not Found")
             }
         }
 
@@ -76,17 +81,17 @@ class M3u8HttpServer(
 
         if (url.isNullOrBlank()) {
             Log.w(tag, "Missing URL parameter in M3U8 request")
-            return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Missing url parameter")
+            return newFixedLengthResponse(Status.BAD_REQUEST, MIME_PLAINTEXT, "Missing url parameter")
         }
 
         return try {
             Log.d(tag, "Starting M3U8 processing for: $url")
-            val processedContent = runBlocking { processM3u8Url(url, headers) }
+            val processedContent = runBlocking { processM3u8Content(url, headers) }
             Log.d(tag, "M3U8 processing completed successfully, content length: ${processedContent.length}")
-            newFixedLengthResponse(Response.Status.OK, "application/vnd.apple.mpegurl", processedContent)
+            newFixedLengthResponse(Status.OK, "application/vnd.apple.mpegurl", processedContent)
         } catch (e: Exception) {
             Log.e(tag, "Error processing M3U8: ${e.message}", e)
-            newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
+            newFixedLengthResponse(Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
         }
     }
 
@@ -99,7 +104,7 @@ class M3u8HttpServer(
 
         if (url.isNullOrBlank()) {
             Log.w(tag, "Missing URL parameter in segment request")
-            return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Missing url parameter")
+            return newFixedLengthResponse(Status.BAD_REQUEST, MIME_PLAINTEXT, "Missing url parameter")
         }
 
         return try {
@@ -107,10 +112,10 @@ class M3u8HttpServer(
             val segmentData = runBlocking { processSegmentUrl(url, headers) }
             Log.d(tag, "Segment processing completed successfully, data size: ${segmentData.size} bytes")
             val inputStream = ByteArrayInputStream(segmentData)
-            newChunkedResponse(Response.Status.OK, "video/mp2t", inputStream)
+            newChunkedResponse(Status.OK, "video/mp2t", inputStream)
         } catch (e: Exception) {
             Log.e(tag, "Error processing segment: ${e.message}", e)
-            newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
+            newFixedLengthResponse(Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Error: ${e.message}")
         }
     }
 
@@ -118,7 +123,7 @@ class M3u8HttpServer(
         Log.d(tag, "Health check requested")
         val status = getHealthStatus()
         Log.d(tag, "Health status: $status")
-        return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, status)
+        return newFixedLengthResponse(Status.OK, MIME_PLAINTEXT, status)
     }
 
     /**
@@ -144,7 +149,7 @@ class M3u8HttpServer(
     /**
      * Process M3U8 content through the server
      */
-    suspend fun processM3u8Url(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
+    private suspend fun processM3u8Content(url: String, headers: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
         try {
             Log.d(tag, "Fetching M3U8 content from: $url with headers: $headers")
             val m3u8Content = fetchM3u8Content(url, headers)
@@ -256,9 +261,19 @@ class M3u8HttpServer(
 
             inputStream.close()
             val finalData = outputStream.toByteArray()
+            outputStream.close()
             Log.d(tag, "Final segment data size: ${finalData.size} bytes")
             finalData
         }
+    }
+
+    /**
+     * Creates a local M3U8 URL by encoding the original URL and redirecting to the local server.
+     * It can either be segment URL or a direct M3U8 URL (not a playlist).
+     */
+    fun createLocalUrl(m3u8Url: String): String {
+        val encodedUrl = URLEncoder.encode(m3u8Url, Charsets.UTF_8.name())
+        return "http://localhost:$port/m3u8?url=$encodedUrl"
     }
 
     private fun modifyM3u8Content(content: String, serverPort: Int): String {

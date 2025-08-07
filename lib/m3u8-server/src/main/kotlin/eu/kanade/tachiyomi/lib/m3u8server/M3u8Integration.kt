@@ -31,12 +31,12 @@ class M3u8Integration(
      * @param originalVideo Original video with M3U8 URL
      * @return Processed video with local URL
      */
-    private suspend fun processM3u8Video(originalVideo: Video): Video {
+    private fun processM3u8Video(originalVideo: Video): Video {
         val processedUrl = serverManager.processM3u8Url(originalVideo.url)
         return Video(
-            url = processedUrl ?: originalVideo.url,
+            videoUrl = processedUrl ?: originalVideo.url,
+            url = originalVideo.url,
             quality = originalVideo.quality,
-            videoUrl = originalVideo.videoUrl,
             subtitleTracks = originalVideo.subtitleTracks,
             audioTracks = originalVideo.audioTracks,
             headers = originalVideo.headers,
@@ -44,11 +44,12 @@ class M3u8Integration(
     }
 
     /**
-     * Processes a list of videos, identifying and processing only M3U8 files
+     * Processes a list of videos, identifying and processing only M3U8 files.
+     * The M3U8 files should be a direct link to the M3U8 file which consists of segments, not a playlist.
      * @param videos Original video list
      * @return Processed video list
      */
-    suspend fun processVideoList(videos: List<Video>): List<Video> {
+    fun processVideoList(videos: List<Video>): List<Video> {
         initializeServer()
         return videos.map { video ->
             if (isM3u8Url(video.url)) {

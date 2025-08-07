@@ -54,11 +54,10 @@ class M3u8ServerManager {
     /**
      * Processes an M3U8 file through the server
      * @param m3u8Url Original M3U8 file URL
-     * @param headers Optional headers to use for the request
      * @return Processed M3U8 content
      */
-    suspend fun processM3u8Url(m3u8Url: String, headers: Map<String, String> = emptyMap()): String? {
-        return server?.processM3u8Url(m3u8Url, headers)
+    fun processM3u8Url(m3u8Url: String): String? {
+        return server?.createLocalUrl(m3u8Url)
     }
 
     /**
