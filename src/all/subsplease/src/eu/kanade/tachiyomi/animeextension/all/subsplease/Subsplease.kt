@@ -69,7 +69,8 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
         val sId = document.select("#show-release-table").attr("sid")
-        val responseString = client.newCall(GET("$baseUrl/api/?f=show&tz=Europe/Berlin&sid=$sId")).execute().body.string()
+        val responseString = client.newCall(GET("$baseUrl/api/?f=show&tz=Europe/Berlin&sid=$sId"))
+            .execute().use { it.body.string() }
         val url = "$baseUrl/api/?f=show&tz=Europe/Berlin&sid=$sId"
         return parseEpisodeAnimeJson(responseString, url)
     }
