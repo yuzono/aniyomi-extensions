@@ -19,7 +19,6 @@ import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.addSwitchPreference
-import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -297,25 +296,25 @@ abstract class ZoroTheme(
     }
 
     private var SharedPreferences.getTitleLang
-        by preferences.delegate(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)
+        by LazyMutable { preferences.getString(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)!! }
 
     private var SharedPreferences.markFiller
-        by preferences.delegate(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT)
+        by LazyMutable { preferences.getBoolean(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT) }
 
     private var SharedPreferences.prefQuality
-        by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+        by LazyMutable { preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!! }
 
     private var SharedPreferences.prefServer
-        by preferences.delegate(PREF_SERVER_KEY, hosterNames.first())
+        by LazyMutable { preferences.getString(PREF_SERVER_KEY, hosterNames.first())!! }
 
     private var SharedPreferences.prefLang
-        by preferences.delegate(PREF_LANG_KEY, PREF_LANG_DEFAULT)
+        by LazyMutable { preferences.getString(PREF_LANG_KEY, PREF_LANG_DEFAULT)!! }
 
     private var SharedPreferences.hostToggle
-        by preferences.delegate(PREF_HOSTER_KEY, hosterNames.toSet())
+        by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
 
     private var SharedPreferences.typeToggle
-        by preferences.delegate(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)
+        by LazyMutable { preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)!! }
 
     companion object {
         private const val PREF_TITLE_LANG_KEY = "preferred_title_lang"
