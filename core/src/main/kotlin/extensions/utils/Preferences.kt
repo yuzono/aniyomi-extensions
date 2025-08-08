@@ -115,7 +115,7 @@ class LazyMutablePreference<T>(
                     is Float -> preferences.getFloat(key, default) as T
                     is Boolean -> preferences.getBoolean(key, default) as T
                     is Set<*> -> preferences.getStringSet(key, default as Set<String>) as T
-                    else -> throw IllegalArgumentException("Unsupported type: ${default?.javaClass}")
+                    else -> throw IllegalArgumentException("Unsupported type: ${default?.run { javaClass }}")
                 }
                 propValue = initializedValue
                 initializedValue
@@ -134,7 +134,7 @@ class LazyMutablePreference<T>(
                 is Float -> editor.putFloat(key, value)
                 is Boolean -> editor.putBoolean(key, value)
                 is Set<*> -> editor.putStringSet(key, value as Set<String>)
-                else -> throw IllegalArgumentException("Unsupported type: ${value?.javaClass}")
+                else -> throw IllegalArgumentException("Unsupported type: ${value?.run { javaClass }}")
             }
             editor.apply()
             propValue = value
@@ -149,7 +149,10 @@ class LazyMutablePreference<T>(
 }
 
 /**
- * Create [LazyMutablePreference] delegate
+ * Create [LazyMutablePreference] delegate.
+ *
+ * **WARNING**: Do not use this on a lib-multisrc module, as it will be initialized before the source is created,
+ * which will cause the preferences to be created with the wrong source id.
  */
 fun <T> SharedPreferences.delegate(key: String, default: T) =
     LazyMutablePreference(this, key, default)
