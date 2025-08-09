@@ -60,8 +60,9 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
                     SAnime.create().apply {
                         title = item.jsonObject["title"]!!.jsonPrimitive.content
                         setUrlWithoutDomain("$baseUrl/shows/${item.jsonObject["page"]!!.jsonPrimitive.content}")
-                        thumbnail_url =
-                            baseUrl + item.jsonObject["image_url"]?.jsonPrimitive?.content
+                        item.jsonObject["image_url"]?.jsonPrimitive?.content?.let {
+                            thumbnail_url = "$baseUrl$it"
+                        }
                     }
                 }.getOrNull()
             }
