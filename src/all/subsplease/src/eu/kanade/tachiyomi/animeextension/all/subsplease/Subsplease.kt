@@ -43,6 +43,8 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         ignoreUnknownKeys = true
     }
 
+    override val supportsRelatedAnimes = false
+
     override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/api/?f=schedule&tz=Europe/Berlin")
 
     override fun popularAnimeParse(response: Response): AnimesPage {
