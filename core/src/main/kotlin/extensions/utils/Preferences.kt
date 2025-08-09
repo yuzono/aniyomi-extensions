@@ -108,16 +108,18 @@ class LazyMutablePreference<T>(
             if (localValue2 != UninitializedValue) {
                 localValue2 as T
             } else {
-                val initializedValue = when (default) {
-                    is String -> preferences.getString(key, default) as T
-                    is Int -> preferences.getInt(key, default) as T
-                    is Long -> preferences.getLong(key, default) as T
-                    is Float -> preferences.getFloat(key, default) as T
-                    is Boolean -> preferences.getBoolean(key, default) as T
-                    is Set<*> -> preferences.getStringSet(key, default as Set<String>) as T
-                    null -> preferences.getString(key, default) as T
-                    else -> throw IllegalArgumentException("Unsupported type: ${default.javaClass}")
-                }
+                val initializedValue = runCatching {
+                    when (default) {
+                        is String -> preferences.getString(key, default) as T
+                        is Int -> preferences.getInt(key, default) as T
+                        is Long -> preferences.getLong(key, default) as T
+                        is Float -> preferences.getFloat(key, default) as T
+                        is Boolean -> preferences.getBoolean(key, default) as T
+                        is Set<*> -> preferences.getStringSet(key, default as Set<String>) as T
+                        null -> preferences.all[key] as T
+                        else -> throw IllegalArgumentException("Unsupported type: ${default.javaClass}")
+                    }
+                }.getOrNull() as T
                 propValue = initializedValue
                 initializedValue
             }
