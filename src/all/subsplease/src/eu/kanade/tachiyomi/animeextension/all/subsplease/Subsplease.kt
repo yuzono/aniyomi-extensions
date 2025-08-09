@@ -152,10 +152,12 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
                             runCatching {
                                 val quality = item.jsonObject["res"]!!.jsonPrimitive.content + "p"
                                 val videoUrl = item.jsonObject["magnet"]!!.jsonPrimitive.content
-                                if (preferences.debridProvider == PREF_DEBRID_DEFAULT) {
-                                    Video(videoUrl, quality, videoUrl)
-                                } else {
-                                    Video(debrid(videoUrl), quality, debrid(videoUrl))
+                                when (preferences.debridProvider) {
+                                    PREF_DEBRID_DEFAULT -> Video(videoUrl, quality, videoUrl)
+                                    else -> {
+                                        val debridUrl = debrid(videoUrl)
+                                        Video(debridUrl, quality, debridUrl)
+                                    }
                                 }
                             }.getOrNull()
                         }
