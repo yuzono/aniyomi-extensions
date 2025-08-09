@@ -242,7 +242,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             onComplete = { newValue ->
                 val value = newValue.trim().ifBlank { PREF_TOKEN_DEFAULT }
                 preferences.token = value
-                preferences.edit().putString(PREF_TOKEN_KEY, value).commit()
+                preferences.edit().putString(PREF_TOKEN_KEY, value).apply()
             },
         )
     }
