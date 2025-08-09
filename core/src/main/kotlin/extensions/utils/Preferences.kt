@@ -119,8 +119,7 @@ class LazyMutablePreference<T>(
                         null -> preferences.all[key] as T
                         else -> throw IllegalArgumentException("Unsupported type: ${default.javaClass}")
                     }
-                } catch (e: Exception) {
-                    if (e is IllegalArgumentException) throw e
+                } catch (e: ClassCastException) {
                     default
                 }
                 propValue = initializedValue
