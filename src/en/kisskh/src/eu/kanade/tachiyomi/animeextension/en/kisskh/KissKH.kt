@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.kisskh
 
+import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -8,6 +9,8 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.util.parseAs
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -92,13 +95,19 @@ class KissKH : AnimeHttpSource() {
                     episode.name = "Episode $number"
                 }
             }
-            episode.setUrlWithoutDomain("$baseUrl/api/DramaList/Episode/$id.png?err=false&ts=&time=")
+            episode.url = id
             episodeList.add(episode)
         }
         return episodeList
     }
 
     // Video Extractor
+    override fun videoListRequest(episode: SEpisode): Request {
+        val kkey = requestVideoKey(episode.url)
+
+        val url = "$baseUrl/api/DramaList/Episode/${episode.url}.png?err=false&ts=&time=&kkey=$kkey"
+        return GET(url, headers)
+    }
 
     override fun videoListParse(response: Response): List<Video> {
         val id = response.request.url.toString()
@@ -112,7 +121,9 @@ class KissKH : AnimeHttpSource() {
         val jsonData = response.body.string()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val videoList = mutableListOf<Video>()
-        val subData = client.newCall(GET("$baseUrl/api/Sub/$id")).execute().body.string()
+
+        val kkey = requestSubKey(id)
+        val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).execute().body.string()
         val subj = json.decodeFromString<JsonArray>(subData)
         val subList = mutableListOf<Track>()
         for (item in subj) {
@@ -211,4 +222,21 @@ class KissKH : AnimeHttpSource() {
         }
         return AnimesPage(animeList, hasNextPage)
     }
+
+    private fun requestVideoKey(id: String): String {
+        val url = "${BuildConfig.KISSKH_API}$id&version=2.8.10"
+        return client.newCall(GET(url, headers)).execute().use { it.parseAs<Key>().key }
+    }
+
+    private fun requestSubKey(id: String): String {
+        val url = "${BuildConfig.KISSKH_SUB_API}$id&version=2.8.10"
+        return client.newCall(GET(url, headers)).execute().use { it.parseAs<Key>().key }
+    }
+
+    @Serializable
+    data class Key(
+        val id: String,
+        val version: String,
+        val key: String,
+    )
 }
