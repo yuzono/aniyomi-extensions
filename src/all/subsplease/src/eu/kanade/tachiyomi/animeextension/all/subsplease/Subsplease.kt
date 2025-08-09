@@ -251,13 +251,10 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             title = "Token",
             default = PREF_TOKEN_DEFAULT,
             summary = PREF_TOKEN_SUMMARY,
-            onChange = { _, newValue ->
-                val value = newValue.trim().ifBlank { PREF_TOKEN_DEFAULT }
-                preferences.token = value
-                preferences.edit().putString(PREF_TOKEN_KEY, value).apply()
-                true
-            },
-        )
+        ) { newValue ->
+            val value = newValue.trim().ifBlank { PREF_TOKEN_DEFAULT }
+            preferences.token = value
+        }
     }
 
     companion object {
