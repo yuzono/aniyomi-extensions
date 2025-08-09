@@ -15,6 +15,7 @@ import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
+import extensions.utils.tryParse
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -22,6 +23,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
 import okhttp3.Response
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
 
@@ -53,16 +56,14 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jOe = jObject.jsonObject["schedule"]!!.jsonObject.entries
         val animeList = jOe.map {
             it.value.jsonArray.mapNotNull { item ->
-                try {
+                runCatching {
                     SAnime.create().apply {
                         title = item.jsonObject["title"]!!.jsonPrimitive.content
                         setUrlWithoutDomain("$baseUrl/shows/${item.jsonObject["page"]!!.jsonPrimitive.content}")
                         thumbnail_url =
                             baseUrl + item.jsonObject["image_url"]?.jsonPrimitive?.content
                     }
-                } catch (_: Exception) {
-                    null
-                }
+                }.getOrNull()
             }
         }.flatten()
         return AnimesPage(animeList, hasNextPage = false)
@@ -99,11 +100,16 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
                 episode.episode_number = ep
             }
             episode.name = "Episode ${num ?: episode.episode_number}"
+            episode.date_upload = itJ["release_date"]?.jsonPrimitive?.content.toDate()
             episode.setUrlWithoutDomain("$url&num=$num")
             episodeList.add(episode)
         }
         return episodeList
     }
+
+    private fun String?.toDate(): Long = this?.let {
+        SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH).tryParse(trim())
+    } ?: 0L
 
     // Video Extractor
 
@@ -133,12 +139,12 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val epE = jObject["episode"]!!.jsonObject.entries
         return epE.mapNotNull {
             val itJ = it.value.jsonObject
-            try {
+            runCatching {
                 val epN = itJ["episode"]!!.jsonPrimitive.content
                 if (num == epN) {
                     itJ["downloads"]!!.jsonArray
                         .mapNotNull { item ->
-                            try {
+                            runCatching {
                                 val quality = item.jsonObject["res"]!!.jsonPrimitive.content + "p"
                                 val videoUrl = item.jsonObject["magnet"]!!.jsonPrimitive.content
                                 if (preferences.getString(PREF_DEBRID_KEY, "none") == "none") {
@@ -146,16 +152,12 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
                                 } else {
                                     Video(debrid(videoUrl), quality, debrid(videoUrl))
                                 }
-                            } catch (_: Exception) {
-                                null
-                            }
+                            }.getOrNull()
                         }
                 } else {
                     null
                 }
-            } catch (_: Exception) {
-                null
-            }
+            }.getOrNull()
         }.flatten()
     }
 
@@ -179,15 +181,13 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jE = jObject.entries
         val animeList = jE.mapNotNull {
             val itJ = it.value.jsonObject
-            try {
+            runCatching {
                 SAnime.create().apply {
                     title = itJ.jsonObject["show"]!!.jsonPrimitive.content
                     setUrlWithoutDomain("$baseUrl/shows/${itJ.jsonObject["page"]!!.jsonPrimitive.content}")
                     thumbnail_url = baseUrl + itJ.jsonObject["image_url"]?.jsonPrimitive?.content
                 }
-            } catch (_:Exception) {
-                null
-            }
+            }.getOrNull()
         }
         return AnimesPage(animeList, hasNextPage = false)
     }
