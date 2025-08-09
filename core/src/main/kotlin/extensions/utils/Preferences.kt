@@ -80,7 +80,7 @@ class LazyMutable<T>(
  *
  * @param preferences Shared preferences
  * @param key Key for preference
- * @param default Default value for preference, can be `null` for `String?`
+ * @param default Default value for preference, can be `null` for `String?` or `Set<String>?`
  */
 class LazyMutablePreference<T>(
     val preferences: SharedPreferences,
@@ -161,7 +161,7 @@ class LazyMutablePreference<T>(
  * which will cause the preferences to be created with the wrong source id.
  *
  * @param key Key for preference
- * @param default Default value for preference, can be `null` for `String?`
+ * @param default Default value for preference, can be `null` for `String?` or `Set<String>?`
  */
 fun <T> SharedPreferences.delegate(key: String, default: T) =
     LazyMutablePreference(this, key, default)
