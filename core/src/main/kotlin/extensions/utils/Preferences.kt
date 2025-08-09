@@ -80,7 +80,7 @@ class LazyMutable<T>(
  *
  * @param preferences Shared preferences
  * @param key Key for preference
- * @param default Default value for preference
+ * @param default Default value for preference, can be `null` for `String?`
  */
 class LazyMutablePreference<T>(
     val preferences: SharedPreferences,
@@ -115,7 +115,8 @@ class LazyMutablePreference<T>(
                     is Float -> preferences.getFloat(key, default) as T
                     is Boolean -> preferences.getBoolean(key, default) as T
                     is Set<*> -> preferences.getStringSet(key, default as Set<String>) as T
-                    else -> throw IllegalArgumentException("Unsupported type: ${default?.run { javaClass }}")
+                    null -> preferences.getString(key, default) as T
+                    else -> throw IllegalArgumentException("Unsupported type: ${default.javaClass}")
                 }
                 propValue = initializedValue
                 initializedValue
@@ -128,13 +129,14 @@ class LazyMutablePreference<T>(
         synchronized(this) {
             val editor = preferences.edit()
             when (value) {
+                null -> editor.remove(key)
                 is String -> editor.putString(key, value)
                 is Int -> editor.putInt(key, value)
                 is Long -> editor.putLong(key, value)
                 is Float -> editor.putFloat(key, value)
                 is Boolean -> editor.putBoolean(key, value)
                 is Set<*> -> editor.putStringSet(key, value as Set<String>)
-                else -> throw IllegalArgumentException("Unsupported type: ${value?.run { javaClass }}")
+                else -> throw IllegalArgumentException("Unsupported type: ${value.javaClass}")
             }
             editor.apply()
             propValue = value
@@ -153,6 +155,9 @@ class LazyMutablePreference<T>(
  *
  * **WARNING**: Do not use this on a lib-multisrc module, as it will be initialized before the source is created,
  * which will cause the preferences to be created with the wrong source id.
+ *
+ * @param key Key for preference
+ * @param default Default value for preference, can be `null` for `String?`
  */
 fun <T> SharedPreferences.delegate(key: String, default: T) =
     LazyMutablePreference(this, key, default)
