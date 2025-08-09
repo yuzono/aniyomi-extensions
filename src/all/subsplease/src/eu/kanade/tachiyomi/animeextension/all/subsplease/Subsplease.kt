@@ -133,8 +133,8 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             match.groups[1]?.value?.let { infohash = it }
             match.groups[2]?.value?.let { title = it }
         }
-        val token = preferences.token!!
-        val debridProvider = preferences.getString(PREF_DEBRID_KEY, "none")!!
+        val token = preferences.token
+        val debridProvider = preferences.debridProvider
         return "https://torrentio.strem.fun/resolve/$debridProvider/$token/$infohash/null/0/$title"
     }
 
@@ -152,7 +152,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
                             runCatching {
                                 val quality = item.jsonObject["res"]!!.jsonPrimitive.content + "p"
                                 val videoUrl = item.jsonObject["magnet"]!!.jsonPrimitive.content
-                                if (preferences.getString(PREF_DEBRID_KEY, "none") == "none") {
+                                if (preferences.debridProvider == PREF_DEBRID_DEFAULT) {
                                     Video(videoUrl, quality, videoUrl)
                                 } else {
                                     Video(debrid(videoUrl), quality, debrid(videoUrl))
@@ -167,7 +167,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString("preferred_quality", "1080p")!!
+        val quality = preferences.quality
         return this.sortedByDescending { it.quality.contains(quality) }
     }
 
@@ -214,17 +214,22 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // Preferences
 
-    private var SharedPreferences.token: String?
-        by preferences.delegate(PREF_TOKEN_KEY, null)
+    private var SharedPreferences.token by preferences.delegate(PREF_TOKEN_KEY, PREF_TOKEN_DEFAULT)
+
+    private val SharedPreferences.debridProvider
+        get() = getString(PREF_DEBRID_KEY, PREF_DEBRID_DEFAULT)!!
+
+    private val SharedPreferences.quality
+        get() = getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         // quality
         screen.addListPreference(
-            key = "preferred_quality",
+            key = PREF_QUALITY_KEY,
             title = "Default-Quality",
-            entries = listOf("1080p", "720p", "480p"),
-            entryValues = listOf("1080", "720", "480"),
-            default = "1080",
+            entries = PREF_QUALITY_ENTRIES,
+            entryValues = PREF_QUALITY_VALUES,
+            default = PREF_QUALITY_DEFAULT,
             summary = "%s",
         )
 
@@ -234,7 +239,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             title = "Debrid Provider",
             entries = PREF_DEBRID_ENTRIES,
             entryValues = PREF_DEBRID_VALUES,
-            default = "none",
+            default = PREF_DEBRID_DEFAULT,
             summary = "%s",
         )
 
@@ -254,6 +259,11 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
+        private const val PREF_QUALITY_KEY = "preferred_quality"
+        private val PREF_QUALITY_ENTRIES = listOf("1080p", "720p", "480p")
+        private val PREF_QUALITY_VALUES = listOf("1080", "720", "480")
+        private val PREF_QUALITY_DEFAULT = PREF_QUALITY_VALUES.first()
+
         // Token
         private const val PREF_TOKEN_KEY = "token"
         private const val PREF_TOKEN_DEFAULT = ""
@@ -279,5 +289,6 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             "offcloud",
             "torbox",
         )
+        private val PREF_DEBRID_DEFAULT = PREF_DEBRID_VALUES.first()
     }
 }
