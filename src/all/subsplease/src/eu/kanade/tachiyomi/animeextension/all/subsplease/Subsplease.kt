@@ -56,7 +56,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val jOe = jObject.jsonObject["schedule"]!!.jsonObject.entries
-        val animeList = jOe.map {
+        val animeList = jOe.flatMap {
             it.value.jsonArray.mapNotNull { item ->
                 runCatching {
                     SAnime.create().apply {
@@ -68,7 +68,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                 }.getOrNull()
             }
-        }.flatten()
+        }
         return AnimesPage(animeList, hasNextPage = false)
     }
 
@@ -111,8 +111,10 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun String?.toDate(): Long = this?.let {
-        SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH).tryParse(trim())
+        dateTimeFormat.tryParse(trim())
     } ?: 0L
+
+    private val dateTimeFormat by lazy { SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH) }
 
     // Video Extractor
 
