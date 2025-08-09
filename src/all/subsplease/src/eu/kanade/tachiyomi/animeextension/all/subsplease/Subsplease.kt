@@ -55,20 +55,22 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun parsePopularAnimeJson(jsonLine: String?): AnimesPage {
         val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
         val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val jOe = jObject.jsonObject["schedule"]!!.jsonObject.entries
-        val animeList = jOe.flatMap {
+        val jOe = jObject.jsonObject["schedule"]?.jsonObject?.entries
+        val animeList = jOe?.flatMap {
             it.value.jsonArray.mapNotNull { item ->
-                runCatching {
-                    SAnime.create().apply {
-                        title = item.jsonObject["title"]!!.jsonPrimitive.content
-                        setUrlWithoutDomain("$baseUrl/shows/${item.jsonObject["page"]!!.jsonPrimitive.content}")
-                        item.jsonObject["image_url"]?.jsonPrimitive?.content?.let {
-                            thumbnail_url = "$baseUrl$it"
-                        }
+                val title = item.jsonObject["title"]?.jsonPrimitive?.content
+                val url = item.jsonObject["page"]?.jsonPrimitive?.content
+                if (title == null || url == null) return@mapNotNull null
+
+                SAnime.create().apply {
+                    this.title = title
+                    setUrlWithoutDomain("$baseUrl/shows/$url")
+                    item.jsonObject["image_url"]?.jsonPrimitive?.content?.let {
+                        thumbnail_url = "$baseUrl$it"
                     }
-                }.getOrNull()
+                }
             }
-        }
+        } ?: emptyList()
         return AnimesPage(animeList, hasNextPage = false)
     }
 
@@ -87,8 +89,8 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jsonData = jsonLine ?: return emptyList()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val episodeList = mutableListOf<SEpisode>()
-        val epE = jObject["episode"]!!.jsonObject.entries
-        epE.forEach {
+        val epE = jObject["episode"]?.jsonObject?.entries
+        epE?.forEach {
             val itJ = it.value.jsonObject
             val episode = SEpisode.create()
             val num = itJ["episode"]?.jsonPrimitive?.content ?: return@forEach
@@ -141,31 +143,26 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun videosFromElement(jsonLine: String?, num: String): List<Video> {
         val jsonData = jsonLine ?: return emptyList()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val epE = jObject["episode"]!!.jsonObject.entries
-        return epE.mapNotNull {
+        val epE = jObject["episode"]?.jsonObject?.entries
+        return epE?.mapNotNull {
             val itJ = it.value.jsonObject
-            runCatching {
-                val epN = itJ["episode"]!!.jsonPrimitive.content
-                if (num == epN) {
-                    itJ["downloads"]!!.jsonArray
-                        .mapNotNull { item ->
-                            runCatching {
-                                val quality = item.jsonObject["res"]!!.jsonPrimitive.content + "p"
-                                val videoUrl = item.jsonObject["magnet"]!!.jsonPrimitive.content
-                                when (preferences.debridProvider) {
-                                    PREF_DEBRID_DEFAULT -> Video(videoUrl, quality, videoUrl)
-                                    else -> {
-                                        val debridUrl = debrid(videoUrl)
-                                        Video(debridUrl, quality, debridUrl)
-                                    }
-                                }
-                            }.getOrNull()
-                        }
-                } else {
-                    null
+            val epN = itJ["episode"]?.jsonPrimitive?.content
+            if (num != epN) return@mapNotNull null
+
+            itJ["downloads"]?.jsonArray?.mapNotNull inner@{ item ->
+                val quality = item.jsonObject["res"]?.jsonPrimitive?.content?.plus("p")
+                val videoUrl = item.jsonObject["magnet"]?.jsonPrimitive?.content
+                if (quality == null || videoUrl == null) return@inner null
+
+                when (preferences.debridProvider) {
+                    PREF_DEBRID_DEFAULT -> Video(videoUrl, quality, videoUrl)
+                    else -> {
+                        val debridUrl = debrid(videoUrl)
+                        Video(debridUrl, quality, debridUrl)
+                    }
                 }
-            }.getOrNull()
-        }.flatten()
+            }
+        }?.flatten() ?: emptyList()
     }
 
     override fun List<Video>.sort(): List<Video> {
@@ -188,15 +185,17 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         val jE = jObject.entries
         val animeList = jE.mapNotNull {
             val itJ = it.value.jsonObject
-            runCatching {
-                SAnime.create().apply {
-                    title = itJ.jsonObject["show"]!!.jsonPrimitive.content
-                    setUrlWithoutDomain("$baseUrl/shows/${itJ.jsonObject["page"]!!.jsonPrimitive.content}")
-                    itJ.jsonObject["image_url"]?.jsonPrimitive?.content?.let {
-                        thumbnail_url = "$baseUrl$it"
-                    }
+            val title = itJ.jsonObject["show"]?.jsonPrimitive?.content
+            val page = itJ.jsonObject["page"]?.jsonPrimitive?.content
+            if (title == null || page == null) return@mapNotNull null
+
+            SAnime.create().apply {
+                this.title = title
+                setUrlWithoutDomain("$baseUrl/shows/$page")
+                itJ.jsonObject["image_url"]?.jsonPrimitive?.content?.let {
+                    thumbnail_url = "$baseUrl$it"
                 }
-            }.getOrNull()
+            }
         }
         return AnimesPage(animeList, hasNextPage = false)
     }
