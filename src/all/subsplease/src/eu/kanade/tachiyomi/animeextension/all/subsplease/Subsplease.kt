@@ -77,9 +77,9 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
         val sId = document.select("#show-release-table").attr("sid")
-        val responseString = client.newCall(GET("$baseUrl/api/?f=show&tz=Europe/Berlin&sid=$sId"))
-            .execute().use { it.body.string() }
         val url = "$baseUrl/api/?f=show&tz=Europe/Berlin&sid=$sId"
+        val responseString = client.newCall(GET(url))
+            .execute().use { it.body.string() }
         return parseEpisodeAnimeJson(responseString, url)
     }
 
@@ -91,8 +91,8 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         epE.forEach {
             val itJ = it.value.jsonObject
             val episode = SEpisode.create()
-            val num = itJ["episode"]?.jsonPrimitive?.content
-            val ep = num?.takeWhile { it.isDigit() || it == '.' }?.toFloatOrNull()
+            val num = itJ["episode"]?.jsonPrimitive?.content ?: return@forEach
+            val ep = num.takeWhile { it.isDigit() || it == '.' }.toFloatOrNull()
             if (ep == null) {
                 if (episodeList.size > 0) {
                     episode.episode_number = episodeList.last().episode_number - 0.5F
@@ -102,7 +102,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             } else {
                 episode.episode_number = ep
             }
-            episode.name = "Episode ${num ?: episode.episode_number}"
+            episode.name = "Episode $num"
             episode.date_upload = itJ["release_date"]?.jsonPrimitive?.content.toDate()
             episode.setUrlWithoutDomain("$url&num=$num")
             episodeList.add(episode)
@@ -131,8 +131,8 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             match.groups[1]?.value?.let { infohash = it }
             match.groups[2]?.value?.let { title = it }
         }
-        val token = preferences.token
-        val debridProvider = preferences.getString(PREF_DEBRID_KEY, "none")
+        val token = preferences.token!!
+        val debridProvider = preferences.getString(PREF_DEBRID_KEY, "none")!!
         return "https://torrentio.strem.fun/resolve/$debridProvider/$token/$infohash/null/0/$title"
     }
 
@@ -242,10 +242,11 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
             title = "Token",
             default = PREF_TOKEN_DEFAULT,
             summary = PREF_TOKEN_SUMMARY,
-            onComplete = { newValue ->
+            onChange = { _, newValue ->
                 val value = newValue.trim().ifBlank { PREF_TOKEN_DEFAULT }
                 preferences.token = value
                 preferences.edit().putString(PREF_TOKEN_KEY, value).apply()
+                true
             },
         )
     }
