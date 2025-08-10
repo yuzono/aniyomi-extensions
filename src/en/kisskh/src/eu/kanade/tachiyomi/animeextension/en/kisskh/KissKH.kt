@@ -131,7 +131,7 @@ class KissKH : AnimeHttpSource() {
                 val suburl = item.jsonObject["src"]!!.jsonPrimitive.content
                 val lang = item.jsonObject["label"]!!.jsonPrimitive.content
 
-                if (suburl.endsWith("txt")) {
+                if (suburl.contains(".txt")) {
                     subList.add(subDecryptor.getSubtitles(suburl, lang))
                 } else {
                     subList.add(Track(suburl, lang))
