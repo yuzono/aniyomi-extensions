@@ -1,6 +1,8 @@
 package eu.kanade.tachiyomi.animeextension.en.kisskh
 
+import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.BuildConfig
+import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -10,6 +12,9 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.addListPreference
+import extensions.utils.delegate
+import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -23,11 +28,9 @@ import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
 
-class KissKH : AnimeHttpSource() {
+class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val name = "KissKH"
-
-    override val baseUrl = "https://kisskh.co"
 
     override val lang = "en"
 
@@ -37,6 +40,11 @@ class KissKH : AnimeHttpSource() {
         isLenient = true
         ignoreUnknownKeys = true
     }
+
+    private val preferences by getPreferencesLazy()
+
+    override var baseUrl: String
+        by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
     override fun popularAnimeRequest(page: Int): Request =
         GET("$baseUrl/api/DramaList/List?page=$page&type=0&sub=0&country=0&status=0&order=1&pageSize=40")
@@ -239,4 +247,30 @@ class KissKH : AnimeHttpSource() {
         val version: String,
         val key: String,
     )
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = "Preferred domain",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        ) {
+            baseUrl = it
+        }
+    }
+
+    companion object {
+        private const val PREF_DOMAIN_KEY = "preferred_domain"
+        private val DOMAIN_ENTRIES = listOf(
+            "kisskh.ovh",
+            "kisskh.do",
+            "kisskh.co",
+            "kisskh.id",
+            "kisskh.la",
+        )
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
+        private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
+    }
 }
