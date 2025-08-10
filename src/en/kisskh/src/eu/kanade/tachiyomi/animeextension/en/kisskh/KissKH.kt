@@ -46,6 +46,10 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
     override var baseUrl: String
         by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
+    override val supportsRelatedAnimes = false
+
+    /* Popular Animes */
+
     override fun popularAnimeRequest(page: Int): Request =
         GET("$baseUrl/api/DramaList/List?page=$page&type=0&sub=0&country=0&status=0&order=1&pageSize=40")
 
@@ -73,7 +77,85 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return AnimesPage(animeList, hasNextPage)
     }
 
-    // episodes
+    /* Latest */
+
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/api/DramaList/List?page=$page&type=0&sub=0&country=0&status=0&order=2&pageSize=40")
+
+    override fun latestUpdatesParse(response: Response): AnimesPage {
+        val responseString = response.body.string()
+        return parseLatestAnimeJson(responseString)
+    }
+
+    private fun parseLatestAnimeJson(jsonLine: String?): AnimesPage {
+        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
+        val jObject = json.decodeFromString<JsonObject>(jsonData)
+        val lastPage = jObject["totalCount"]!!.jsonPrimitive.int
+        val page = jObject["page"]!!.jsonPrimitive.int
+        val hasNextPage = page < lastPage
+        val array = jObject["data"]!!.jsonArray
+        val animeList = mutableListOf<SAnime>()
+        for (item in array) {
+            val anime = SAnime.create()
+            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
+            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
+            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
+            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content ?: ""
+            animeList.add(anime)
+        }
+        return AnimesPage(animeList, hasNextPage)
+    }
+
+    /* Search */
+
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request =
+        GET("$baseUrl/api/DramaList/Search?q=$query&type=0")
+
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        val responseString = response.body.string()
+        return parseSearchAnimeJson(responseString)
+    }
+
+    private fun parseSearchAnimeJson(jsonLine: String?): AnimesPage {
+        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
+        val array = json.decodeFromString<JsonArray>(jsonData)
+        val animeList = mutableListOf<SAnime>()
+        for (item in array) {
+            val anime = SAnime.create()
+            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
+            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
+            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
+            anime.thumbnail_url = item.jsonObject["thumbnail"]!!.jsonPrimitive.content
+            animeList.add(anime)
+        }
+        return AnimesPage(animeList, hasNextPage = false)
+    }
+
+    /* Details */
+
+    override fun animeDetailsParse(response: Response): SAnime {
+        val responseString = response.body.string()
+        return parseAnimeDetailsParseJson(responseString)
+    }
+
+    private fun parseAnimeDetailsParseJson(jsonLine: String?): SAnime {
+        val anime = SAnime.create()
+        val jsonData = jsonLine ?: return anime
+        val jObject = json.decodeFromString<JsonObject>(jsonData)
+        anime.title = jObject.jsonObject["title"]!!.jsonPrimitive.content
+        anime.status = parseStatus(jObject.jsonObject["status"]!!.jsonPrimitive.content)
+        anime.description = jObject.jsonObject["description"]!!.jsonPrimitive.content
+        anime.thumbnail_url = jObject.jsonObject["thumbnail"]!!.jsonPrimitive.content
+
+        return anime
+    }
+
+    private fun parseStatus(status: String?) = when {
+        status == null -> SAnime.UNKNOWN
+        status.contains("Ongoing", ignoreCase = true) -> SAnime.ONGOING
+        else -> SAnime.COMPLETED
+    }
+
+    /* Episodes */
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val responseString = response.body.string()
@@ -151,84 +233,6 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         videoList.add(Video(videoUrl, "FirstParty", videoUrl, subtitleTracks = subList, headers = Headers.headersOf("referer", "https://kisskh.me/", "origin", "https://kisskh.me")))
 
         return videoList.reversed()
-    }
-
-    // Search
-
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request =
-        GET("$baseUrl/api/DramaList/Search?q=$query&type=0")
-
-    override fun searchAnimeParse(response: Response): AnimesPage {
-        val responseString = response.body.string()
-        return parseSearchAnimeJson(responseString)
-    }
-
-    private fun parseSearchAnimeJson(jsonLine: String?): AnimesPage {
-        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
-        val array = json.decodeFromString<JsonArray>(jsonData)
-        val animeList = mutableListOf<SAnime>()
-        for (item in array) {
-            val anime = SAnime.create()
-            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
-            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
-            anime.thumbnail_url = item.jsonObject["thumbnail"]!!.jsonPrimitive.content
-            animeList.add(anime)
-        }
-        return AnimesPage(animeList, hasNextPage = false)
-    }
-
-    // Details
-
-    override fun animeDetailsParse(response: Response): SAnime {
-        val responseString = response.body.string()
-        return parseAnimeDetailsParseJson(responseString)
-    }
-
-    private fun parseAnimeDetailsParseJson(jsonLine: String?): SAnime {
-        val anime = SAnime.create()
-        val jsonData = jsonLine ?: return anime
-        val jObject = json.decodeFromString<JsonObject>(jsonData)
-        anime.title = jObject.jsonObject["title"]!!.jsonPrimitive.content
-        anime.status = parseStatus(jObject.jsonObject["status"]!!.jsonPrimitive.content)
-        anime.description = jObject.jsonObject["description"]!!.jsonPrimitive.content
-        anime.thumbnail_url = jObject.jsonObject["thumbnail"]!!.jsonPrimitive.content
-
-        return anime
-    }
-
-    private fun parseStatus(status: String?) = when {
-        status == null -> SAnime.UNKNOWN
-        status.contains("Ongoing", ignoreCase = true) -> SAnime.ONGOING
-        else -> SAnime.COMPLETED
-    }
-
-    // Latest
-
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/api/DramaList/List?page=$page&type=0&sub=0&country=0&status=0&order=2&pageSize=40")
-
-    override fun latestUpdatesParse(response: Response): AnimesPage {
-        val responseString = response.body.string()
-        return parseLatestAnimeJson(responseString)
-    }
-
-    private fun parseLatestAnimeJson(jsonLine: String?): AnimesPage {
-        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
-        val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val lastPage = jObject["totalCount"]!!.jsonPrimitive.int
-        val page = jObject["page"]!!.jsonPrimitive.int
-        val hasNextPage = page < lastPage
-        val array = jObject["data"]!!.jsonArray
-        val animeList = mutableListOf<SAnime>()
-        for (item in array) {
-            val anime = SAnime.create()
-            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
-            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
-            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content ?: ""
-            animeList.add(anime)
-        }
-        return AnimesPage(animeList, hasNextPage)
     }
 
     private fun requestVideoKey(id: String): String {
