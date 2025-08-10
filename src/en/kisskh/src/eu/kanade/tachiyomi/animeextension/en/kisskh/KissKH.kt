@@ -70,8 +70,9 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
             val anime = SAnime.create()
             anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
             val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
-            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content ?: ""
+            val titleURI = anime.title.replace(titleUriRegex, "-")
+            anime.url = "/Drama/$titleURI?id=$animeId"
+            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
             animeList.add(anime)
         }
         return AnimesPage(animeList, hasNextPage)
@@ -98,8 +99,9 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
             val anime = SAnime.create()
             anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
             val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
-            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content ?: ""
+            val titleURI = anime.title.replace(titleUriRegex, "-")
+            anime.url = "/Drama/$titleURI?id=$animeId"
+            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
             animeList.add(anime)
         }
         return AnimesPage(animeList, hasNextPage)
@@ -123,7 +125,8 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
             val anime = SAnime.create()
             anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
             val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            anime.setUrlWithoutDomain("$baseUrl/api/DramaList/Drama/$animeId?isq=false")
+            val titleURI = anime.title.replace(titleUriRegex, "-")
+            anime.url = "/Drama/$titleURI?id=$animeId"
             anime.thumbnail_url = item.jsonObject["thumbnail"]!!.jsonPrimitive.content
             animeList.add(anime)
         }
@@ -131,6 +134,15 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     /* Details */
+
+    override fun getAnimeUrl(anime: SAnime): String {
+        return baseUrl + anime.url
+    }
+
+    override fun animeDetailsRequest(anime: SAnime): Request {
+        val id = anime.url.substringAfter("id=").substringBefore("&")
+        return GET("$baseUrl/api/DramaList/Drama/$id?isq=false", headers)
+    }
 
     override fun animeDetailsParse(response: Response): SAnime {
         val responseString = response.body.string()
@@ -156,6 +168,8 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     /* Episodes */
+
+    override fun episodeListRequest(anime: SAnime) = animeDetailsRequest(anime)
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val responseString = response.body.string()
@@ -264,6 +278,8 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
             baseUrl = it
         }
     }
+
+    private val titleUriRegex by lazy { Regex("[^a-zA-Z0-9]") }
 
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
