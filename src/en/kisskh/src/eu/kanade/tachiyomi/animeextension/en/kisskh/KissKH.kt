@@ -58,23 +58,24 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return parsePopularAnimeJson(responseString)
     }
 
-    private fun parsePopularAnimeJson(jsonLine: String?): AnimesPage {
-        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
+    private fun parsePopularAnimeJson(jsonData: String): AnimesPage {
         val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val lastPage = jObject["totalCount"]!!.jsonPrimitive.int
-        val page = jObject["page"]!!.jsonPrimitive.int
-        val hasNextPage = page < lastPage
-        val array = jObject["data"]!!.jsonArray
-        val animeList = mutableListOf<SAnime>()
-        for (item in array) {
-            val anime = SAnime.create()
-            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
-            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            val titleURI = anime.title.replace(titleUriRegex, "-")
-            anime.url = "/Drama/$titleURI?id=$animeId"
-            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
-            animeList.add(anime)
+        val lastPage = jObject["totalCount"]?.jsonPrimitive?.int
+        val page = jObject["page"]?.jsonPrimitive?.int
+        val hasNextPage = if (lastPage != null && page != null) {
+            page < lastPage
+        } else {
+            false
         }
+        val animeList = jObject["data"]?.jsonArray?.mapNotNull { item ->
+            SAnime.create().apply {
+                title = item.jsonObject["title"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val animeId = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val titleURI = title.replace(titleUriRegex, "-")
+                url = "/Drama/$titleURI?id=$animeId"
+                thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
+            }
+        } ?: emptyList()
         return AnimesPage(animeList, hasNextPage)
     }
 
@@ -87,23 +88,24 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return parseLatestAnimeJson(responseString)
     }
 
-    private fun parseLatestAnimeJson(jsonLine: String?): AnimesPage {
-        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
+    private fun parseLatestAnimeJson(jsonData: String): AnimesPage {
         val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val lastPage = jObject["totalCount"]!!.jsonPrimitive.int
-        val page = jObject["page"]!!.jsonPrimitive.int
-        val hasNextPage = page < lastPage
-        val array = jObject["data"]!!.jsonArray
-        val animeList = mutableListOf<SAnime>()
-        for (item in array) {
-            val anime = SAnime.create()
-            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
-            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            val titleURI = anime.title.replace(titleUriRegex, "-")
-            anime.url = "/Drama/$titleURI?id=$animeId"
-            anime.thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
-            animeList.add(anime)
+        val lastPage = jObject["totalCount"]?.jsonPrimitive?.int
+        val page = jObject["page"]?.jsonPrimitive?.int
+        val hasNextPage = if (lastPage != null && page != null) {
+            page < lastPage
+        } else {
+            false
         }
+        val animeList = jObject["data"]?.jsonArray?.mapNotNull { item ->
+            SAnime.create().apply {
+                title = item.jsonObject["title"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val animeId = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val titleURI = title.replace(titleUriRegex, "-")
+                url = "/Drama/$titleURI?id=$animeId"
+                thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
+            }
+        } ?: emptyList()
         return AnimesPage(animeList, hasNextPage)
     }
 
@@ -117,18 +119,15 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return parseSearchAnimeJson(responseString)
     }
 
-    private fun parseSearchAnimeJson(jsonLine: String?): AnimesPage {
-        val jsonData = jsonLine ?: return AnimesPage(emptyList(), false)
-        val array = json.decodeFromString<JsonArray>(jsonData)
-        val animeList = mutableListOf<SAnime>()
-        for (item in array) {
-            val anime = SAnime.create()
-            anime.title = item.jsonObject["title"]!!.jsonPrimitive.content
-            val animeId = item.jsonObject["id"]!!.jsonPrimitive.content
-            val titleURI = anime.title.replace(titleUriRegex, "-")
-            anime.url = "/Drama/$titleURI?id=$animeId"
-            anime.thumbnail_url = item.jsonObject["thumbnail"]!!.jsonPrimitive.content
-            animeList.add(anime)
+    private fun parseSearchAnimeJson(jsonData: String): AnimesPage {
+        val animeList = json.decodeFromString<JsonArray>(jsonData).mapNotNull { item ->
+            SAnime.create().apply {
+                title = item.jsonObject["title"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val animeId = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                val titleURI = title.replace(titleUriRegex, "-")
+                url = "/Drama/$titleURI?id=$animeId"
+                thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
+            }
         }
         return AnimesPage(animeList, hasNextPage = false)
     }
@@ -149,16 +148,14 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return parseAnimeDetailsParseJson(responseString)
     }
 
-    private fun parseAnimeDetailsParseJson(jsonLine: String?): SAnime {
-        val anime = SAnime.create()
-        val jsonData = jsonLine ?: return anime
-        val jObject = json.decodeFromString<JsonObject>(jsonData)
-        anime.title = jObject.jsonObject["title"]!!.jsonPrimitive.content
-        anime.status = parseStatus(jObject.jsonObject["status"]!!.jsonPrimitive.content)
-        anime.description = jObject.jsonObject["description"]!!.jsonPrimitive.content
-        anime.thumbnail_url = jObject.jsonObject["thumbnail"]!!.jsonPrimitive.content
-
-        return anime
+    private fun parseAnimeDetailsParseJson(jsonData: String): SAnime {
+        return SAnime.create().apply {
+            val jObject = json.decodeFromString<JsonObject>(jsonData)
+            jObject.jsonObject["title"]?.jsonPrimitive?.content?.let { title = it }
+            jObject.jsonObject["status"]?.jsonPrimitive?.content?.let { status = parseStatus(it) }
+            jObject.jsonObject["description"]?.jsonPrimitive?.content?.let { description = it }
+            jObject.jsonObject["thumbnail"]?.jsonPrimitive?.content?.let { thumbnail_url = it }
+        }
     }
 
     private fun parseStatus(status: String?) = when {
@@ -176,32 +173,34 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return parseEpisodePage(responseString)
     }
 
-    private fun parseEpisodePage(jsonLine: String?): List<SEpisode> {
-        val jsonData = jsonLine ?: return mutableListOf()
+    private fun parseEpisodePage(jsonData: String): List<SEpisode> {
         val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val episodeList = mutableListOf<SEpisode>()
-        val array = jObject["episodes"]!!.jsonArray
-        val type = jObject["type"]!!.jsonPrimitive.content
-        val episodesCount = jObject["episodesCount"]!!.jsonPrimitive.int
-        for (item in array) {
-            val episode = SEpisode.create()
-            val id = item.jsonObject["id"]!!.jsonPrimitive.content
-            episode.episode_number = item.jsonObject["number"]!!.jsonPrimitive.float
-            val number = item.jsonObject["number"]!!.jsonPrimitive.content.replace(".0", "")
-            when {
-                type.contains("Anime") || type.contains("TVSeries") -> {
-                    episode.name = "Episode $number"
-                }
-                type.contains("Hollywood") && episodesCount == 1 || type.contains("Movie") -> {
-                    episode.name = "Movie"
-                }
-                type.contains("Hollywood") && episodesCount > 1 -> {
-                    episode.name = "Episode $number"
+        val type = jObject["type"]?.jsonPrimitive?.content
+        val episodesCount = jObject["episodesCount"]?.jsonPrimitive?.int ?: 1
+        val episodeList = jObject["episodes"]?.jsonArray?.mapNotNull { item ->
+            val id = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val number = item.jsonObject["number"]?.jsonPrimitive?.content?.replace(".0", "") ?: "1"
+            SEpisode.create().apply {
+                url = id
+                episode_number = item.jsonObject["number"]?.jsonPrimitive?.float ?: 1f
+                when {
+                    type.isNullOrBlank() -> {
+                        name = "Video $number"
+                    }
+                    type.contains("Anime") || type.contains("TVSeries") -> {
+                        name = "Episode $number"
+                    }
+
+                    type.contains("Hollywood") && episodesCount == 1 || type.contains("Movie") -> {
+                        name = "Movie"
+                    }
+
+                    type.contains("Hollywood") && episodesCount > 1 -> {
+                        name = "Episode $number"
+                    }
                 }
             }
-            episode.url = id
-            episodeList.add(episode)
-        }
+        } ?: emptyList()
         return episodeList
     }
 
@@ -224,29 +223,30 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
     private fun videosFromElement(response: Response, id: String): List<Video> {
         val jsonData = response.body.string()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val videoList = mutableListOf<Video>()
+        val videoUrl = jObject["Video"]?.jsonPrimitive?.content ?: return emptyList()
 
         val kkey = requestSubKey(id)
         val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).execute().use { it.body.string() }
-        val subj = json.decodeFromString<JsonArray>(subData)
-        val subList = mutableListOf<Track>()
-        for (item in subj) {
-            try {
-                val suburl = item.jsonObject["src"]!!.jsonPrimitive.content
-                val lang = item.jsonObject["label"]!!.jsonPrimitive.content
+        val subList = json.decodeFromString<JsonArray>(subData).mapNotNull { item ->
+            val suburl = item.jsonObject["src"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val lang = item.jsonObject["label"]?.jsonPrimitive?.content ?: "Unknown"
 
-                if (suburl.contains(".txt")) {
-                    subList.add(subDecryptor.getSubtitles(suburl, lang))
-                } else {
-                    subList.add(Track(suburl, lang))
-                }
-            } catch (_: Error) {}
+            if (suburl.contains(".txt")) {
+                subDecryptor.getSubtitles(suburl, lang)
+            } else {
+                Track(suburl, lang)
+            }
         }
-        val videoUrl = jObject["Video"]!!.jsonPrimitive.content
 
-        videoList.add(Video(videoUrl, "FirstParty", videoUrl, subtitleTracks = subList, headers = Headers.headersOf("referer", "https://kisskh.me/", "origin", "https://kisskh.me")))
-
-        return videoList.reversed()
+        return listOf(
+            Video(
+                videoUrl,
+                "FirstParty",
+                videoUrl,
+                subtitleTracks = subList,
+                headers = Headers.headersOf("referer", "$baseUrl/", "origin", baseUrl),
+            ),
+        )
     }
 
     private fun requestVideoKey(id: String): String {
