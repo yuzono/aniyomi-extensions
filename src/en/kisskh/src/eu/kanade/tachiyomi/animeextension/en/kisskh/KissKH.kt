@@ -227,7 +227,7 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         val videoList = mutableListOf<Video>()
 
         val kkey = requestSubKey(id)
-        val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).execute().body.string()
+        val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).execute().use { it.body.string() }
         val subj = json.decodeFromString<JsonArray>(subData)
         val subList = mutableListOf<Track>()
         for (item in subj) {
