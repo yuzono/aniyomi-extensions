@@ -110,6 +110,8 @@ jobs:
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           MEGACLOUD_API: ${{ secrets.MEGACLOUD_API }}
+          KISSKH_API: ${{ secrets.KISSKH_API }}
+          KISSKH_SUB_API: ${{ secrets.KISSKH_SUB_API }}
         run: |
           ./gradlew $(echo '${{ toJson(matrix.chunk.modules) }}' | jq -r 'join(" ")')
 
