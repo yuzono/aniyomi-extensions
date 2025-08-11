@@ -12,6 +12,8 @@ import java.io.IOException
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import kotlin.collections.listOf
+import kotlin.getValue
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -58,13 +60,15 @@ class SubDecryptor(private val client: OkHttpClient, private val headers: Header
         private val IV2 = intArrayOf(909653298, 909193779, 925905208, 892483379)
     }
 
-    @OptIn(ExperimentalEncodingApi::class)
-    private fun decrypt(encryptedB64: String): String {
-        val keyIvPairs = listOf(
+    private val keyIvPairs by lazy {
+        listOf(
             Pair(KEY.toByteArray(Charsets.UTF_8), IV.toByteArray()),
             Pair(KEY2.toByteArray(Charsets.UTF_8), IV2.toByteArray()),
         )
+    }
 
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun decrypt(encryptedB64: String): String {
         val encryptedBytes = Base64.decode(encryptedB64) // Decode Base64 input
 
         for ((keyBytes, ivBytes) in keyIvPairs) {
