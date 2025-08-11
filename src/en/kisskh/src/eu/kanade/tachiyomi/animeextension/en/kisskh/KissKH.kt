@@ -175,15 +175,13 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
                     type.isNullOrBlank() -> {
                         name = "Video $number"
                     }
-                    type.contains("Anime") || type.contains("TVSeries") -> {
-                        name = "Episode $number"
-                    }
 
                     type.contains("Hollywood") && episodesCount == 1 || type.contains("Movie") -> {
                         name = "Movie"
                     }
 
-                    type.contains("Hollywood") && episodesCount > 1 -> {
+                    type.contains("Anime") || type.contains("TVSeries") ||
+                        type.contains("Hollywood") && episodesCount > 1 -> {
                         name = "Episode $number"
                     }
                 }
