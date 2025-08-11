@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
@@ -46,6 +47,8 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override var baseUrl: String
         by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+
+    private var subDecryptor by LazyMutable { SubDecryptor(client, headers, baseUrl) }
 
     override val supportsRelatedAnimes = false
 
@@ -203,8 +206,6 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
     override fun videoListRequest(episode: SEpisode) = throw UnsupportedOperationException()
     override fun videoListParse(response: Response) = throw UnsupportedOperationException()
 
-    private val subDecryptor by lazy { SubDecryptor(client, headers, baseUrl) }
-
     private suspend fun videosFromElement(response: Response, id: String): List<Video> {
         val jsonData = response.body.string()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
@@ -261,6 +262,7 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
             summary = "%s",
         ) {
             baseUrl = it
+            subDecryptor = SubDecryptor(client, headers, baseUrl)
         }
     }
 
