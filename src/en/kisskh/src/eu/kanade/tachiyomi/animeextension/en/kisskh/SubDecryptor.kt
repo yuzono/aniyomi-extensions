@@ -1,11 +1,13 @@
 package eu.kanade.tachiyomi.animeextension.en.kisskh
 
 import android.net.Uri
+import android.util.Log
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.network.GET
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import java.io.File
+import java.io.IOException
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -31,9 +33,9 @@ class SubDecryptor(private val client: OkHttpClient, private val headers: Header
         val decrypted = chunks.mapIndexed { index, chunk ->
             val parts = chunk.split("\n")
             val text = parts.slice(1 until parts.size)
-            val d = text.map { decrypt(it) }.joinToString("\n")
+            val d = text.joinToString("\n") { decrypt(it) }
 
-            arrayOf(index + 1, parts.first(), d).joinToString("\n")
+            listOf(index + 1, parts.first(), d).joinToString("\n")
         }.joinToString("\n\n")
 
         val file = File.createTempFile("subs", "srt")
@@ -68,10 +70,10 @@ class SubDecryptor(private val client: OkHttpClient, private val headers: Header
             try {
                 return decryptWithKeyIv(keyBytes, ivBytes, encryptedBytes)
             } catch (ex: Exception) {
-                println("Decryption attempt failed with key/IV pair. Error: ${ex.message}")
+                Log.e("KissKH:SubDecryptor", "Decryption attempt failed with key/IV pair. Error: ${ex.message}", ex)
             }
         }
-        return "Decryption failed: All keys/IVs failed"
+        throw IOException("Decryption failed: All keys/IVs failed")
     }
 
     private fun decryptWithKeyIv(keyBytes: ByteArray, ivBytes: ByteArray, encryptedBytes: ByteArray): String {

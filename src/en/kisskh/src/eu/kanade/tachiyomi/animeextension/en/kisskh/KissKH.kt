@@ -88,26 +88,7 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         return parseLatestAnimeJson(responseString)
     }
 
-    private fun parseLatestAnimeJson(jsonData: String): AnimesPage {
-        val jObject = json.decodeFromString<JsonObject>(jsonData)
-        val lastPage = jObject["totalCount"]?.jsonPrimitive?.int
-        val page = jObject["page"]?.jsonPrimitive?.int
-        val hasNextPage = if (lastPage != null && page != null) {
-            page < lastPage
-        } else {
-            false
-        }
-        val animeList = jObject["data"]?.jsonArray?.mapNotNull { item ->
-            SAnime.create().apply {
-                title = item.jsonObject["title"]?.jsonPrimitive?.content ?: return@mapNotNull null
-                val animeId = item.jsonObject["id"]?.jsonPrimitive?.content ?: return@mapNotNull null
-                val titleURI = title.replace(titleUriRegex, "-")
-                url = "/Drama/$titleURI?id=$animeId"
-                thumbnail_url = item.jsonObject["thumbnail"]?.jsonPrimitive?.content
-            }
-        } ?: emptyList()
-        return AnimesPage(animeList, hasNextPage)
-    }
+    private fun parseLatestAnimeJson(jsonData: String) = parsePopularAnimeJson(jsonData)
 
     /* Search */
 
@@ -182,7 +163,7 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
             val number = item.jsonObject["number"]?.jsonPrimitive?.content?.replace(".0", "") ?: "1"
             SEpisode.create().apply {
                 url = id
-                episode_number = item.jsonObject["number"]?.jsonPrimitive?.float ?: 1f
+                item.jsonObject["number"]?.jsonPrimitive?.float?.let { episode_number = it }
                 when {
                     type.isNullOrBlank() -> {
                         name = "Video $number"
