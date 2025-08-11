@@ -69,6 +69,7 @@ class SubDecryptor(private val client: OkHttpClient, private val headers: Header
 
     @OptIn(ExperimentalEncodingApi::class)
     private fun decrypt(encryptedB64: String): String {
+        if (encryptedB64.isBlank()) return ""
         val encryptedBytes = Base64.decode(encryptedB64) // Decode Base64 input
 
         for ((keyBytes, ivBytes) in keyIvPairs) {
