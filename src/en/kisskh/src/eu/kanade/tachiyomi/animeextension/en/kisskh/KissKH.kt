@@ -14,6 +14,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.LazyMutable
+import extensions.utils.UrlUtils
 import extensions.utils.addListPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
@@ -234,9 +235,9 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
 
         return listOf(
             Video(
-                videoUrl,
+                UrlUtils.fixUrl(videoUrl),
                 "FirstParty",
-                videoUrl,
+                UrlUtils.fixUrl(videoUrl),
                 subtitleTracks = subList,
                 headers = Headers.headersOf("referer", "$baseUrl/", "origin", baseUrl),
             ),
