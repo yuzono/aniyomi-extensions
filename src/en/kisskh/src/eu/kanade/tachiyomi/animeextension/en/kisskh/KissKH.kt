@@ -216,16 +216,18 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).awaitSuccess().use { it.body.string() }
 
         val subList = coroutineScope {
-            json.decodeFromString<JsonArray>(subData).map { item ->
+            (runCatching { json.decodeFromString<JsonArray>(subData) }.getOrNull() ?: emptyList()).map { item ->
                 async {
                     val suburl = item.jsonObject["src"]?.jsonPrimitive?.content ?: return@async null
                     val lang = item.jsonObject["label"]?.jsonPrimitive?.content ?: "Unknown"
 
-                    if (suburl.contains(".txt")) {
-                        subDecryptor.getSubtitles(suburl, lang)
-                    } else {
-                        Track(suburl, lang)
-                    }
+                    runCatching {
+                        if (suburl.contains(".txt")) {
+                            subDecryptor.getSubtitles(suburl, lang)
+                        } else {
+                            Track(suburl, lang)
+                        }
+                    }.getOrNull()
                 }
             }.awaitAll().filterNotNull()
         }

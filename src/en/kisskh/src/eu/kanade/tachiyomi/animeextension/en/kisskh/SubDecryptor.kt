@@ -36,7 +36,7 @@ class SubDecryptor(private val client: OkHttpClient, private val headers: Header
         val decrypted = chunks.mapIndexed { index, chunk ->
             val parts = chunk.split("\n")
             val text = parts.slice(1 until parts.size)
-            val d = text.joinToString("\n") { decrypt(it) }
+            val d = text.joinToString("\n") { runCatching { decrypt(it) }.getOrDefault("") }
 
             listOf(index + 1, parts.first(), d).joinToString("\n")
         }.joinToString("\n\n")
