@@ -17,6 +17,9 @@ import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -213,15 +216,20 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
 
         val kkey = requestSubKey(id)
         val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).awaitSuccess().use { it.body.string() }
-        val subList = json.decodeFromString<JsonArray>(subData).mapNotNull { item ->
-            val suburl = item.jsonObject["src"]?.jsonPrimitive?.content ?: return@mapNotNull null
-            val lang = item.jsonObject["label"]?.jsonPrimitive?.content ?: "Unknown"
 
-            if (suburl.contains(".txt")) {
-                subDecryptor.getSubtitles(suburl, lang)
-            } else {
-                Track(suburl, lang)
-            }
+        val subList = coroutineScope {
+            json.decodeFromString<JsonArray>(subData).map { item ->
+                async {
+                    val suburl = item.jsonObject["src"]?.jsonPrimitive?.content ?: return@async null
+                    val lang = item.jsonObject["label"]?.jsonPrimitive?.content ?: "Unknown"
+
+                    if (suburl.contains(".txt")) {
+                        subDecryptor.getSubtitles(suburl, lang)
+                    } else {
+                        Track(suburl, lang)
+                    }
+                }
+            }.awaitAll().filterNotNull()
         }
 
         return listOf(
