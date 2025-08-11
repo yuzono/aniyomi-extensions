@@ -11,6 +11,7 @@ import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.addListPreference
 import extensions.utils.delegate
@@ -186,28 +187,31 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     // Video Extractor
-    override fun videoListRequest(episode: SEpisode): Request {
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val kkey = requestVideoKey(episode.url)
-
         val url = "$baseUrl/api/DramaList/Episode/${episode.url}.png?err=false&ts=&time=&kkey=$kkey"
-        return GET(url, headers)
+        val videoListRequest = GET(url, headers)
+        return client.newCall(videoListRequest)
+            .awaitSuccess()
+            .use { response ->
+                val id = response.request.url.toString()
+                    .substringAfter("Episode/").substringBefore(".png")
+                videosFromElement(response, id)
+            }
     }
 
-    override fun videoListParse(response: Response): List<Video> {
-        val id = response.request.url.toString()
-            .substringAfter("Episode/").substringBefore(".png")
-        return videosFromElement(response, id)
-    }
+    override fun videoListRequest(episode: SEpisode) = throw UnsupportedOperationException()
+    override fun videoListParse(response: Response) = throw UnsupportedOperationException()
 
     private val subDecryptor by lazy { SubDecryptor(client, headers, baseUrl) }
 
-    private fun videosFromElement(response: Response, id: String): List<Video> {
+    private suspend fun videosFromElement(response: Response, id: String): List<Video> {
         val jsonData = response.body.string()
         val jObject = json.decodeFromString<JsonObject>(jsonData)
         val videoUrl = jObject["Video"]?.jsonPrimitive?.content ?: return emptyList()
 
         val kkey = requestSubKey(id)
-        val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).execute().use { it.body.string() }
+        val subData = client.newCall(GET("$baseUrl/api/Sub/$id?kkey=$kkey")).awaitSuccess().use { it.body.string() }
         val subList = json.decodeFromString<JsonArray>(subData).mapNotNull { item ->
             val suburl = item.jsonObject["src"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val lang = item.jsonObject["label"]?.jsonPrimitive?.content ?: "Unknown"
@@ -230,14 +234,14 @@ class KissKH : AnimeHttpSource(), ConfigurableAnimeSource {
         )
     }
 
-    private fun requestVideoKey(id: String): String {
+    private suspend fun requestVideoKey(id: String): String {
         val url = "${BuildConfig.KISSKH_API}$id&version=2.8.10"
-        return client.newCall(GET(url, headers)).execute().use { it.parseAs<Key>().key }
+        return client.newCall(GET(url, headers)).awaitSuccess().use { it.parseAs<Key>().key }
     }
 
-    private fun requestSubKey(id: String): String {
+    private suspend fun requestSubKey(id: String): String {
         val url = "${BuildConfig.KISSKH_SUB_API}$id&version=2.8.10"
-        return client.newCall(GET(url, headers)).execute().use { it.parseAs<Key>().key }
+        return client.newCall(GET(url, headers)).awaitSuccess().use { it.parseAs<Key>().key }
     }
 
     @Serializable

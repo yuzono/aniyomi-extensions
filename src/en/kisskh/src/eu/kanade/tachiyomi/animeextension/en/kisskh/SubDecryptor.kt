@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.awaitSuccess
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import java.io.File
@@ -15,7 +16,7 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 class SubDecryptor(private val client: OkHttpClient, private val headers: Headers, private val baseurl: String) {
-    fun getSubtitles(subUrl: String, subLang: String): Track {
+    suspend fun getSubtitles(subUrl: String, subLang: String): Track {
         val subHeaders = headers.newBuilder().apply {
             add("Accept", "application/json, text/plain, */*")
             add("Origin", baseurl)
@@ -24,7 +25,7 @@ class SubDecryptor(private val client: OkHttpClient, private val headers: Header
 
         val subtitleData = client.newCall(
             GET(subUrl, subHeaders),
-        ).execute().body.string()
+        ).awaitSuccess().use { it.body.string() }
 
         val chunks = subtitleData.split(CHUNK_REGEX)
             .filter(String::isNotBlank)
