@@ -376,7 +376,9 @@ class SoloLatino : DooPlay(
     override fun getFilterList() = SoloLatinoFilters.FILTER_LIST
 
     // ============================== Search ================================
+
     override fun searchAnimeFromElement(element: Element): SAnime = popularAnimeFromElement(element)
+
     override fun searchAnimeSelector() = popularAnimeSelector()
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -410,6 +412,7 @@ class SoloLatino : DooPlay(
                         "todos" -> ""
                         else -> "tendencias"
                     },
+
                 )
 
                 if (params.isInverted) append("&orden=asc")
@@ -479,6 +482,7 @@ class SoloLatino : DooPlay(
             entryValues = SERVER_LIST
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
+
             setOnPreferenceChangeListener { _, newValue ->
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
@@ -494,6 +498,7 @@ class SoloLatino : DooPlay(
             entryValues = PREF_LANG_VALUES
             setDefaultValue(PREF_LANG_DEFAULT)
             summary = "%s"
+
             setOnPreferenceChangeListener { _, newValue ->
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
