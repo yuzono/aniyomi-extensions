@@ -31,9 +31,13 @@ import org.jsoup.nodes.Element
 class VerSeriesOnline : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "VerSeriesOnline"
+
     override val baseUrl = "https://www.verseriesonline.net"
+
     override val lang = "es"
+
     override val supportsLatest = false
+
     private val preferences by getPreferencesLazy()
 
     private val streamwishExtractor by lazy { StreamWishExtractor(client, headers) }
