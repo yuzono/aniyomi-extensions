@@ -119,10 +119,17 @@ class SoloLatino : DooPlay(
     override fun videoListParse(response: Response): List<Video> {
         val path = response.request.url.toString()
         val links = mutableListOf<Pair<String, String>>()
+        val seenLinks = mutableSetOf<String>()
 
         runBlocking {
-            getLinks({ videoLinks -> links.addAll(videoLinks) }, { error ->
-                println("Error al obtener los enlaces: $error")
+            getLinks({ videoLinks ->
+                videoLinks.forEach { (link, language) ->
+                    if (seenLinks.add(link)) {
+                        links.add(link to language)
+                    }
+                }
+            }, { error ->
+                Log.e("SoloLatino", "Error al obtener los enlaces: $error")
             }, path)
         }
 
@@ -145,6 +152,7 @@ class SoloLatino : DooPlay(
         try {
             val result = httpGet(path)
             val links = mutableListOf<Pair<String, String>>()
+            val seenLinks = mutableSetOf<String>()
 
             val linkPages = Regex("""data-type=["'](.+?)["'] data-post=["'](.+?)["'] data-nume=["'](.+?)["']""")
                 .findAll(result)
@@ -157,12 +165,16 @@ class SoloLatino : DooPlay(
                     }
                 }
                 deferredResults.awaitAll().forEach { newLinks ->
-                    links.addAll(newLinks)
+                    newLinks.forEach { (link, language) ->
+                        if (seenLinks.add(link)) {
+                            links.add(link to language)
+                        }
+                    }
                 }
             }
 
             if (links.isEmpty()) {
-                handleEmptyLinks(result, links)
+                handleEmptyLinks(result, links, seenLinks)
             }
 
             after(links)
@@ -189,13 +201,16 @@ class SoloLatino : DooPlay(
         }
     }
 
-    private fun handleEmptyLinks(result: String, links: MutableList<Pair<String, String>>) {
+    private fun handleEmptyLinks(result: String, links: MutableList<Pair<String, String>>, seenLinks: MutableSet<String>) {
         val iframeUrl = Regex("""pframe"><iframe class="[^"]+" src="([^"]+)""").find(result)?.groups?.get(1)?.value
         iframeUrl?.let { web ->
             val newResult = httpGet(web)
-            links.addAll(parseLinks(newResult))
-
-            if (links.isEmpty() && web.contains("xyz")) {
+            parseLinks(newResult).forEach { (link, language) ->
+                if (seenLinks.add(link)) {
+                    links.add(link to language)
+                }
+            }
+            if (!seenLinks.contains(web) && web.contains("xyz")) {
                 links.add(Pair(web, "unknown"))
             }
         }
@@ -250,7 +265,12 @@ class SoloLatino : DooPlay(
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
 
     private fun extractVideos(url: String, lang: String): List<Video> {
-        val prefix = if (lang == "unknown") "[UNK]" else lang
+        val prefix = when (lang) {
+            "LAT" -> "[LAT]"
+            "CAST" -> "[CAST]"
+            "SUB" -> "[SUB]"
+            else -> "" // Change here
+        }
         try {
             val matched = conventions.firstOrNull { (_, names) -> names.any { it.lowercase() in url.lowercase() } }?.first
             return when (matched) {
@@ -285,26 +305,38 @@ class SoloLatino : DooPlay(
 
     private fun parseLinks(htmlContent: String): List<Pair<String, String>> {
         val links = mutableListOf<Pair<String, String>>()
+        val seenLinks = mutableSetOf<String>()
         val doc: Document = Jsoup.parse(htmlContent)
 
+        // First, extract new links and store them in the list and the set
         extractNewExtractorLinks(doc, htmlContent)?.let { newLinks ->
-            newLinks.forEach { links.add(it) }
+            newLinks.forEach { (link, language) ->
+                if (seenLinks.add(link)) {
+                    links.add(link to language)
+                }
+            }
         }
+
+        // Then, extract old links and add them only if not already seen
         extractOldExtractorLinks(doc)?.let { oldLinks ->
-            oldLinks.forEach { links.add(Pair(it, "unknown")) }
+            oldLinks.forEach { link ->
+                if (seenLinks.add(link)) {
+                    links.add(link to "") // Changed from "unknown" to ""
+                }
+            }
         }
 
         return links
     }
 
-    private fun extractNewExtractorLinks(doc: Document, htmlContent: String): MutableList<Pair<String, String>>? {
+    private fun extractNewExtractorLinks(doc: Document, htmlContent: String): List<Pair<String, String>>? {
         val links = mutableListOf<Pair<String, String>>()
         val jsLinksMatch = getFirstMatch("""dataLink = (\[.+?\]);""".toRegex(), htmlContent)
         if (jsLinksMatch.isEmpty()) return null
 
-        val items = Json.decodeFromString<List<Item>>(jsLinksMatch)
+        val items = json.decodeFromString<List<Item>>(jsLinksMatch)
 
-        val langs = mapOf("LAT" to "[LAT]", "ESP" to "[CAST]", "SUB" to "[SUB]")
+        val langs = mapOf("LAT" to "LAT", "ESP" to "CAST", "SUB" to "SUB")
 
         items.forEach { item ->
             val languageCode = langs[item.video_language] ?: "unknown"
@@ -344,9 +376,7 @@ class SoloLatino : DooPlay(
     override fun getFilterList() = SoloLatinoFilters.FILTER_LIST
 
     // ============================== Search ================================
-
     override fun searchAnimeFromElement(element: Element): SAnime = popularAnimeFromElement(element)
-
     override fun searchAnimeSelector() = popularAnimeSelector()
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -380,7 +410,6 @@ class SoloLatino : DooPlay(
                         "todos" -> ""
                         else -> "tendencias"
                     },
-
                 )
 
                 if (params.isInverted) append("&orden=asc")
@@ -428,7 +457,7 @@ class SoloLatino : DooPlay(
     @Serializable
     data class Item(
         val file_id: Int,
-        val video_language: String, // Campo nuevo para almacenar el idioma
+        val video_language: String,
         val sortedEmbeds: List<Embed>,
     )
 
@@ -441,7 +470,7 @@ class SoloLatino : DooPlay(
 
     // ============================= Preferences ============================
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        super.setupPreferenceScreen(screen) // Quality preference
+        super.setupPreferenceScreen(screen)
 
         ListPreference(screen.context).apply {
             key = PREF_SERVER_KEY
@@ -450,7 +479,6 @@ class SoloLatino : DooPlay(
             entryValues = SERVER_LIST
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
-
             setOnPreferenceChangeListener { _, newValue ->
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
@@ -459,22 +487,20 @@ class SoloLatino : DooPlay(
             }
         }.also(screen::addPreference)
 
-        val langPref = ListPreference(screen.context).apply {
+        ListPreference(screen.context).apply {
             key = PREF_LANG_KEY
             title = PREF_LANG_TITLE
             entries = PREF_LANG_ENTRIES
             entryValues = PREF_LANG_VALUES
             setDefaultValue(PREF_LANG_DEFAULT)
             summary = "%s"
-
             setOnPreferenceChangeListener { _, newValue ->
                 val selected = newValue as String
                 val index = findIndexOfValue(selected)
                 val entry = entryValues[index] as String
                 preferences.edit().putString(key, entry).commit()
             }
-        }
-        screen.addPreference(langPref)
+        }.also(screen::addPreference)
     }
 
     // ============================= Utilities ==============================
@@ -492,10 +518,10 @@ class SoloLatino : DooPlay(
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.getString(prefQualityKey, prefQualityDefault)!!
         val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
-        val lang = preferences.getString(PREF_LANG_TITLE, PREF_LANG_DEFAULT)!!
+        val lang = preferences.getString(PREF_LANG_KEY, PREF_LANG_DEFAULT)!!
         return sortedWith(
             compareBy(
-                { it.quality.contains(lang) },
+                { it.quality.contains(lang, true) },
                 { it.quality.contains(server, true) },
                 { it.quality.contains(quality.substringBefore("p")) },
             ),
@@ -508,11 +534,11 @@ class SoloLatino : DooPlay(
     companion object {
         private const val PREF_LANG_KEY = "preferred_lang"
         private const val PREF_LANG_TITLE = "Preferred language"
-        private const val PREF_LANG_DEFAULT = "[LAT]"
+        private const val PREF_LANG_DEFAULT = "LAT"
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_DEFAULT = "StreamWish"
-        private val SERVER_LIST = arrayOf("StreamWish", "Uqload", "VidGuard", "Dood", "StreamHideVid", "Voe, VidHide, Luluvdo, VidHidePro, VidHidePlus")
+        private val SERVER_LIST = arrayOf("StreamWish", "Uqload", "VidGuard", "Doodstream", "StreamHideVid", "Voe", "Filemoon")
         private val PREF_LANG_ENTRIES = arrayOf("[LAT]", "[SUB]", "[CAST]")
-        private val PREF_LANG_VALUES = arrayOf("[LAT]", "[SUB]", "[CAST]")
+        private val PREF_LANG_VALUES = arrayOf("LAT", "SUB", "CAST")
     }
 }
