@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.es.latanime
 
 import android.util.Base64
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
@@ -15,7 +14,6 @@ import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mixdropextractor.MixDropExtractor
 import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.okruextractor.OkruExtractor
-import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.uqloadextractor.UqloadExtractor
 import eu.kanade.tachiyomi.lib.vidguardextractor.VidGuardExtractor
@@ -23,6 +21,7 @@ import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.addListPreference
 import extensions.utils.getPreferencesLazy
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -44,7 +43,7 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================== Popular ===============================
 
-    override fun popularAnimeSelector() = "div.row > div"
+    override fun popularAnimeSelector(): String = "div.row > div"
 
     override fun popularAnimeRequest(page: Int): Request {
         return GET("$baseUrl/emision?p=$page")
@@ -56,25 +55,25 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         thumbnail_url = element.selectFirst("img")!!.attr("src")
     }
 
-    override fun popularAnimeNextPageSelector() = "ul.pagination > li.active ~ li:has(a)"
+    override fun popularAnimeNextPageSelector(): String = "ul.pagination > li.active ~ li:has(a)"
 
     // =============================== Latest ===============================
 
-    override fun latestUpdatesNextPageSelector() = throw UnsupportedOperationException()
+    override fun latestUpdatesNextPageSelector(): String = throw UnsupportedOperationException()
 
-    override fun latestUpdatesFromElement(element: Element) = throw UnsupportedOperationException()
+    override fun latestUpdatesFromElement(element: Element): SAnime = throw UnsupportedOperationException()
 
-    override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
+    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
 
-    override fun latestUpdatesSelector() = throw UnsupportedOperationException()
+    override fun latestUpdatesSelector(): String = throw UnsupportedOperationException()
 
     // =============================== Search ===============================
 
-    override fun searchAnimeSelector() = "div.row > div:has(a)"
+    override fun searchAnimeSelector(): String = "div.row > div:has(a)"
 
-    override fun searchAnimeFromElement(element: Element) = popularAnimeFromElement(element)
+    override fun searchAnimeFromElement(element: Element): SAnime = popularAnimeFromElement(element)
 
-    override fun searchAnimeNextPageSelector() = popularAnimeNextPageSelector()
+    override fun searchAnimeNextPageSelector(): String = popularAnimeNextPageSelector()
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
@@ -93,7 +92,7 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================== Filters ===============================
 
-    override fun getFilterList() = AnimeFilterList(
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
         AnimeFilter.Header("La busqueda por texto ignora el filtro"),
         YearFilter(),
         GenreFilter(),
@@ -254,7 +253,8 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================== Episodes ==============================
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        return response.asJsoup().select(episodeListSelector()).map { episodeFromElement(it) }.reversed()
+        val document = response.asJsoup()
+        return document.select(episodeListSelector()).map { episodeFromElement(it) }.reversed()
     }
 
     override fun episodeListSelector() = "div.row > div > div.row > div > a"
@@ -266,8 +266,7 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         setUrlWithoutDomain(element.attr("href").toHttpUrl().encodedPath)
     }
 
-    // ============================ Video Links =============================
-
+    /*--------------------------------Video extractors------------------------------------*/
     private val okruExtractor by lazy { OkruExtractor(client) }
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val voeExtractor by lazy { VoeExtractor(client) }
@@ -275,22 +274,11 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
-    private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
 
-    private val conventions = listOf(
-        "filemoon" to listOf("filemoon", "moonplayer", "moviesm4u", "files.im"),
-        "pixeldrain" to listOf("pixeldrain"),
-        "mega" to listOf("mega", "mega.nz"),
-        "doodstream" to listOf("doodstream", "dood.", "ds2play", "doods.", "ds2video", "dooood", "d000d", "d0000d", "d-s"),
-        "listeamed" to listOf("listeamed", "streamwish", "vidguard"),
-        "mixdrop" to listOf("mixdrop", "mxdrop"),
-        "mp4upload" to listOf("mp4upload", "mp4"),
-        "voe" to listOf("voe", "tubelessceliolymph", "simpulumlamerop", "urochsunloath", "nathanfromsubject", "yip.", "metagnathtuggers", "donaldlineelse"),
-        "lulu" to listOf("lulu"),
-    )
+    // ============================ Video Links =============================
 
     override fun videoListParse(response: Response): List<Video> {
         val videoList = mutableListOf<Video>()
@@ -299,7 +287,7 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val serverTitle = videoElement.ownText().trim()
             val url = String(Base64.decode(videoElement.attr("data-player"), Base64.DEFAULT))
             val prefix = "$serverTitle - "
-            val matched = conventions.firstOrNull { (_, names) -> names.any { it.lowercase() in url.lowercase() || it.lowercase() in serverTitle.lowercase() } }?.first
+            val matched = conventions.firstOrNull { (_, names) -> names.any { url.contains(it, true) || serverTitle.contains(it, true) } }?.first
             when (matched) {
                 "voe" -> voeExtractor.videosFromUrl(url, "$prefix ")
                 "okru" -> okruExtractor.videosFromUrl(url, prefix)
@@ -310,14 +298,23 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 "yourupload" -> yourUploadExtractor.videoFromUrl(url, headers = headers, prefix = "$prefix ")
                 "listeamed" -> vidGuardExtractor.videosFromUrl(url, prefix = "$prefix ")
                 "mixdrop" -> mixDropExtractor.videosFromUrl(url, prefix = prefix)
-                "pixeldrain" -> universalExtractor.videosFromUrl(url, headers, prefix = "$prefix ")
-                "lulu" -> universalExtractor.videosFromUrl(url, headers, prefix = "$prefix ")
-                "mega" -> universalExtractor.videosFromUrl(url, headers, prefix = "$prefix ")
                 else -> universalExtractor.videosFromUrl(url, headers, prefix = "$prefix ")
             }.also(videoList::addAll)
         }
         return videoList
     }
+
+    private val conventions = listOf(
+        "filemoon" to listOf("filemoon", "moonplayer", "moviesm4u", "files.im"),
+        "voe" to listOf("voe", "tubelessceliolymph", "simpulumlamerop", "urochsunloath", "nathanfromsubject", "yip.", "metagnathtuggers", "donaldlineelse"),
+        "mp4upload" to listOf("mp4upload", "mp4"),
+        "pixeldrain" to listOf("pixeldrain"),
+        "mega" to listOf("mega", "mega.nz"),
+        "doodstream" to listOf("doodstream", "dood.", "ds2play", "doods.", "ds2video", "dooood", "d000d", "d0000d", "d-s"),
+        "listeamed" to listOf("listeamed", "streamwish", "vidguard"),
+        "mixdrop" to listOf("mixdrop", "mxdrop"),
+        "lulu" to listOf("lulu"),
+    )
 
     override fun videoListSelector() = "li#play-video > a.play-video"
 
@@ -328,47 +325,45 @@ class Latanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================= Utilities ==============================
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString("preferred_quality", "360")!!
-        val server = preferences.getString("preferred_server", "filemoon")!!
+        val quality = preferences.getString(PREF_QUALITY_KEY, QUALITY_DEFAULT)!!
+        val server = preferences.getString(PREF_SERVER_KEY, defaultServer)!!
 
-        return this.sortedWith(
-            compareBy { it.quality.contains(quality) },
-        ).reversed().sortedWith(
-            compareBy { it.quality.substringBefore(" - ").lowercase().contains(server.lowercase()) },
+        return sortedWith(
+            compareBy(
+                { it.quality.substringBefore(" - ").contains(server, true) },
+                { it.quality.contains(quality) },
+            ),
         ).reversed()
     }
 
-    override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val serverPref = ListPreference(screen.context).apply {
-            key = "preferred_server"
-            title = "Servidor preferido"
-            entries = conventions.map { it.first }.toTypedArray()
-            entryValues = conventions.map { it.first }.toTypedArray()
-            setDefaultValue("filemoon")
-            summary = "%s"
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }
-        screen.addPreference(serverPref)
-        val videoQualityPref = ListPreference(screen.context).apply {
-            key = "preferred_quality"
-            title = "Preferred quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p", "240p")
-            entryValues = arrayOf("1080", "720", "480", "360", "240")
-            setDefaultValue("360")
-            summary = "%s"
+    private val defaultServer = conventions.first().first
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }
-        screen.addPreference(videoQualityPref)
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        screen.addListPreference(
+            key = PREF_SERVER_KEY,
+            title = "Servidor preferido",
+            entries = conventions.map { it.first },
+            entryValues = conventions.map { it.first },
+            default = defaultServer,
+            summary = "%s",
+        )
+
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred quality",
+            entries = QUALITY_ENTRIES,
+            entryValues = QUALITY_VALUES,
+            default = QUALITY_DEFAULT,
+            summary = "%s",
+        )
+    }
+
+    companion object {
+        const val PREF_SERVER_KEY = "preferred_server"
+
+        const val PREF_QUALITY_KEY = "preferred_quality"
+        val QUALITY_VALUES = listOf("1080", "720", "480", "360", "240")
+        val QUALITY_ENTRIES = QUALITY_VALUES.map { "${it}p" }
+        val QUALITY_DEFAULT = QUALITY_VALUES.first()
     }
 }
