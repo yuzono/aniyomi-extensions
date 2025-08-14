@@ -13,4 +13,5 @@ dependencies {
     implementation(project(':lib:voe-extractor'))
     implementation(project(':lib:uqload-extractor'))
     implementation(project(':lib:vudeo-extractor'))
+    implementation(project(':lib:filemoon-extractor'))
 }
