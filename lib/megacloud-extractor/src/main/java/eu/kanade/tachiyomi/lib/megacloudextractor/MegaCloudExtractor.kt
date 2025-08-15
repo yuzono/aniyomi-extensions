@@ -77,11 +77,12 @@ class MegaCloudExtractor(
 
         val srcRes = client.newCall(GET("${megaCloudServerUrl}${SOURCES_URL}${id}&_k=${nonce}", megaCloudHeaders))
             .execute().use { it.body.string() }
-
         val data = json.decodeFromString<SourceResponseDto>(srcRes)
+
+        val key by lazy { requestNewKey() }
+
         return data.sources.map { source ->
             val encoded = source.file
-            val key = requestNewKey()
 
             val m3u8: String = if (!data.encrypted || ".m3u8" in encoded) {
                 encoded
