@@ -1,0 +1,13 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+ext {
+    extName = 'Arab Hentai'
+    pkgNameSuffix = 'arabhentai'
+    extClass = '.ArabHentai'
+    extVersionCode = 1
+}
+
+dependencies {
+    implementation(project(":lib-anime"))
+}
