@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.multisrc.zorotheme.dto.HtmlResponse
 import eu.kanade.tachiyomi.multisrc.zorotheme.dto.SourcesResponse
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
+import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
@@ -19,7 +20,6 @@ import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.addSwitchPreference
-import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.HttpUrl
@@ -135,6 +135,12 @@ abstract class ZoroTheme(
     override fun animeDetailsParse(document: Document) = SAnime.create().apply {
         thumbnail_url = document.selectFirst("div.anisc-poster img")!!.attr("src")
 
+        val promotions = document.select(".block_area-promotions-list > .screen-items > .item").map {
+            val title = it.attr("data-title")
+            val url = it.attr("data-src")
+            "[$title]($url)"
+        }
+
         document.selectFirst("div.anisc-info")!!.let { info ->
             author = info.getInfo("Studios:")
             status = parseStatus(info.getInfo("Status:"))
@@ -146,7 +152,19 @@ abstract class ZoroTheme(
                 info.getInfo("Premiered:", full = true)?.also(::append)
                 info.getInfo("Synonyms:", full = true)?.also(::append)
                 info.getInfo("Japanese:", full = true)?.also(::append)
+                promotions.takeIf { it.isNotEmpty() }?.also {
+                    append("\n\n**Promotions:**\n${it.joinToString("\n")}")
+                }
             }
+        }
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val relatedAnimeSelector = ".block_area_sidebar .block_area-header:contains(Related Anime) + .block_area-content ul > li"
+
+        val document = response.asJsoup()
+        return listOf(relatedAnimeSelector, relatedAnimeListSelector()).flatMap { selector ->
+            document.select(selector).map { relatedAnimeFromElement(it) }
         }
     }
 
@@ -286,36 +304,36 @@ abstract class ZoroTheme(
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.prefQuality
-        val lang = preferences.prefLang
+        val type = preferences.prefType
         val server = preferences.prefServer
 
         return this.sortedWith(
             compareByDescending<Video> { it.quality.contains(quality) }
                 .thenByDescending { it.quality.contains(server, true) }
-                .thenByDescending { it.quality.contains(lang, true) },
+                .thenByDescending { it.quality.contains(type, true) },
         )
     }
 
     private var SharedPreferences.getTitleLang
-        by preferences.delegate(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)
+        by LazyMutable { preferences.getString(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)!! }
 
     private var SharedPreferences.markFiller
-        by preferences.delegate(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT)
+        by LazyMutable { preferences.getBoolean(MARK_FILLERS_KEY, MARK_FILLERS_DEFAULT) }
 
     private var SharedPreferences.prefQuality
-        by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+        by LazyMutable { preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!! }
 
     private var SharedPreferences.prefServer
-        by preferences.delegate(PREF_SERVER_KEY, hosterNames.first())
+        by LazyMutable { preferences.getString(PREF_SERVER_KEY, hosterNames.first())!! }
 
-    private var SharedPreferences.prefLang
-        by preferences.delegate(PREF_LANG_KEY, PREF_LANG_DEFAULT)
+    private var SharedPreferences.prefType
+        by LazyMutable { preferences.getString(PREF_TYPE_KEY, PREF_TYPE_DEFAULT)!! }
 
     private var SharedPreferences.hostToggle
-        by preferences.delegate(PREF_HOSTER_KEY, hosterNames.toSet())
+        by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
 
     private var SharedPreferences.typeToggle
-        by preferences.delegate(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)
+        by LazyMutable { preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)!! }
 
     companion object {
         private const val PREF_TITLE_LANG_KEY = "preferred_title_lang"
@@ -328,8 +346,8 @@ abstract class ZoroTheme(
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
 
-        private const val PREF_LANG_KEY = "preferred_language"
-        private const val PREF_LANG_DEFAULT = "Sub"
+        private const val PREF_TYPE_KEY = "preferred_type"
+        private const val PREF_TYPE_DEFAULT = "Sub"
 
         private const val PREF_SERVER_KEY = "preferred_server"
 
@@ -388,14 +406,14 @@ abstract class ZoroTheme(
         }
 
         screen.addListPreference(
-            key = PREF_LANG_KEY,
+            key = PREF_TYPE_KEY,
             title = "Preferred Type",
             entries = TYPES_ENTRIES,
             entryValues = TYPES_ENTRIES,
-            default = PREF_LANG_DEFAULT,
+            default = PREF_TYPE_DEFAULT,
             summary = "%s",
         ) {
-            preferences.prefLang = it
+            preferences.prefType = it
         }
 
         screen.addSetPreference(
