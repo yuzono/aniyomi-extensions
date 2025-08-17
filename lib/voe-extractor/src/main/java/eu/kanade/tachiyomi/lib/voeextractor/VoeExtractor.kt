@@ -9,28 +9,29 @@ import eu.kanade.tachiyomi.util.asJsoup
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Headers
 import okhttp3.OkHttpClient
 import uy.kohesive.injekt.injectLazy
 
-class VoeExtractor(private val client: OkHttpClient) {
+class VoeExtractor(private val client: OkHttpClient, private val headers: Headers) {
 
     private val json: Json by injectLazy()
 
     private val clientDdos by lazy { client.newBuilder().addInterceptor(DdosGuardInterceptor(client)).build() }
 
-    private val playlistUtils by lazy { PlaylistUtils(clientDdos) }
+    private val playlistUtils by lazy { PlaylistUtils(clientDdos, headers) }
 
     private val redirectRegex = Regex("""window.location.href\s*=\s*'([^']+)';""")
 
     fun videosFromUrl(url: String, prefix: String = ""): List<Video> {
         val videoList = mutableListOf<Video>()
-        var document = clientDdos.newCall(GET(url)).execute().asJsoup()
+        var document = clientDdos.newCall(GET(url, headers)).execute().asJsoup()
         val scriptData = document.selectFirst("script")?.data()
         val redirectMatch = scriptData?.let { redirectRegex.find(it) }
 
         if (redirectMatch != null) {
             val originalUrl = redirectMatch.groupValues[1]
-            document = clientDdos.newCall(GET(originalUrl)).execute().asJsoup()
+            document = clientDdos.newCall(GET(originalUrl, headers)).execute().asJsoup()
         }
 
         val encodedString = document.selectFirst("script[type=application/json]")?.data()

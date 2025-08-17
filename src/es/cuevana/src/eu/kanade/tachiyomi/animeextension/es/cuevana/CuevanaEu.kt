@@ -192,7 +192,7 @@ class CuevanaEu(override val name: String, override val baseUrl: String) : Confi
                 videoList
             }
             embedUrl.contains("voe") -> {
-                VoeExtractor(client).videosFromUrl(url, prefix).also(videoList::addAll)
+                VoeExtractor(client, headers).videosFromUrl(url, prefix).also(videoList::addAll)
                 videoList
             }
             embedUrl.contains("streamtape") -> {

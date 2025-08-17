@@ -158,7 +158,7 @@ class CuevanaCh(override val name: String, override val baseUrl: String) : Confi
         try {
             return when {
                 embedUrl.contains("voe") -> {
-                    VoeExtractor(client).videosFromUrl(url, prefix).also(videoList::addAll)
+                    VoeExtractor(client, headers).videosFromUrl(url, prefix).also(videoList::addAll)
                     videoList
                 }
                 (embedUrl.contains("amazon") || embedUrl.contains("amz")) && !embedUrl.contains("disable") -> {
