@@ -44,7 +44,7 @@ class DeTodoPeliculas : DooPlay(
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
-    private val voeExtractor by lazy { VoeExtractor(client) }
+    private val voeExtractor by lazy { VoeExtractor(client, headers) }
 
 // ============================ Video Links =============================
     override fun videoListParse(response: Response): List<Video> {
