@@ -28,18 +28,16 @@ object UrlUtils {
         ) {
             return url
         }
+
         if (url.isEmpty()) {
             return ""
         }
 
         val startsWithNoHttp = url.startsWith("//")
-        if (startsWithNoHttp) {
-            return "https:$url"
+        return if (startsWithNoHttp) {
+            "https:$url"
         } else {
-            if (url.startsWith('/')) {
-                return baseUrl + url
-            }
-            return "$baseUrl/$url"
+            baseUrl.removeSuffix("/") + "/" + url.removePrefix("/")
         }
     }
 
