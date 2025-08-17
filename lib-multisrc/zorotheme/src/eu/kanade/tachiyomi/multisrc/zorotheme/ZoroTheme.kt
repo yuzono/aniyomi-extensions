@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.multisrc.zorotheme.dto.HtmlResponse
 import eu.kanade.tachiyomi.multisrc.zorotheme.dto.SourcesResponse
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
+import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
@@ -134,6 +135,12 @@ abstract class ZoroTheme(
     override fun animeDetailsParse(document: Document) = SAnime.create().apply {
         thumbnail_url = document.selectFirst("div.anisc-poster img")!!.attr("src")
 
+        val promotions = document.select(".block_area-promotions-list > .screen-items > .item").map {
+            val title = it.attr("data-title")
+            val url = it.attr("data-src")
+            "[$title]($url)"
+        }
+
         document.selectFirst("div.anisc-info")!!.let { info ->
             author = info.getInfo("Studios:")
             status = parseStatus(info.getInfo("Status:"))
@@ -145,7 +152,19 @@ abstract class ZoroTheme(
                 info.getInfo("Premiered:", full = true)?.also(::append)
                 info.getInfo("Synonyms:", full = true)?.also(::append)
                 info.getInfo("Japanese:", full = true)?.also(::append)
+                promotions.takeIf { it.isNotEmpty() }?.also {
+                    append("\n\n**Promotions:**\n${it.joinToString("\n")}")
+                }
             }
+        }
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val relatedAnimeSelector = ".block_area_sidebar .block_area-header:contains(Related Anime) + .block_area-content ul > li"
+
+        val document = response.asJsoup()
+        return listOf(relatedAnimeSelector, relatedAnimeListSelector()).flatMap { selector ->
+            document.select(selector).map { relatedAnimeFromElement(it) }
         }
     }
 
