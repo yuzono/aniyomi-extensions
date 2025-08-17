@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.all.missav
 
 import android.util.Log
-import android.widget.Toast
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -18,8 +16,12 @@ import eu.kanade.tachiyomi.lib.unpacker.Unpacker
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.LazyMutable
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import extensions.utils.parseAs
+import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
@@ -36,24 +38,30 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val lang = "all"
 
-    override val baseUrl by lazy {
-        preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)!!
-    }
+    private val preferences by getPreferencesLazy()
+
+    override var baseUrl: String
+        by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
     override val supportsLatest = true
 
-    override fun headersBuilder() = super.headersBuilder()
-        .add("Origin", baseUrl)
-        .add("Referer", "$baseUrl/")
-
-    private val playlistExtractor by lazy {
-        PlaylistUtils(client, headers)
+    private var docHeaders by LazyMutable {
+        newHeaders()
     }
 
-    private val preferences by getPreferencesLazy()
+    private fun newHeaders(): Headers {
+        return headers.newBuilder().apply {
+            set("Origin", baseUrl)
+            set("Referer", "$baseUrl/")
+        }.build()
+    }
+
+    private val playlistExtractor by lazy {
+        PlaylistUtils(client, docHeaders)
+    }
 
     override fun popularAnimeRequest(page: Int) =
-        GET("$baseUrl/en/today-hot?page=$page", headers)
+        GET("$baseUrl/en/today-hot?page=$page", docHeaders)
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
@@ -74,7 +82,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     override fun latestUpdatesRequest(page: Int) =
-        GET("$baseUrl/en/new?page=$page", headers)
+        GET("$baseUrl/en/new?page=$page", docHeaders)
 
     override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
 
@@ -95,7 +103,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
             addQueryParameter("page", page.toString())
         }.build().toString()
 
-        return GET(url, headers)
+        return GET(url, docHeaders)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
@@ -144,11 +152,11 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         return if (page == 1 || recommId == null) {
             val body = MissAvApi.searchData(query)
                 .toRequestBody(jsonMime)
-            POST(MissAvApi.searchURL(getUuid()), headers, body)
+            POST(MissAvApi.searchURL(getUuid()), docHeaders, body)
         } else {
             val body = MissAvApi.recommData
                 .toRequestBody(jsonMime)
-            POST(MissAvApi.recommURL(recommId), headers, body)
+            POST(MissAvApi.recommURL(recommId), docHeaders, body)
         }
     }
 
@@ -156,7 +164,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         val body = MissAvApi.relatedData(getUuid(), anime.url.substringAfterLast("/"))
             .toRequestBody(jsonMime)
 
-        return POST(MissAvApi.relatedURL(), headers, body)
+        return POST(MissAvApi.relatedURL(), docHeaders, body)
     }
 
     override fun relatedAnimeListParse(response: Response): List<SAnime> {
@@ -248,30 +256,26 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        ListPreference(screen.context).apply {
-            key = PREF_DOMAIN_KEY
-            title = PREF_DOMAIN_TITLE
-            entries = PREF_DOMAIN_ENTRIES
-            entryValues = PREF_DOMAIN_ENTRIES
-            setDefaultValue(PREF_DOMAIN_DEFAULT)
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = PREF_DOMAIN_TITLE,
+            entries = PREF_DOMAIN_ENTRIES,
+            entryValues = PREF_DOMAIN_ENTRIES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        ) {
+            baseUrl = it
+            docHeaders = newHeaders()
+        }
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
-                preferences.edit().putString(key, selected).apply()
-                true
-            }
-        }.also(screen::addPreference)
-
-        ListPreference(screen.context).apply {
-            key = PREF_QUALITY
-            title = PREF_QUALITY_TITLE
-            entries = arrayOf("720p", "480p", "360p")
-            entryValues = arrayOf("720", "480", "360")
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_QUALITY,
+            title = PREF_QUALITY_TITLE,
+            entries = PREF_QUALITY_ENTRIES,
+            entryValues = PREF_QUALITY_VALUES,
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
         JavCoverFetcher.addPreferenceToScreen(screen)
     }
@@ -297,12 +301,14 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
         private const val PREF_DOMAIN_TITLE = "Preferred domain (requires app restart)"
-        private val PREF_DOMAIN_ENTRIES = arrayOf("https://missav.live", "https://missav.ai", "https://missav.ws")
-        private val PREF_DOMAIN_DEFAULT = PREF_DOMAIN_ENTRIES[0]
+        private val PREF_DOMAIN_ENTRIES = listOf("https://missav.live", "https://missav.ai", "https://missav.ws")
+        private val PREF_DOMAIN_DEFAULT = PREF_DOMAIN_ENTRIES.first()
 
         private const val PREF_QUALITY = "preferred_quality"
         private const val PREF_QUALITY_TITLE = "Preferred quality"
-        private const val PREF_QUALITY_DEFAULT = "720"
+        private val PREF_QUALITY_ENTRIES = listOf("720p", "480p", "360p")
+        private val PREF_QUALITY_VALUES = listOf("720", "480", "360")
+        private val PREF_QUALITY_DEFAULT = PREF_QUALITY_VALUES.first()
 
         private const val PREF_UUID_KEY = "missav_uuid"
 
