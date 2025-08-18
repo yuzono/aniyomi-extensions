@@ -74,7 +74,10 @@ class StreamingCommunity(override val lang: String, private val showType: String
                     updateDomain(redirectedDomain)
                 }
                 response.close()
-                request = request.newBuilder().url(newUrlHttp).build()
+                request = request.newBuilder()
+                    .url(newUrlHttp)
+                    .headers(apiHeaders)
+                    .build()
                 response = chain.proceed(request)
                 redirectCount++
             }
