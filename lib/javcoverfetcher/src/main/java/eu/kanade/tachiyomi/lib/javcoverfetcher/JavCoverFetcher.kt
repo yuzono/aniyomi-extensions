@@ -3,11 +3,11 @@ package eu.kanade.tachiyomi.lib.javcoverfetcher
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.PreferenceScreen
-import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.addSwitchPreference
 import extensions.utils.commonEmptyHeaders
 import okhttp3.FormBody
 import okhttp3.Request
@@ -143,12 +143,12 @@ object JavCoverFetcher {
     }
 
     fun addPreferenceToScreen(screen: PreferenceScreen) {
-        SwitchPreferenceCompat(screen.context).apply {
-            key = "JavCoverFetcherPref"
-            title = "Fetch HD covers from Amazon"
-            summary = "Attempts to fetch vertical HD covers from Amazon.\nMay result in incorrect cover."
-            setDefaultValue(false)
-        }.also(screen::addPreference)
+        screen.addSwitchPreference(
+            key = "JavCoverFetcherPref",
+            title = "Fetch HD covers from Amazon",
+            summary = "Attempts to fetch vertical HD covers from Amazon.\nMay result in incorrect cover.",
+            default = false,
+        )
     }
 
     val SharedPreferences.fetchHDCovers
