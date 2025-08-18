@@ -56,7 +56,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         }.build()
     }
 
-    private val playlistExtractor by lazy {
+    private var playlistExtractor by LazyMutable {
         PlaylistUtils(client, docHeaders)
     }
 
@@ -266,6 +266,7 @@ class MissAV : AnimeHttpSource(), ConfigurableAnimeSource {
         ) {
             baseUrl = it
             docHeaders = newHeaders()
+            playlistExtractor = PlaylistUtils(client, docHeaders)
         }
 
         screen.addListPreference(
