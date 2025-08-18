@@ -32,7 +32,7 @@ class HiAnime :
     override val ajaxRoute = "/v2"
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
-    private val megaCloudExtractor by LazyMutable { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
+    private var megaCloudExtractor by LazyMutable { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
 
     override var baseUrl: String
         by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
@@ -80,6 +80,7 @@ class HiAnime :
         ) {
             baseUrl = it
             docHeaders = newHeaders()
+            megaCloudExtractor = MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API)
         }
     }
 
