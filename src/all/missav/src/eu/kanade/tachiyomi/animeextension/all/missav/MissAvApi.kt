@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.all.missav
 
 import android.util.Log
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -41,18 +42,7 @@ object MissAvApi {
 
     fun searchData(query: String): String {
         return kotlinx.serialization.json.buildJsonObject {
-            put("searchQuery", query)
-            put("count", RESULT_COUNT)
-            put("scenario", "search")
-            put("returnProperties", true)
-            put(
-                "includedProperties",
-                kotlinx.serialization.json.buildJsonArray {
-                    add("title_en")
-                    add("dm")
-                },
-            )
-            put("cascadeCreate", true)
+            addRequestParams(scenario = "search", searchQuery = query)
         }.toString()
     }
 
@@ -64,18 +54,7 @@ object MissAvApi {
             put("method", "POST")
             put("path", "/recomms/items/$entryId/items/")
             putJsonObject("params") {
-                put("targetUserId", uuid)
-                put("count", RESULT_COUNT)
-                put("scenario", scenario)
-                put("returnProperties", true)
-                put(
-                    "includedProperties",
-                    kotlinx.serialization.json.buildJsonArray {
-                        add("title_en")
-                        add("dm")
-                    },
-                )
-                put("cascadeCreate", true)
+                addRequestParams(scenario = scenario, targetUserId = uuid)
             }
         }
 
@@ -89,6 +68,26 @@ object MissAvApi {
             )
             put("distinctRecomms", true)
         }.toString()
+    }
+
+    private fun JsonObjectBuilder.addRequestParams(
+        scenario: String,
+        targetUserId: String? = null,
+        searchQuery: String? = null,
+    ) {
+        targetUserId?.let { put("targetUserId", it) }
+        searchQuery?.let { put("searchQuery", it) }
+        put("count", RESULT_COUNT)
+        put("scenario", scenario)
+        put("returnProperties", true)
+        put(
+            "includedProperties",
+            kotlinx.serialization.json.buildJsonArray {
+                add("title_en")
+                add("dm")
+            },
+        )
+        put("cascadeCreate", true)
     }
 
     private fun generateHMACSignature(data: String, @Suppress("SameParameterValue") key: String): String {
