@@ -56,9 +56,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     private var homepage by LazyMutable { preferences.customDomain.ifBlank { DOMAIN_DEFAULT } }
 
-    override var client: OkHttpClient = newClient()
-
-    private fun newClient() = network.client.newBuilder()
+    override var client: OkHttpClient = super.client.newBuilder()
         .followRedirects(false)
         .addInterceptor { chain ->
             val maxRedirects = 5
@@ -517,7 +515,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
             Log.i(javaClass.name, "Updating domain to: $newDomain")
             preferences.customDomain = newDomain
             homepage = newDomain
-            client = newClient()
             apiHeaders = newApiHeader()
             jsonHeaders = newJsonHeader()
         }
