@@ -30,7 +30,7 @@ import extensions.utils.LazyMutable
 import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.delegate
-import extensions.utils.getPreferences
+import extensions.utils.getPreferencesLazy
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -50,11 +50,11 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     override val name = "StreamingUnity (${showType.replaceFirstChar { it.uppercaseChar() }})"
 
-    private val preferences = getPreferences()
+    private val preferences by getPreferencesLazy()
 
     private var SharedPreferences.customDomain by preferences.delegate(PREF_CUSTOM_DOMAIN_KEY, DOMAIN_DEFAULT)
 
-    private var homepage by LazyMutable { preferences.customDomain }
+    private var homepage by LazyMutable { preferences.customDomain.ifBlank { DOMAIN_DEFAULT } }
 
     override var client: OkHttpClient = newClient()
 
@@ -71,7 +71,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 val newUrlHttp = newUrl.toHttpUrl()
                 val redirectedDomain = newUrlHttp.run { "$scheme://$host" }
                 if (redirectedDomain != homepage) {
-                    preferences.customDomain = redirectedDomain
                     updateDomain(redirectedDomain)
                 }
                 response.close()
@@ -100,13 +99,13 @@ class StreamingCommunity(override val lang: String, private val showType: String
         classLoader = this::class.java.classLoader!!,
     )
 
-    private val apiHeadersRef = AtomicReference(newApiHeader())
+    private val apiHeadersRef by lazy { AtomicReference(newApiHeader()) }
     private fun newApiHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
         .build()
 
-    private val jsonHeadersRef = AtomicReference(newJsonHeader())
+    private val jsonHeadersRef by lazy { AtomicReference(newJsonHeader()) }
     private fun newJsonHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
@@ -511,8 +510,9 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     private fun updateDomain(domain: String) {
         val newDomain = domain.trim().removeSuffix("/").ifBlank { DOMAIN_DEFAULT }
-        Log.i(javaClass.name, "Updating domain to: $newDomain")
         if (newDomain.isNotBlank() && URLUtil.isValidUrl(newDomain)) {
+            Log.i(javaClass.name, "Updating domain to: $newDomain")
+            preferences.customDomain = newDomain
             homepage = newDomain
             client = newClient()
             apiHeaders = newApiHeader()
@@ -544,8 +544,10 @@ class StreamingCommunity(override val lang: String, private val showType: String
             onChange = { _, newValue ->
                 val newDomain = newValue.trim().removeSuffix("/")
                 if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
-                    preferences.customDomain = newDomain
                     updateDomain(newDomain)
+                    // this `true` will update the preference to empty string if the new value is blank & override domain set in `updateDomain`,
+                    // so make sure to guard `homepage` against blank values.
+                    // But it's needed to update the preference summary.
                     true
                 } else {
                     Toast.makeText(screen.context, "Invalid URL. Example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
