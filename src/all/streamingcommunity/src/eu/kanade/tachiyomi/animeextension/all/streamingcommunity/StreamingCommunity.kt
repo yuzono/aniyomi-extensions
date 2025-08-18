@@ -469,6 +469,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
     companion object {
         private const val DOMAIN_DEFAULT = "https://streamingunity.co"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
+        private const val TAG = "StreamingCommunity"
 
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
         private val PLAYLIST_URL_REGEX = Regex("""url: ?'(.*?)'""")
@@ -514,8 +515,8 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     private fun updateDomain(domain: String) {
         val newDomain = domain.trim().removeSuffix("/").ifBlank { DOMAIN_DEFAULT }
-        if (newDomain.isNotBlank() && URLUtil.isValidUrl(newDomain)) {
-            Log.i(javaClass.name, "Updating domain to: $newDomain")
+        if (URLUtil.isValidUrl(newDomain)) {
+            Log.i(TAG, "Updating domain to: $newDomain")
             preferences.customDomain = newDomain
             homepage = newDomain
             apiHeaders = newApiHeader()
