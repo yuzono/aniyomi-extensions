@@ -56,7 +56,7 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     private var homepage by LazyMutable { preferences.customDomain.ifBlank { DOMAIN_DEFAULT } }
 
-    override var client: OkHttpClient = super.client.newBuilder()
+    override val client: OkHttpClient = super.client.newBuilder()
         .followRedirects(false)
         .addInterceptor { chain ->
             val maxRedirects = 5
@@ -74,7 +74,10 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 response.close()
                 request = request.newBuilder()
                     .url(newUrlHttp)
-                    .headers(apiHeaders)
+                    .apply {
+                        apiHeaders["Host"]?.let { header("Host", it) }
+                        apiHeaders["Referer"]?.let { header("Referer", it) }
+                    }
                     .build()
                 response = chain.proceed(request)
                 redirectCount++
