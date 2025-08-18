@@ -1,10 +1,9 @@
 package eu.kanade.tachiyomi.animeextension.all.streamingcommunity
 
+import android.content.SharedPreferences
 import android.util.Log
 import android.webkit.URLUtil
 import android.widget.Toast
-import androidx.preference.EditTextPreference
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.streamingcommunity.Filters.AgeFilter
 import eu.kanade.tachiyomi.animeextension.all.streamingcommunity.Filters.FeaturedFilter
@@ -27,8 +26,11 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.LazyMutable
+import extensions.utils.addEditTextPreference
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -42,6 +44,7 @@ import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicReference
 
 class StreamingCommunity(override val lang: String, private val showType: String) : ConfigurableAnimeSource, AnimeHttpSource() {
 
@@ -49,7 +52,11 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     private val preferences by getPreferencesLazy()
 
-    override val client: OkHttpClient = network.client.newBuilder()
+    private var SharedPreferences.customDomain by preferences.delegate(PREF_CUSTOM_DOMAIN_KEY, DOMAIN_DEFAULT)
+
+    private var homepage by LazyMutable { preferences.customDomain.ifBlank { DOMAIN_DEFAULT } }
+
+    override val client: OkHttpClient = super.client.newBuilder()
         .followRedirects(false)
         .addInterceptor { chain ->
             val maxRedirects = 5
@@ -62,12 +69,16 @@ class StreamingCommunity(override val lang: String, private val showType: String
                 val newUrlHttp = newUrl.toHttpUrl()
                 val redirectedDomain = newUrlHttp.run { "$scheme://$host" }
                 if (redirectedDomain != homepage) {
-                    preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
-                    apiHeadersRef.set(newApiHeader())
-                    jsonHeadersRef.set(newJsonHeader())
+                    updateDomain(redirectedDomain)
                 }
                 response.close()
-                request = request.newBuilder().url(newUrlHttp).build()
+                request = request.newBuilder()
+                    .url(newUrlHttp)
+                    .apply {
+                        apiHeaders["Host"]?.let { header("Host", it) }
+                        apiHeaders["Referer"]?.let { header("Referer", it) }
+                    }
+                    .build()
                 response = chain.proceed(request)
                 redirectCount++
             }
@@ -77,16 +88,6 @@ class StreamingCommunity(override val lang: String, private val showType: String
             }
             response
         }.build()
-
-    private val homepage: String
-        get() {
-            val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-            return if (customDomain.isNullOrBlank()) {
-                DOMAIN_DEFAULT
-            } else {
-                customDomain
-            }
-        }
 
     override val baseUrl: String
         get() = "$homepage/$lang"
@@ -102,13 +103,13 @@ class StreamingCommunity(override val lang: String, private val showType: String
         classLoader = this::class.java.classLoader!!,
     )
 
-    private val apiHeadersRef = java.util.concurrent.atomic.AtomicReference(newApiHeader())
+    private val apiHeadersRef by lazy { AtomicReference(newApiHeader()) }
     private fun newApiHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
         .build()
 
-    private val jsonHeadersRef = java.util.concurrent.atomic.AtomicReference(newJsonHeader())
+    private val jsonHeadersRef by lazy { AtomicReference(newJsonHeader()) }
     private fun newJsonHeader() = headers.newBuilder()
         .add("Host", baseUrl.toHttpUrl().host)
         .add("Referer", baseUrl)
@@ -465,47 +466,21 @@ class StreamingCommunity(override val lang: String, private val showType: String
         ).reversed()
     }
 
-    private fun resolveRedirectedDomain(screen: PreferenceScreen, loadedDomain: String): String {
-        return try {
-            runBlocking(Dispatchers.IO) {
-                val headRequest = GET(loadedDomain, headers).newBuilder().head().build()
-                client.newCall(headRequest).execute().use { response ->
-                    val redirectedDomain = response.request.url.run { "$scheme://$host" }
-                    if (redirectedDomain != loadedDomain) {
-                        preferences.edit().putString(PREF_CUSTOM_DOMAIN_KEY, redirectedDomain).apply()
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            try {
-                                Toast.makeText(
-                                    screen.context,
-                                    "Domain updated, restart App to apply changes",
-                                    Toast.LENGTH_LONG,
-                                ).show()
-                            } catch (e: SecurityException) {
-                                Log.e("StreamingCommunity", "Failed to show toast: ${e.message}")
-                            } catch (e: Exception) {
-                                Log.e("StreamingCommunity", "Unexpected error showing toast: ${e.message}")
-                            }
-                        }
-                    }
-                    redirectedDomain
-                }
-            }
-        } catch (e: Exception) {
-            loadedDomain
-        }
-    }
-
     companion object {
-        private const val DOMAIN_DEFAULT = "https://streamingunity.cam"
+        private const val DOMAIN_DEFAULT = "https://streamingunity.co"
         private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
+        private const val TAG = "StreamingCommunity"
 
         private val TOP10_TRENDING_REGEX = Regex("""/browse/(top10|trending)""")
         private val PLAYLIST_URL_REGEX = Regex("""url: ?'(.*?)'""")
         private val EXPIRES_REGEX = Regex("""'expires': ?'(\d+)'""")
         private val TOKEN_REGEX = Regex("""'token': ?'([\w-]+)'""")
         private val QUALITY_REGEX = Regex("""(\d+)p""")
+
         private const val PREF_QUALITY_KEY = "preferred_quality"
-        private const val PREF_QUALITY_DEFAULT = "1080"
+        private val PREF_QUALITY_ENTRIES = listOf("1080p", "720p", "480p", "360p")
+        private val PREF_QUALITY_VALUES = listOf("1080", "720", "480", "360")
+        private val PREF_QUALITY_DEFAULT = PREF_QUALITY_VALUES.first()
 
         private val DATE_TIME_FORMATTER by lazy {
             SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ENGLISH)
@@ -538,47 +513,52 @@ class StreamingCommunity(override val lang: String, private val showType: String
 
     // ============================== Settings ==============================
 
+    private fun updateDomain(domain: String) {
+        val newDomain = domain.trim().removeSuffix("/").ifBlank { DOMAIN_DEFAULT }
+        if (URLUtil.isValidUrl(newDomain)) {
+            Log.i(TAG, "Updating domain to: $newDomain")
+            preferences.customDomain = newDomain
+            homepage = newDomain
+            apiHeaders = newApiHeader()
+            jsonHeaders = newJsonHeader()
+        }
+    }
+
+    val addressUrlSummary: (String) -> String = {
+        it.ifBlank { DOMAIN_DEFAULT }
+            .let { domain -> "Current domain: \"${domain}\"\nLeave blank to reset to default domain." }
+    }
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = "Preferred quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p")
-            entryValues = arrayOf("1080", "720", "480", "360")
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred quality",
+            entries = PREF_QUALITY_ENTRIES,
+            entryValues = PREF_QUALITY_VALUES,
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).apply()
-                true
-            }
-        }.also(screen::addPreference)
-
-        EditTextPreference(screen.context).apply {
-            key = PREF_CUSTOM_DOMAIN_KEY
-            title = "Custom domain"
-            setDefaultValue(null)
-            val currentValue = resolveRedirectedDomain(
-                screen,
-                preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null).takeIf { !it.isNullOrBlank() } ?: DOMAIN_DEFAULT,
-            )
-            summary = "Domain: \"$currentValue\".\nLeave blank to disable. Overrides any domain preferences!"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val newDomain = newValue.toString().trim().removeSuffix("/")
+        screen.addEditTextPreference(
+            key = PREF_CUSTOM_DOMAIN_KEY,
+            title = "Custom domain",
+            default = DOMAIN_DEFAULT,
+            summary = addressUrlSummary(homepage),
+            getSummary = addressUrlSummary,
+            onChange = { _, newValue ->
+                val newDomain = newValue.trim().removeSuffix("/")
                 if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
-                    summary = "Restart to apply changes"
-                    Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
-                    preferences.edit().putString(key, newDomain).apply()
+                    updateDomain(newDomain)
+                    // this `true` will update the preference to empty string if the new value is blank & override domain set in `updateDomain`,
+                    // so make sure to guard `homepage` against blank values.
+                    // But it's needed to update the preference summary.
                     true
                 } else {
                     Toast.makeText(screen.context, "Invalid URL. Example: $DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
                     false
                 }
-            }
-        }.also(screen::addPreference)
+            },
+        )
     }
 
     // ============================== Filters ===============================
