@@ -12,7 +12,6 @@ class Kaido : ZoroTheme(
     hosterNames = listOf(
         "Vidstreaming",
         "Vidcloud",
-        "StreamTape",
     ),
 ) {
     private val rapidCloudExtractor by lazy { RapidCloudExtractor(client, headers, preferences) }
