@@ -130,18 +130,19 @@ class RapidCloudExtractor(
 
     fun getVideosFromUrl(url: String, type: String, name: String): List<Video> {
         val videos = getVideoDto(url)
+        if (videos.isEmpty()) return emptyList()
+
+        val subtitles = videos.first().tracks
+            ?.filter { it.kind == "captions" }
+            ?.map { Track(it.file, it.label) }
+            .orEmpty()
+            .let(playlistUtils::fixSubtitles)
 
         return videos.flatMap { video ->
-            val masterUrl = video.m3u8
-            val subs2 = video.tracks
-                ?.filter { it.kind == "captions" }
-                ?.map { Track(it.file, it.label) }
-                .orEmpty()
-                .let { playlistUtils.fixSubtitles(it) }
             playlistUtils.extractFromHls(
-                masterUrl,
+                video.m3u8,
                 videoNameGen = { "$name - $it - $type" },
-                subtitleList = subs2,
+                subtitleList = subtitles,
                 referer = "https://${url.toHttpUrl().host}/",
             )
         }
