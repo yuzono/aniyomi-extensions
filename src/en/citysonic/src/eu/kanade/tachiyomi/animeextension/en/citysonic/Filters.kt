@@ -25,7 +25,7 @@ object Filters {
 
     class TypeFilter : QueryPartFilter("Type", ZoroThemeFiltersData.TYPES)
     class StatusFilter : QueryPartFilter("Status", ZoroThemeFiltersData.STATUS)
-    class RatedFilter : QueryPartFilter("Rated", ZoroThemeFiltersData.RATED)
+    class RatedFilter : QueryPartFilter("Rated", ZoroThemeFiltersData.COUNTRIES)
     class ScoreFilter : QueryPartFilter("Score", ZoroThemeFiltersData.SCORES)
     class SeasonFilter : QueryPartFilter("Season", ZoroThemeFiltersData.SEASONS)
     class LanguageFilter : QueryPartFilter("Language", ZoroThemeFiltersData.LANGUAGES)
@@ -119,12 +119,8 @@ object Filters {
 
         val TYPES = arrayOf(
             ALL,
-            Pair("Movie", "1"),
-            Pair("TV", "2"),
-            Pair("OVA", "3"),
-            Pair("ONA", "4"),
-            Pair("Special", "5"),
-            Pair("Music", "6"),
+            Pair("Movie", "movie"),
+            Pair("TV-series", "tv"),
         )
 
         val STATUS = arrayOf(
@@ -134,14 +130,44 @@ object Filters {
             Pair("Not yet aired", "3"),
         )
 
-        val RATED = arrayOf(
+        val COUNTRIES = arrayOf(
             ALL,
-            Pair("G", "1"),
-            Pair("PG", "2"),
-            Pair("PG-13", "3"),
-            Pair("R", "4"),
-            Pair("R+", "5"),
-            Pair("Rx", "6"),
+            "Argentina" to "11",
+            "Australia" to "151",
+            "Austria" to "4",
+            "Belgium" to "44",
+            "Brazil" to "190",
+            "Canada" to "147",
+            "China" to "101",
+            "Czech Republic" to "231",
+            "Denmark" to "222",
+            "Finland" to "158",
+            "France" to "3",
+            "Germany" to "96",
+            "Hong Kong" to "93",
+            "Hungary" to "72",
+            "India" to "105",
+            "Ireland" to "196",
+            "Israel" to "24",
+            "Italy" to "205",
+            "Japan" to "173",
+            "Luxembourg" to "91",
+            "Mexico" to "40",
+            "Netherlands" to "172",
+            "New Zealand" to "122",
+            "Norway" to "219",
+            "Poland" to "23",
+            "Romania" to "170",
+            "Russia" to "109",
+            "South Africa" to "200",
+            "South Korea" to "135",
+            "Spain" to "62",
+            "Sweden" to "114",
+            "Switzerland" to "41",
+            "Taiwan" to "119",
+            "Thailand" to "57",
+            "United Kingdom" to "180",
+            "United States of America" to "129",
         )
 
         val SCORES = arrayOf(
