@@ -59,7 +59,7 @@ class CitySonic(
 
     // ============================== Popular ===============================
 
-    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/most-popular?page=$page", docHeaders)
+    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/movie?page=$page", docHeaders)
 
     override fun popularAnimeSelector(): String = "div.flw-item"
 
@@ -75,7 +75,7 @@ class CitySonic(
 
     // =============================== Latest ===============================
 
-    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/top-airing?page=$page", docHeaders)
+    override fun latestUpdatesRequest(page: Int): Request = GET("$baseUrl/tv-show?page=$page", docHeaders)
 
     override fun latestUpdatesSelector(): String = popularAnimeSelector()
 
@@ -300,7 +300,7 @@ class CitySonic(
 
         return this.sortedWith(
             compareByDescending<Video> { it.quality.contains(quality) }
-                .thenByDescending { it.quality.contains(server, true) }
+                .thenByDescending { it.quality.contains(server, true) },
         )
     }
 
