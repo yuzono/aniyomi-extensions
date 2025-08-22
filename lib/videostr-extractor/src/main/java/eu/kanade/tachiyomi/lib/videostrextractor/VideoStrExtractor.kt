@@ -27,7 +27,7 @@ class VideoStrExtractor(
         private const val SOURCES_SPLITTER = "/e-1/"
     }
 
-    fun getVideosFromUrl(url: String, type: String, name: String): List<Video> {
+    fun getVideosFromUrl(url: String, name: String): List<Video> {
         val videos = getVideoDto(url)
         if (videos.isEmpty()) return emptyList()
 
@@ -40,7 +40,7 @@ class VideoStrExtractor(
         return videos.flatMap { video ->
             playlistUtils.extractFromHls(
                 video.m3u8,
-                videoNameGen = { "$name - $it - $type" },
+                videoNameGen = { "$name - $it" },
                 subtitleList = subtitles,
                 referer = "https://${url.toHttpUrl().host}/",
             )

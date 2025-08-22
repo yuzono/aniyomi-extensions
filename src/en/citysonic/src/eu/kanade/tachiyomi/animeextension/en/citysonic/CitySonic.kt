@@ -13,8 +13,10 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.videostrextractor.VideoStrExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
+import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.LazyMutable
@@ -184,77 +186,103 @@ class CitySonic(
 
     // ============================== Episodes ==============================
 
-    override fun episodeListRequest(anime: SAnime): Request {
+    override fun episodeListSelector() = "a.eps-item"
+
+    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         val id = anime.url.substringAfterLast("-")
-        return GET("$baseUrl/ajax/episode/list/$id", apiHeaders(baseUrl + anime.url))
+        if (anime.url.startsWith("/movie/")) {
+            return listOf(
+                SEpisode.create().apply {
+                    name = "Movie"
+                    setUrlWithoutDomain("/ajax/episode/list/$id")
+                    episode_number = 1F
+                },
+            )
+        }
+
+        val seasonRequest = GET("$baseUrl/ajax/season/list/$id", apiHeaders(baseUrl + anime.url))
+        return client.newCall(seasonRequest).awaitSuccess().use { response ->
+            response.asJsoup().select(".ss-item")
+                .parallelFlatMap(::seasonFromElement).reversed()
+        }
     }
 
-    override fun episodeListSelector() = "a.ep-item"
-
-    override fun episodeListParse(response: Response): List<SEpisode> {
-        val document = response.parseAs<HtmlResponse>().getHtml()
-
-        return document.select(episodeListSelector())
-            .map(::episodeFromElement)
-            .reversed()
+    private suspend fun seasonFromElement(element: Element): List<SEpisode> = client.runCatching {
+        val season = element.elementSiblingIndex() + 1
+        val seasonId = element.attr("data-id")
+        newCall(GET("$baseUrl/ajax/season/episodes/$seasonId"))
+            .awaitSuccess().use { response ->
+                response.asJsoup().select(episodeListSelector()).map {
+                    it.attr("data-season", "%02d".format(season)).let(::episodeFromElement)
+                }
+            }
+    }.getOrElse {
+        emptyList()
     }
 
+    private val episodeRegex by lazy { """Eps (\d+)""".toRegex() }
     override fun episodeFromElement(element: Element) = SEpisode.create().apply {
-        episode_number = element.attr("data-number").toFloatOrNull() ?: 1F
-        name = "Ep. ${element.attr("data-number")}: ${element.attr("title")}"
-        setUrlWithoutDomain(element.attr("href"))
+        if (element.hasClass("link-item")) {
+            val linkId = element.attr("data-linkid")
+                .ifEmpty { element.attr("data-id") }
+            setUrlWithoutDomain("/ajax/episode/sources/$linkId")
+        } else {
+            setUrlWithoutDomain("/ajax/episode/servers/" + element.attr("data-id"))
+        }
+
+        val ssNum = element.attr("data-season").ifEmpty { "0" }
+        val title = element.attr("title").ifEmpty { element.text() }
+        val epNum = episodeRegex.find(title)?.run { "%03d".format(groupValues[1].toInt()) } ?: "0"
+
+        episode_number = "$ssNum.$epNum".toFloat()
+        name = when {
+            episode_number != 0.0F -> "S$ssNum E$epNum ${title.substringAfter(": ")}"
+            else -> title
+        }
     }
 
     // ============================ Video Links =============================
 
+    override fun videoListSelector() = "a.link-item"
+
     override fun videoListRequest(episode: SEpisode): Request {
-        val id = episode.url.substringAfterLast("?ep=")
-        return GET("$baseUrl/ajax/episode/servers?episodeId=$id", apiHeaders(baseUrl + episode.url))
+        return GET("$baseUrl${episode.url}", apiHeaders())
     }
 
-    data class VideoData(
-        val type: String,
-        val link: String,
-        val name: String,
-    )
-
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
-        val response = client.newCall(videoListRequest(episode)).await()
+        client.newCall(videoListRequest(episode)).awaitSuccess().use { response ->
 
-        val episodeReferer = response.request.header("referer")!!
-        val hosterSelection = preferences.hostToggle
+            val episodeReferer = response.request.header("referer")!!
+            val hosterSelection = preferences.hostToggle
 
-        val serversDoc = response.parseAs<HtmlResponse>().getHtml()
+            val serversDoc = response.asJsoup()
 
-        val embedLinks = listOf("servers-sub", "servers-dub", "servers-mixed", "servers-raw").map { type ->
-            serversDoc.select("div.$type div.item").parallelMapNotNull {
-                val id = it.attr("data-id")
-                val type = it.attr("data-type")
-                val name = it.text()
+            val embedLinks = serversDoc.select(videoListSelector()).parallelMapNotNull {
+                val id = it.attr("data-linkid")
+                    .ifEmpty { it.attr("data-id") }
+                val name = it.select("span").text()
 
                 if (hosterSelection.contains(name, true).not()) return@parallelMapNotNull null
 
                 val link = client.newCall(
-                    GET("$baseUrl/ajax/episode/sources?id=$id", apiHeaders(episodeReferer)),
+                    GET("$baseUrl/ajax/episode/sources/$id", apiHeaders(episodeReferer)),
                 ).await().parseAs<SourcesResponse>().link ?: ""
 
-                VideoData(type, link, name)
+                VideoData(link, name)
             }
-        }.flatten()
 
-        return embedLinks.parallelCatchingFlatMap(::extractVideo)
+            return embedLinks.parallelCatchingFlatMap(::extractVideo)
+        }
     }
 
     private var videoStrExtractor by LazyMutable { VideoStrExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
 
     private fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
-            "UpCloud", "MegaCloud" -> videoStrExtractor.getVideosFromUrl(server.link, server.type, server.name)
+            "UpCloud", "MegaCloud", "AKCloud" -> videoStrExtractor.getVideosFromUrl(server.link, server.name)
             else -> emptyList()
         }
     }
-
-    override fun videoListSelector() = throw UnsupportedOperationException()
 
     override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
 
@@ -281,7 +309,7 @@ class CitySonic(
         return any { it.equals(s, ignoreCase) }
     }
 
-    private fun apiHeaders(referer: String): Headers = headers.newBuilder().apply {
+    private fun apiHeaders(referer: String = "$baseUrl/"): Headers = headers.newBuilder().apply {
         add("Accept", "*/*")
         add("Host", baseUrl.toHttpUrl().host)
         add("Referer", referer)
