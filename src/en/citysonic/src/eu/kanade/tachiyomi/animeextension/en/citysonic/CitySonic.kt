@@ -5,6 +5,7 @@ import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -124,28 +125,36 @@ class CitySonic(
     // =========================== Anime Details ============================
 
     override fun animeDetailsParse(document: Document) = SAnime.create().apply {
-        thumbnail_url = document.selectFirst("div.anisc-poster img")!!.attr("src")
+        document.selectFirst("div.detail-infor")!!.run {
+            thumbnail_url = selectFirst("div.film-poster img")!!.attr("src")
+            author = getInfo(tag = "Production:", isList = true)
+            genre = getInfo("Genre:", isList = true)
 
-        val promotions = document.select(".block_area-promotions-list > .screen-items > .item").map {
-            val title = it.attr("data-title")
-            val url = it.attr("data-src")
-            "[$title]($url)"
-        }
+            val url = document.location()
+            val type = if (url.contains("/tv/")) {
+                status = SAnime.ONGOING
+                update_strategy = AnimeUpdateStrategy.ALWAYS_UPDATE
+                "TV Shows"
+            } else {
+                status = SAnime.COMPLETED
+                update_strategy = AnimeUpdateStrategy.ONLY_FETCH_ONCE
+                "Movies"
+            }
 
-        document.selectFirst("div.anisc-info")!!.let { info ->
-            author = info.getInfo("Studios:")
-            status = parseStatus(info.getInfo("Status:"))
-            genre = info.getInfo("Genres:", isList = true)
-
+            val trailer = document.selectFirst("#modaltrailer iframe")?.let {
+                val trailerUrl = it.attr("data-src")
+                "[Trailer]($trailerUrl)"
+            }
             description = buildString {
-                info.getInfo("Overview:")?.also { append(it + "\n") }
-                info.getInfo("Aired:", full = true)?.also(::append)
-                info.getInfo("Premiered:", full = true)?.also(::append)
-                info.getInfo("Synonyms:", full = true)?.also(::append)
-                info.getInfo("Japanese:", full = true)?.also(::append)
-                promotions.takeIf { it.isNotEmpty() }?.also {
-                    append("\n\n**Promotions:**\n${it.joinToString("\n")}")
-                }
+                selectFirst(".description")?.let { append("${it.text()}\n\n") }
+                append("**Type:** $type")
+                getInfo("Country:", true)?.let(::append)
+                getInfo("Casts:", true, isList = true)?.let(::append)
+                getInfo("Released:", true)?.let(::append)
+                getInfo("Duration:", true)?.let(::append)
+                selectFirst("div.dp-i-stats span.item:last-child")
+                    ?.let { append("\n${it.text()}") }
+                trailer?.let { append("\n\n$it") }
             }
         }
     }
@@ -159,26 +168,18 @@ class CitySonic(
         }
     }
 
-    fun Element.getInfo(
+    private fun Element.getInfo(
         tag: String,
+        includeTag: Boolean = false,
         isList: Boolean = false,
-        full: Boolean = false,
     ): String? {
-        if (isList) {
-            return select("div.item-list:contains($tag) > a").eachText().joinToString()
+        val value = if (isList) {
+            select("div.row-line:contains($tag) > a").eachText().joinToString().ifBlank { null }
+        } else {
+            selectFirst("div.row-line:contains($tag)")
+                ?.ownText()?.ifBlank { null }
         }
-        val value = selectFirst("div.item-title:contains($tag)")
-            ?.selectFirst("*.name, *.text")
-            ?.text()
-        return if (full && value != null) "\n$tag $value" else value
-    }
-
-    private fun parseStatus(statusString: String?): Int {
-        return when (statusString) {
-            "Currently Airing" -> SAnime.ONGOING
-            "Finished Airing" -> SAnime.COMPLETED
-            else -> SAnime.UNKNOWN
-        }
+        return if (includeTag && value != null) "\n**$tag** $value" else value
     }
 
     // ============================== Episodes ==============================
