@@ -326,11 +326,13 @@ class CitySonic(
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.prefQuality
         val server = preferences.prefServer
+        val qualitiesList = PREF_QUALITY_ENTRIES.reversed()
 
-        return this.sortedWith(
-            compareByDescending<Video> { it.quality.contains(quality) }
-                .thenByDescending { it.quality.contains(server, true) },
-        )
+        return sortedByDescending { video -> qualitiesList.indexOfLast { video.quality.contains(it) } }
+            .sortedWith(
+                compareByDescending<Video> { it.quality.contains(quality) }
+                    .thenByDescending { it.quality.contains(server, true) },
+            )
     }
 
     private var SharedPreferences.prefQuality
@@ -360,7 +362,8 @@ class CitySonic(
         private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
 
         private const val PREF_QUALITY_KEY = "preferred_quality"
-        private const val PREF_QUALITY_DEFAULT = "1080"
+        private val PREF_QUALITY_ENTRIES = listOf("1080p", "720p", "480p", "360p")
+        private val PREF_QUALITY_DEFAULT = PREF_QUALITY_ENTRIES.first()
 
         private const val PREF_SERVER_KEY = "preferred_server"
 
@@ -373,8 +376,8 @@ class CitySonic(
         screen.addListPreference(
             key = PREF_QUALITY_KEY,
             title = "Preferred quality",
-            entries = listOf("1080p", "720p", "480p", "360p"),
-            entryValues = listOf("1080", "720", "480", "360"),
+            entries = PREF_QUALITY_ENTRIES,
+            entryValues = PREF_QUALITY_ENTRIES,
             default = PREF_QUALITY_DEFAULT,
             summary = "%s",
         ) {
