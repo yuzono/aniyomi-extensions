@@ -6,7 +6,7 @@ import eu.kanade.tachiyomi.animeextension.all.stremio.addon.dto.AddonDto
 import eu.kanade.tachiyomi.animeextension.all.stremio.addon.dto.AddonResultDto
 import eu.kanade.tachiyomi.animeextension.all.stremio.addon.dto.ManifestDto
 import eu.kanade.tachiyomi.util.parallelMapNotNull
-import extensions.utils.LazyMutablePreference
+import extensions.utils.PreferenceDelegate
 import extensions.utils.Source
 import extensions.utils.get
 import extensions.utils.parseAs
@@ -17,9 +17,9 @@ import kotlinx.serialization.json.put
 
 @Suppress("SpellCheckingInspection")
 class AddonManager(
-    addonDelegate: LazyMutablePreference<String>,
-    authKeyDelegate: LazyMutablePreference<String>,
-) {
+    addonDelegate: PreferenceDelegate<String>,
+    authKeyDelegate: PreferenceDelegate<String>,
+) /* KMK --> : ReadOnlyProperty<Source, List<AddonDto>> KMK <-- */ {
     private val addonValue by addonDelegate
     private val authKeyValue by authKeyDelegate
 
@@ -27,6 +27,11 @@ class AddonManager(
     private var cachedAuthKey: String? = null
     private var addons: List<AddonDto>? = null
 
+    /**
+     * The use of `runBlocking(Dispatchers.IO)` inside the `getValue` method of a property delegate is a potential performance hazard.
+     * This will block the thread that accesses the addons property while the addons are being fetched over the network.
+     * A safer approach would be to expose a suspend function [getAddons] to retrieve the addons.
+     */
     /* KMK -->
     override fun getValue(
         thisRef: Source,
@@ -49,8 +54,10 @@ class AddonManager(
 
             if (useAddons) {
                 cachedAddons = addonValue
+                cachedAuthKey = null
             } else {
                 cachedAuthKey = authKeyValue
+                cachedAddons = null
             }
         }
 
@@ -71,8 +78,14 @@ class AddonManager(
                 authKeyValue.isNotBlank() -> getFromUser(thisRef, authKeyValue)
                 else -> throw Exception("Addons must be manually added if not logged in")
             }
-            cachedAddons = addonValue
-            cachedAuthKey = authKeyValue
+
+            if (useAddons) {
+                cachedAddons = addonValue
+                cachedAuthKey = null
+            } else {
+                cachedAuthKey = authKeyValue
+                cachedAddons = null
+            }
         }
 
         return addons ?: emptyList()

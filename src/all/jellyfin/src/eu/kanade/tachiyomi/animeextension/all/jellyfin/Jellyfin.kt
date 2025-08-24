@@ -658,57 +658,27 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
         get() = getString(PREF_CUSTOM_LABEL_KEY, PREF_CUSTOM_LABEL_DEFAULT)!!
 
     private var SharedPreferences.libraryList by preferences.delegate(LIBRARY_LIST_KEY, "[]")
-
-    private val userIdDelegate = preferences.delegate(USERID_KEY, "")
-    private var SharedPreferences.userId by userIdDelegate
-
-    private val apiKeyDelegate = preferences.delegate(APIKEY_KEY, "")
-    private var SharedPreferences.apiKey by apiKeyDelegate
-
-    private val hostUrlDelegate = preferences.delegate(HOSTURL_KEY, HOSTURL_DEFAULT)
-    private val SharedPreferences.hostUrl by hostUrlDelegate
-
-    private val usernameDelegate = preferences.delegate(USERNAME_KEY, USERNAME_DEFAULT)
-    private val SharedPreferences.username by usernameDelegate
-
-    private val passwordDelegate = preferences.delegate(PASSWORD_KEY, PASSWORD_DEFAULT)
-    private val SharedPreferences.password by passwordDelegate
-
-    private val selectedLibraryDelegate = preferences.delegate(MEDIA_LIBRARY_KEY, MEDIA_LIBRARY_DEFAULT)
-    private var SharedPreferences.selectedLibrary by selectedLibraryDelegate
-
-    private val episodeTemplateDelegate = preferences.delegate(
+    private var SharedPreferences.userId by preferences.delegate(USERID_KEY, "")
+    private var SharedPreferences.apiKey by preferences.delegate(APIKEY_KEY, "")
+    private val SharedPreferences.hostUrl by preferences.delegate(HOSTURL_KEY, HOSTURL_DEFAULT)
+    private val SharedPreferences.username by preferences.delegate(USERNAME_KEY, USERNAME_DEFAULT)
+    private val SharedPreferences.password by preferences.delegate(PASSWORD_KEY, PASSWORD_DEFAULT)
+    private var SharedPreferences.selectedLibrary by preferences.delegate(MEDIA_LIBRARY_KEY, MEDIA_LIBRARY_DEFAULT)
+    private val SharedPreferences.episodeTemplate by preferences.delegate(
         PREF_EPISODE_NAME_TEMPLATE_KEY,
         PREF_EPISODE_NAME_TEMPLATE_DEFAULT,
     )
-    private val SharedPreferences.episodeTemplate by episodeTemplateDelegate
-
-    private val epDetailsDelegate = preferences.delegate(PREF_EP_DETAILS_KEY, PREF_EP_DETAILS_DEFAULT)
-    private val SharedPreferences.epDetails by epDetailsDelegate
-
-    private val qualityDelegate = preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
-    private val SharedPreferences.quality by qualityDelegate
-
-    private val videoCodecDelegate = preferences.delegate(PREF_VIDEO_CODEC_KEY, PREF_VIDEO_CODEC_DEFAULT)
-    private val SharedPreferences.videoCodec by videoCodecDelegate
-
-    private val audioLangDelegate = preferences.delegate(PREF_AUDIO_KEY, PREF_AUDIO_DEFAULT)
-    private val SharedPreferences.audioLang by audioLangDelegate
-
-    private val subLangDelegate = preferences.delegate(PREF_SUB_KEY, PREF_SUB_DEFAULT)
-    private val SharedPreferences.subLang by subLangDelegate
-
-    private val burnSubDelegate = preferences.delegate(PREF_BURN_SUB_KEY, PREF_BURN_SUB_DEFAULT)
-    private val SharedPreferences.burnSub by burnSubDelegate
-
-    private val seriesDataDelegate = preferences.delegate(PREF_INFO_TYPE, PREF_INFO_DEFAULT)
-    private val SharedPreferences.seriesData by seriesDataDelegate
-
-    private val splitCollectionDelegate = preferences.delegate(
+    private val SharedPreferences.epDetails by preferences.delegate(PREF_EP_DETAILS_KEY, PREF_EP_DETAILS_DEFAULT)
+    private val SharedPreferences.quality by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+    private val SharedPreferences.videoCodec by preferences.delegate(PREF_VIDEO_CODEC_KEY, PREF_VIDEO_CODEC_DEFAULT)
+    private val SharedPreferences.audioLang by preferences.delegate(PREF_AUDIO_KEY, PREF_AUDIO_DEFAULT)
+    private val SharedPreferences.subLang by preferences.delegate(PREF_SUB_KEY, PREF_SUB_DEFAULT)
+    private val SharedPreferences.burnSub by preferences.delegate(PREF_BURN_SUB_KEY, PREF_BURN_SUB_DEFAULT)
+    private val SharedPreferences.seriesData by preferences.delegate(PREF_INFO_TYPE, PREF_INFO_DEFAULT)
+    private val SharedPreferences.splitCollections by preferences.delegate(
         PREF_SPLIT_COLLECTIONS_KEY,
         PREF_SPLIT_COLLECTIONS_DEFAULT,
     )
-    private val SharedPreferences.splitCollections by splitCollectionDelegate
 
     private fun clearCredentials() {
         preferences.libraryList = "[]"
@@ -736,7 +706,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             entries = libraryList.map { it.name },
             entryValues = libraryList.map { it.id },
             enabled = preferences.apiKey.isNotBlank(),
-            lazyDelegate = selectedLibraryDelegate,
         )
 
         fun onCompleteLogin(result: Boolean) {
@@ -837,7 +806,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             validationMessage = { "The URL is invalid, malformed, or ends with a slash" },
         ) {
             baseUrl = it
-            hostUrlDelegate.updateValue(it)
 
             if (it.isBlank()) {
                 onCompleteLogin(false)
@@ -856,7 +824,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             summary = userNameSummary(preferences.username),
             getSummary = userNameSummary,
         ) {
-            usernameDelegate.updateValue(it)
             if (it.isBlank()) {
                 onCompleteLogin(false)
             } else {
@@ -877,7 +844,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             getSummary = passwordSummary,
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD,
         ) {
-            passwordDelegate.updateValue(it)
             if (it.isBlank()) {
                 onCompleteLogin(false)
             } else {
@@ -923,7 +889,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
                 }
             },
             validationMessage = { "Invalid episode title format" },
-            lazyDelegate = episodeTemplateDelegate,
         )
 
         screen.addSetPreference(
@@ -933,7 +898,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             summary = "Show additional details about an episode in the scanlator field",
             entries = PREF_EP_DETAILS,
             entryValues = PREF_EP_DETAILS,
-            lazyDelegate = epDetailsDelegate,
         )
 
         screen.addListPreference(
@@ -943,7 +907,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             summary = "Preferred quality. 'Source' means no transcoding.",
             entries = listOf("Source") + Constants.QUALITIES_LIST.reversed().map { it.description },
             entryValues = listOf("Source") + Constants.QUALITIES_LIST.reversed().map { it.videoBitrate.toString() },
-            lazyDelegate = qualityDelegate,
         )
 
         screen.addEditTextPreference(
@@ -951,7 +914,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             default = PREF_VIDEO_CODEC_DEFAULT,
             title = "Transcoding video codec",
             summary = "Video codec when transcoding. Does not affect 'Source' quality.",
-            lazyDelegate = videoCodecDelegate,
         )
 
         screen.addEditTextPreference(
@@ -968,7 +930,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
                     "'$it' is not a three letter code"
                 }
             },
-            lazyDelegate = audioLangDelegate,
         )
 
         screen.addEditTextPreference(
@@ -985,7 +946,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
                     "'$it' is not a three letter code"
                 }
             },
-            lazyDelegate = subLangDelegate,
         )
 
         screen.addSwitchPreference(
@@ -993,7 +953,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             default = PREF_BURN_SUB_DEFAULT,
             title = "Burn in subtitles",
             summary = "Burn in subtitles when transcoding. Does not affect 'Source' quality.",
-            lazyDelegate = burnSubDelegate,
         )
 
         screen.addSwitchPreference(
@@ -1001,7 +960,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             default = PREF_INFO_DEFAULT,
             title = "Retrieve metadata from series",
             summary = "Enable this to retrieve metadata from series instead of season when applicable.",
-            lazyDelegate = seriesDataDelegate,
         )
 
         screen.addSwitchPreference(
@@ -1009,7 +967,6 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             default = PREF_SPLIT_COLLECTIONS_DEFAULT,
             title = "Split collections",
             summary = "Split each item in a collection into its own entry",
-            lazyDelegate = splitCollectionDelegate,
         )
     }
 }
