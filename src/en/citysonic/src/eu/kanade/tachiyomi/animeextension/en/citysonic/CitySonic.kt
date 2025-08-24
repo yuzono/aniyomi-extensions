@@ -92,23 +92,18 @@ class CitySonic(
         val params = Filters.getSearchParameters(filters)
         val endpoint = if (query.isEmpty()) "filter" else "search"
 
-        val url = "$baseUrl/$endpoint".toHttpUrl().newBuilder().apply {
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment(endpoint)
+            if (query.isNotBlank()) {
+                addPathSegment(query)
+            } else {
+                addIfNotBlank("type", params.type)
+                addIfNotBlank("quality", params.quality)
+                addIfNotBlank("release_year", params.released)
+                addIfNotBlank("genre", params.genres)
+                addIfNotBlank("country", params.countries)
+            }
             addQueryParameter("page", page.toString())
-            addIfNotBlank("keyword", query)
-            addIfNotBlank("type", params.type)
-            addIfNotBlank("status", params.status)
-            addIfNotBlank("rated", params.rated)
-            addIfNotBlank("score", params.score)
-            addIfNotBlank("season", params.season)
-            addIfNotBlank("language", params.language)
-            addIfNotBlank("sort", params.sort)
-            addIfNotBlank("sy", params.start_year)
-            addIfNotBlank("sm", params.start_month)
-            addIfNotBlank("sd", params.start_day)
-            addIfNotBlank("ey", params.end_year)
-            addIfNotBlank("em", params.end_month)
-            addIfNotBlank("ed", params.end_day)
-            addIfNotBlank("genres", params.genres)
         }.build()
 
         return GET(url, docHeaders)
