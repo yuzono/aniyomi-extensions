@@ -95,14 +95,12 @@ object DopeFlixFilters {
 
         val YEARS = arrayOf(
             ALL,
+            Pair("2025", "2025"),
             Pair("2024", "2024"),
             Pair("2023", "2023"),
             Pair("2022", "2022"),
             Pair("2021", "2021"),
-            Pair("2020", "2020"),
-            Pair("2019", "2019"),
-            Pair("2018", "2018"),
-            Pair("Older", "older-2018"),
+            Pair("Older", "older-2021"),
         )
 
         val GENRES = arrayOf(

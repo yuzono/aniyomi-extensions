@@ -1,7 +1,9 @@
 ext {
     extName = 'CitySonic'
     extClass = '.CitySonic'
-    extVersionCode = 1
+    themePkg = 'dopeflix'
+    baseUrl = 'https://sflix2.to'
+    overrideVersionCode = 0
 }
 
 apply from: "$rootDir/common.gradle"
