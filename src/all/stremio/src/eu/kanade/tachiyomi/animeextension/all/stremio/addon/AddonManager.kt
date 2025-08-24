@@ -78,8 +78,14 @@ class AddonManager(
                 authKeyValue.isNotBlank() -> getFromUser(thisRef, authKeyValue)
                 else -> throw Exception("Addons must be manually added if not logged in")
             }
-            cachedAddons = addonValue
-            cachedAuthKey = authKeyValue
+
+            if (useAddons) {
+                cachedAddons = addonValue
+                cachedAuthKey = null
+            } else {
+                cachedAuthKey = authKeyValue
+                cachedAddons = null
+            }
         }
 
         return addons ?: emptyList()

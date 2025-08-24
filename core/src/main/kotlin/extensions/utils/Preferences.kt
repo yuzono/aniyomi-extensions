@@ -80,7 +80,8 @@ class LazyMutable<T>(
  *
  * @param preferences Shared preferences
  * @param key Key for preference
- * @param default Default value for preference, can be `null` for `String?` or `Set<String>?`. Should be explicitly casted such as `null as String?`.
+ * @param default Default value for preference, can be `null` for `String?` or `Set<String>?`.
+ * Should be explicitly casted such as `null as String?`.
  */
 class PreferenceDelegate<T>(
     val preferences: SharedPreferences,
@@ -89,7 +90,11 @@ class PreferenceDelegate<T>(
 ) : ReadWriteProperty<Any?, T> {
     @Suppress("UNCHECKED_CAST")
     override fun getValue(thisRef: Any?, property: KProperty<*>): T {
-        return synchronized(this) { try {
+        /*
+         * The synchronized(this) is not necessary here and may actually cause performance issues.
+         * The getValue method only performs read operations on SharedPreferences, which are already thread-safe in Android.
+         */
+        return /* KMK --> synchronized(this) { KMK <-- */ try {
             when (default) {
                 is String -> preferences.getString(key, default) as T
                 is Int -> preferences.getInt(key, default) as T
@@ -99,8 +104,8 @@ class PreferenceDelegate<T>(
                 is Set<*> -> preferences.getStringSet(key, default as Set<String>) as T
                 null -> preferences.all[key] as T
                 else -> throw IllegalArgumentException("Unsupported type: ${default.javaClass}")
-            } } catch (e: ClassCastException) { default }
-        }
+            }
+        } catch (e: ClassCastException) { default }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -129,7 +134,8 @@ class PreferenceDelegate<T>(
  * which will cause the preferences to be created with the wrong source id.
  *
  * @param key Key for preference
- * @param default Default value for preference, can be `null` for `String?` or `Set<String>?`. Should be explicitly casted such as `null as String?`.
+ * @param default Default value for preference, can be `null` for `String?` or `Set<String>?`.
+ * Should be explicitly casted such as `null as String?`.
  */
 fun <T> SharedPreferences.delegate(key: String, default: T) =
     PreferenceDelegate(this, key, default)
@@ -149,7 +155,8 @@ private const val RESTART_MESSAGE = "Restart the app to apply the new setting."
  * @param validate Validate preference value before applying
  * @param validationMessage Validation message if text isn't valid, based on text value
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getEditTextPreference(
@@ -232,7 +239,8 @@ fun PreferenceScreen.getEditTextPreference(
  * @param validate Validate preference value before applying
  * @param validationMessage Validation message if text isn't valid, based on text value
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addEditTextPreference(
@@ -277,7 +285,8 @@ fun PreferenceScreen.addEditTextPreference(
  * @param entries Preference entries
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getListPreference(
@@ -325,7 +334,8 @@ fun PreferenceScreen.getListPreference(
  * @param entries Preference entries
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addListPreference(
@@ -364,7 +374,8 @@ fun PreferenceScreen.addListPreference(
  * @param entries Preference entries
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getSetPreference(
@@ -413,7 +424,8 @@ fun PreferenceScreen.getSetPreference(
  * @param entries Preference entries
  * @param entryValues Preference entry values
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addSetPreference(
@@ -450,7 +462,8 @@ fun PreferenceScreen.addSetPreference(
  * @param title Preference title
  * @param summary Preference summary
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.getSwitchPreference(
@@ -492,7 +505,8 @@ fun PreferenceScreen.getSwitchPreference(
  * @param title Preference title
  * @param summary Preference summary
  * @param restartRequired Show restart required toast on preference change
- * @param onChange Run block on changed listener for validation, must return *true/false* to determine if the preference change should be accepted
+ * @param onChange Run block on changed listener for validation, must return *true/false*
+ * to determine if the preference change should be accepted
  * @param onComplete Run block on completion with text value as parameter
  */
 fun PreferenceScreen.addSwitchPreference(
