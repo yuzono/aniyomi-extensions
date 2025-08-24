@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.lib.videostrextractor
+package eu.kanade.tachiyomi.lib.dopeflixextractor
 
 import android.util.Log
 import eu.kanade.tachiyomi.animesource.model.Track
@@ -13,7 +13,7 @@ import okhttp3.OkHttpClient
 import uy.kohesive.injekt.injectLazy
 import java.net.URLEncoder
 
-class VideoStrExtractor(
+class DopeFlixExtractor(
     private val client: OkHttpClient,
     private val headers: Headers,
     private val megaCloudAPI: String,

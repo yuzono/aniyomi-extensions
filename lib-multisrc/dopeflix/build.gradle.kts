@@ -5,5 +5,5 @@ plugins {
 baseVersionCode = 20
 
 dependencies {
-    api(project(":lib:videostr-extractor"))
+    api(project(":lib:dopeflix-extractor"))
 }

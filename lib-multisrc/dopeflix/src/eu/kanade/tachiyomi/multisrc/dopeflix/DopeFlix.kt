@@ -11,7 +11,7 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
-import eu.kanade.tachiyomi.lib.videostrextractor.VideoStrExtractor
+import eu.kanade.tachiyomi.lib.dopeflixextractor.DopeFlixExtractor
 import eu.kanade.tachiyomi.multisrc.dopeflix.dto.SourcesResponse
 import eu.kanade.tachiyomi.multisrc.dopeflix.dto.VideoData
 import eu.kanade.tachiyomi.network.GET
@@ -94,8 +94,8 @@ abstract class DopeFlix(
 
     override fun popularAnimeRequest(page: Int): Request {
         return when (page) {
-            1 -> GET("$baseUrl/home/")
-            else -> GET("$baseUrl/movie?page=${page - 1}")
+            1 -> GET("$baseUrl/home/", apiHeaders(), cacheControl)
+            else -> GET("$baseUrl/movie?page=${page - 1}", apiHeaders(), cacheControl)
         }
     }
 
@@ -131,8 +131,8 @@ abstract class DopeFlix(
 
     override fun latestUpdatesRequest(page: Int): Request {
         return when (page) {
-            1 -> GET("$baseUrl/home/")
-            else -> GET("$baseUrl/tv-show?page=${page - 1}")
+            1 -> GET("$baseUrl/home/", apiHeaders(), cacheControl)
+            else -> GET("$baseUrl/tv-show?page=${page - 1}", apiHeaders(), cacheControl)
         }
     }
 
@@ -161,7 +161,7 @@ abstract class DopeFlix(
             addQueryParameter("page", page.toString())
         }.build()
 
-        return GET(url, headers)
+        return GET(url, apiHeaders(), cacheControl)
     }
 
     override fun searchAnimeFromElement(element: Element) = popularAnimeFromElement(element)
@@ -231,7 +231,7 @@ abstract class DopeFlix(
     protected open fun Document.getCover(): String? {
         return selectFirst(coverSelector)?.let {
             val style = it.attr("style")
-            coverUrlRegex.find(style)?.groupValues?.get(1)
+            coverUrlRegex.find(style)?.groupValues?.getOrNull(1)
         }
     }
 
@@ -350,11 +350,11 @@ abstract class DopeFlix(
         }
     }
 
-    private var videoStrExtractor by LazyMutable { VideoStrExtractor(client, headers, megaCloudApi) }
+    private var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
 
     private fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
-            "UpCloud", "MegaCloud", "Vidcloud", "AKCloud" -> videoStrExtractor.getVideosFromUrl(server.link, server.name)
+            "UpCloud", "MegaCloud", "Vidcloud", "AKCloud" -> dopeFlixExtractor.getVideosFromUrl(server.link, server.name)
             else -> emptyList()
         }
     }
@@ -362,26 +362,6 @@ abstract class DopeFlix(
     override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
 
     override fun videoUrlParse(document: Document) = throw UnsupportedOperationException()
-
-//    private fun getVideosFromServer(video: VideoDto, name: String): List<Video> {
-//        val masterUrl = video.sources.first().file
-//        val subs = video.tracks
-//            ?.filter { it.kind == "captions" }
-//            ?.mapNotNull { Track(it.file, it.label) }
-//            ?.let(::subLangOrder)
-//            ?: emptyList<Track>()
-//        if (masterUrl.contains("playlist.m3u8")) {
-//            return playlistUtils.extractFromHls(
-//                masterUrl,
-//                videoNameGen = { "$name - $it" },
-//                subtitleList = subs,
-//            )
-//        }
-//
-//        return listOf(
-//            Video(masterUrl, "$name - Default", masterUrl, subtitleTracks = subs),
-//        )
-//    }
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.prefQuality
@@ -447,7 +427,7 @@ abstract class DopeFlix(
             baseUrl = it
             preferences.domainUrl = it
             docHeaders = newHeaders()
-            videoStrExtractor = VideoStrExtractor(client, headers, megaCloudApi)
+            dopeFlixExtractor = DopeFlixExtractor(client, headers, megaCloudApi)
         }
 
         screen.addListPreference(
