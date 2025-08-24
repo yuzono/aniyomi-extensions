@@ -157,6 +157,15 @@ class CitySonic(
                 selectFirst("div.dp-i-stats span.item:last-child")
                     ?.let { append("\n${it.text()}") }
                 trailer?.let { append("\n\n$it") }
+
+                document.selectFirst(".dp-w-cover")?.let {
+                    val style = it.attr("style")
+                    val urlRegex = """background-image:\s*url\(["']?([^"')]+)["']?\)""".toRegex()
+                    val imageUrl = urlRegex.find(style)?.groupValues?.get(1)
+                    if (imageUrl != null) {
+                        append("\n\n![Cover]($imageUrl)\n")
+                    }
+                }
             }
         }
     }
