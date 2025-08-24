@@ -8,6 +8,7 @@ class DopeBox : DopeFlix(
     "en",
     BuildConfig.MEGACLOUD_API,
     listOf("dopebox.to"),
+    preferredHoster = "Vidcloud",
 ) {
     override val id: Long = 787491081765201367
 }

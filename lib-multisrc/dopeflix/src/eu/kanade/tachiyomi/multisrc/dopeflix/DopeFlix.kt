@@ -41,6 +41,13 @@ abstract class DopeFlix(
     private val megaCloudApi: String,
     private val domainList: List<String>,
     private val defaultDomain: String = domainList.first(),
+    private val hosterNames: List<String> = listOf(
+        "UpCloud",
+        "MegaCloud",
+        "Vidcloud",
+        "AKCloud",
+    ),
+    private val preferredHoster: String = hosterNames.first(),
     override val supportsLatest: Boolean = true,
 ) : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -66,6 +73,13 @@ abstract class DopeFlix(
             add("Referer", "$baseUrl/")
         }.build()
     }
+
+    private fun apiHeaders(referer: String = "$baseUrl/"): Headers = headers.newBuilder().apply {
+        add("Accept", "*/*")
+        add("Host", baseUrl.toHttpUrl().host)
+        add("Referer", referer)
+        add("X-Requested-With", "XMLHttpRequest")
+    }.build()
 
     // ============================== Popular ===============================
 
@@ -350,7 +364,7 @@ abstract class DopeFlix(
         }
     }
 
-    private var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
+    private var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, docHeaders, megaCloudApi) }
 
     private fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
@@ -394,7 +408,7 @@ abstract class DopeFlix(
         by LazyMutable { preferences.getString(PREF_SUB_KEY, PREF_SUB_DEFAULT)!! }
 
     private var SharedPreferences.prefServer
-        by LazyMutable { preferences.getString(PREF_SERVER_KEY, hosterNames.first())!! }
+        by LazyMutable { preferences.getString(PREF_SERVER_KEY, preferredHoster)!! }
 
     private var SharedPreferences.hostToggle
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
@@ -409,7 +423,7 @@ abstract class DopeFlix(
             .remove(PREF_HOSTER_KEY)
             .putStringSet(PREF_HOSTER_KEY, hosterNames.toSet())
             .remove(PREF_SERVER_KEY)
-            .putString(PREF_SERVER_KEY, hosterNames.first())
+            .putString(PREF_SERVER_KEY, preferredHoster)
             .apply()
         return this
     }
@@ -426,7 +440,7 @@ abstract class DopeFlix(
             baseUrl = it
             preferences.domainUrl = it
             docHeaders = newHeaders()
-            dopeFlixExtractor = DopeFlixExtractor(client, headers, megaCloudApi)
+            dopeFlixExtractor = DopeFlixExtractor(client, docHeaders, megaCloudApi)
         }
 
         screen.addListPreference(
@@ -486,21 +500,7 @@ abstract class DopeFlix(
         return any { it.equals(s, ignoreCase) }
     }
 
-    private fun apiHeaders(referer: String = "$baseUrl/"): Headers = headers.newBuilder().apply {
-        add("Accept", "*/*")
-        add("Host", baseUrl.toHttpUrl().host)
-        add("Referer", referer)
-        add("X-Requested-With", "XMLHttpRequest")
-    }.build()
-
     companion object {
-        private val hosterNames = listOf(
-            "UpCloud",
-            "MegaCloud",
-            "Vidcloud",
-            "AKCloud",
-        )
-
         private const val PREF_DOMAIN_KEY = "preferred_domain"
         private const val PREF_DOMAIN_TITLE = "Preferred domain"
 
