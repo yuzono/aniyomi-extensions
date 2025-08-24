@@ -368,12 +368,11 @@ abstract class DopeFlix(
         val server = preferences.prefServer
         val qualitiesList = PREF_QUALITY_LIST.reversed()
 
-        return sortedByDescending { video -> qualitiesList.indexOfLast { video.quality.contains(it) } }
-            .sortedWith(
-                compareByDescending<Video> { it.quality.contains(quality) }
-                    .thenByDescending { it.quality.contains(server, true) },
-//                { Regex("""(\d+)p""").find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0 },
-            )
+        return sortedWith(
+            compareByDescending<Video> { it.quality.contains(quality) }
+                .thenByDescending { video -> qualitiesList.indexOfLast { video.quality.contains(it) } }
+                .thenByDescending { it.quality.contains(server, true) },
+        )
     }
 
     private fun subLangOrder(tracks: List<Track>): List<Track> {
