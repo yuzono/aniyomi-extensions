@@ -9,13 +9,14 @@ class CitySonic : DopeFlix(
     BuildConfig.MEGACLOUD_API,
     listOf(
         "citysonic.tv",
-        "gomovies.sx",
+        "gomovies.gg",
         "himovies.sx",
-        "fmoviesz.ms",
+        "fmovieszz.lol",
+        "movies4kto.lol",
     ),
 ) {
-    override val detailInfoSelector by lazy { "div.detail-infor" }
-    override val coverSelector by lazy { "div.dp-w-cover" }
+    override val detailInfoSelector by lazy { "div.detail_page-infor, div.m_i-detail" }
+    override val coverSelector by lazy { "div.cover_follow, div.dp-w-cover, div.w_b-cover" }
 
     override val episodeRegex by lazy { """Eps (\d+)""".toRegex() }
 }

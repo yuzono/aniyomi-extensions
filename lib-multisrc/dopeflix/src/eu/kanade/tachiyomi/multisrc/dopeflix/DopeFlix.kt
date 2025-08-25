@@ -197,7 +197,7 @@ abstract class DopeFlix(
 
     // =========================== Anime Details ============================
 
-    protected open val detailInfoSelector = "div.detail_page-infor"
+    protected open val detailInfoSelector by lazy { "div.detail_page-infor" }
 
     override fun animeDetailsParse(document: Document) = SAnime.create().apply {
         document.selectFirst(detailInfoSelector)!!.run {
