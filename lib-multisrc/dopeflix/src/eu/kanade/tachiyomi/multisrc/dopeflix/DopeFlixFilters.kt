@@ -50,11 +50,11 @@ object DopeFlixFilters {
 
     val FILTER_LIST get() = AnimeFilterList(
         TypeFilter(),
-        QualityFilter(),
-        ReleaseYearFilter(),
+        CountriesFilter(),
         AnimeFilter.Separator(),
         GenresFilter(),
-        CountriesFilter(),
+        QualityFilter(),
+        ReleaseYearFilter(),
     )
 
     data class FilterSearchParams(
