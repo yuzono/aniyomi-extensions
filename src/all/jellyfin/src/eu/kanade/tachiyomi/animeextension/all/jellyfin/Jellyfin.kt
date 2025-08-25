@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.HttpException
+import eu.kanade.tachiyomi.util.parallelFlatMap
 import extensions.utils.LazyMutable
 import extensions.utils.Source
 import extensions.utils.addEditTextPreference
@@ -45,6 +46,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -174,25 +176,40 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
         val startIndex = (page - 1) * SERIES_FETCH_LIMIT
         val url = getItemsUrl(startIndex).newBuilder().apply {
             // Search for series, rather than seasons, since season names can just be "Season 1"
-            setQueryParameter("IncludeItemTypes", "Movie,Series")
+            // Add "Episode" to search for episodes too, but this can lead to less relevant results
+            setQueryParameter(
+                "IncludeItemTypes",
+                if (preferences.searchEpisodes) "Movie,Series,Episode" else "Movie,Series",
+            )
             setQueryParameter("Limit", SERIES_FETCH_LIMIT.toString())
             setQueryParameter("SearchTerm", query)
         }.build()
 
         val items = client.get(url).parseAs<ItemListDto>(json)
         val animeList = coroutineScope {
-            items.items.map { series ->
-                async(Dispatchers.IO) {
-                    val seasonsUrl = getItemsUrl(1).newBuilder().apply {
-                        setQueryParameter("ParentId", series.id)
-                        removeAllQueryParameters("StartIndex")
-                        removeAllQueryParameters("Limit")
-                    }.build()
+            items.items.parallelFlatMap { series ->
+                when (series.type) {
+                    ItemType.Movie -> listOf(series.toSAnime(baseUrl, preferences.userId))
+                    else -> withContext(Dispatchers.IO) {
+                        // Get seasons for series
+                        val seasonsUrl = getItemsUrl(1).newBuilder().apply {
+                            if (series.type == ItemType.Series) {
+                                setQueryParameter("ParentId", series.id)
+                            } else {
+                                // Episodes
+                                setQueryParameter("ParentId", series.seriesId)
+                                setQueryParameter("SearchTerm", series.seasonName ?: "")
+                            }
+                            setQueryParameter("IncludeItemTypes", "Season")
+                            removeAllQueryParameters("StartIndex")
+                            removeAllQueryParameters("Limit")
+                        }.build()
 
-                    val seasonsData = client.get(seasonsUrl).parseAs<ItemListDto>(json)
-                    seasonsData.items.map { it.toSAnime(baseUrl, preferences.userId) }
+                        val seasonsData = client.get(seasonsUrl).parseAs<ItemListDto>(json)
+                        seasonsData.items.map { it.toSAnime(baseUrl, preferences.userId) }
+                    }
                 }
-            }.awaitAll().flatten()
+            }
         }
 
         val hasNextPage = SERIES_FETCH_LIMIT * page < items.totalRecordCount
@@ -628,6 +645,9 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
         private const val PREF_SPLIT_COLLECTIONS_KEY = "preferred_split_col"
         private const val PREF_SPLIT_COLLECTIONS_DEFAULT = false
 
+        private const val PREF_SEARCH_EPISODES_KEY = "preferred_search_episodes"
+        private const val PREF_SEARCH_EPISODES_DEFAULT = false
+
         private val SUBSTITUTE_VALUES = hashMapOf(
             "title" to "",
             "originalTitle" to "",
@@ -678,6 +698,10 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
     private val SharedPreferences.splitCollections by preferences.delegate(
         PREF_SPLIT_COLLECTIONS_KEY,
         PREF_SPLIT_COLLECTIONS_DEFAULT,
+    )
+    private val SharedPreferences.searchEpisodes by preferences.delegate(
+        PREF_SEARCH_EPISODES_KEY,
+        PREF_SEARCH_EPISODES_DEFAULT,
     )
 
     private fun clearCredentials() {
@@ -967,6 +991,13 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             default = PREF_SPLIT_COLLECTIONS_DEFAULT,
             title = "Split collections",
             summary = "Split each item in a collection into its own entry",
+        )
+
+        screen.addSwitchPreference(
+            key = PREF_SEARCH_EPISODES_KEY,
+            default = PREF_SEARCH_EPISODES_DEFAULT,
+            title = "Allow searching for episodes",
+            summary = "Searching will include entries having episodes matching the query, but this can lead to less relevant results.",
         )
     }
 }
