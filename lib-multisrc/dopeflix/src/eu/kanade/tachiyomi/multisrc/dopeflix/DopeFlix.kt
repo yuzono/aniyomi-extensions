@@ -51,17 +51,17 @@ abstract class DopeFlix(
     override val supportsLatest: Boolean = true,
 ) : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
-    private val preferences by getPreferencesLazy {
+    protected open val preferences by getPreferencesLazy {
         clearOldHosts()
     }
 
     override var baseUrl by LazyMutable { preferences.domainUrl }
 
-    private var docHeaders by LazyMutable {
+    protected open var docHeaders by LazyMutable {
         newHeaders()
     }
 
-    private fun newHeaders(): Headers {
+    protected open fun newHeaders(): Headers {
         return headers.newBuilder().apply {
             add(
                 "Accept",
@@ -72,14 +72,14 @@ abstract class DopeFlix(
         }.build()
     }
 
-    private fun apiHeaders(referer: String = "$baseUrl/"): Headers = headers.newBuilder().apply {
+    protected open fun apiHeaders(referer: String = "$baseUrl/"): Headers = headers.newBuilder().apply {
         add("Accept", "*/*")
         add("Host", baseUrl.toHttpUrl().host)
         add("Referer", referer)
         add("X-Requested-With", "XMLHttpRequest")
     }.build()
 
-    private val cacheControl by lazy { CacheControl.Builder().maxAge(6.hours).build() }
+    protected open val cacheControl by lazy { CacheControl.Builder().maxAge(6.hours).build() }
 
     // ============================== Popular ===============================
 
@@ -249,7 +249,7 @@ abstract class DopeFlix(
         }
     }
 
-    private fun Element.getInfo(
+    protected open fun Element.getInfo(
         tag: String,
         includeTag: Boolean = false,
         isList: Boolean = false,
@@ -286,7 +286,7 @@ abstract class DopeFlix(
         }
     }
 
-    private suspend fun seasonFromElement(element: Element): List<SEpisode> = client.runCatching {
+    protected open suspend fun seasonFromElement(element: Element): List<SEpisode> = client.runCatching {
         val season = element.elementSiblingIndex() + 1
         val seasonId = element.attr("data-id")
         newCall(GET("$baseUrl/ajax/season/episodes/$seasonId", apiHeaders()))
@@ -300,6 +300,7 @@ abstract class DopeFlix(
     }
 
     protected open val episodeRegex by lazy { """Episode (\d+)""".toRegex() }
+
     override fun episodeFromElement(element: Element) = SEpisode.create().apply {
         if (element.hasClass("link-item")) {
             val linkId = element.attr("data-linkid")
@@ -363,9 +364,9 @@ abstract class DopeFlix(
         }
     }
 
-    private var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
+    protected open var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
 
-    private fun extractVideo(server: VideoData): List<Video> {
+    protected open fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
             "UpCloud", "MegaCloud", "Vidcloud", "AKCloud" -> dopeFlixExtractor.getVideosFromUrl(server.link, server.name)
             else -> emptyList()
@@ -388,7 +389,7 @@ abstract class DopeFlix(
         )
     }
 
-    private fun subLangOrder(tracks: List<Track>): List<Track> {
+    protected open fun subLangOrder(tracks: List<Track>): List<Track> {
         val language = preferences.prefSubtitle
         return tracks.sortedWith(
             compareByDescending { it.lang.contains(language) },
@@ -397,22 +398,22 @@ abstract class DopeFlix(
 
     // ============================== Settings ==============================
 
-    private var SharedPreferences.domainUrl
+    protected open var SharedPreferences.domainUrl
         by LazyMutable { preferences.getString(PREF_DOMAIN_KEY, "https://$defaultDomain")!! }
 
-    private var SharedPreferences.prefQuality
+    protected open var SharedPreferences.prefQuality
         by LazyMutable { preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!! }
 
-    private var SharedPreferences.prefSubtitle
+    protected open var SharedPreferences.prefSubtitle
         by LazyMutable { preferences.getString(PREF_SUB_KEY, PREF_SUB_DEFAULT)!! }
 
-    private var SharedPreferences.prefServer
+    protected open var SharedPreferences.prefServer
         by LazyMutable { preferences.getString(PREF_SERVER_KEY, preferredHoster)!! }
 
-    private var SharedPreferences.hostToggle
+    protected open var SharedPreferences.hostToggle: MutableSet<String>
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
 
-    private fun SharedPreferences.clearOldHosts(): SharedPreferences {
+    protected open fun SharedPreferences.clearOldHosts(): SharedPreferences {
         val hostToggle = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet()) ?: return this
         if (hostToggle.all { hosterNames.contains(it) }) {
             return this
@@ -483,42 +484,42 @@ abstract class DopeFlix(
             entryValues = hosterNames,
             default = hosterNames.toSet(),
         ) {
-            preferences.hostToggle = it
+            preferences.hostToggle = it.toMutableSet()
         }
     }
 
     // ============================= Utilities ==============================
-    private fun HttpUrl.Builder.addIfNotBlank(query: String, value: String): HttpUrl.Builder {
+    protected open fun HttpUrl.Builder.addIfNotBlank(query: String, value: String): HttpUrl.Builder {
         if (value.isNotBlank()) {
             addQueryParameter(query, value)
         }
         return this
     }
 
-    private fun Set<String>.contains(s: String, ignoreCase: Boolean): Boolean {
+    protected open fun Set<String>.contains(s: String, ignoreCase: Boolean): Boolean {
         return any { it.equals(s, ignoreCase) }
     }
 
     companion object {
-        private const val PREF_DOMAIN_KEY = "preferred_domain"
-        private const val PREF_DOMAIN_TITLE = "Preferred domain"
+        protected const val PREF_DOMAIN_KEY = "preferred_domain"
+        protected const val PREF_DOMAIN_TITLE = "Preferred domain"
 
-        private const val PREF_QUALITY_KEY = "preferred_quality"
-        private const val PREF_QUALITY_TITLE = "Preferred quality"
-        private val PREF_QUALITY_LIST = listOf("1080p", "720p", "480p", "360p")
-        private val PREF_QUALITY_DEFAULT = PREF_QUALITY_LIST.first()
+        protected const val PREF_QUALITY_KEY = "preferred_quality"
+        protected const val PREF_QUALITY_TITLE = "Preferred quality"
+        protected val PREF_QUALITY_LIST = listOf("1080p", "720p", "480p", "360p")
+        protected val PREF_QUALITY_DEFAULT = PREF_QUALITY_LIST.first()
 
-        private const val PREF_SUB_KEY = "preferred_subLang"
-        private const val PREF_SUB_TITLE = "Preferred sub language"
-        private const val PREF_SUB_DEFAULT = "English"
-        private val PREF_SUB_LANGUAGES = listOf(
+        protected const val PREF_SUB_KEY = "preferred_subLang"
+        protected const val PREF_SUB_TITLE = "Preferred sub language"
+        protected const val PREF_SUB_DEFAULT = "English"
+        protected val PREF_SUB_LANGUAGES = listOf(
             "Arabic", "English", "French", "German", "Hungarian",
             "Italian", "Japanese", "Portuguese", "Romanian", "Russian",
             "Spanish",
         )
 
-        private const val PREF_SERVER_KEY = "preferred_server"
+        protected const val PREF_SERVER_KEY = "preferred_server"
 
-        private const val PREF_HOSTER_KEY = "hoster_selection"
+        protected const val PREF_HOSTER_KEY = "hoster_selection"
     }
 }

@@ -2,11 +2,12 @@ package eu.kanade.tachiyomi.multisrc.dopeflix
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import java.util.Calendar
 
 object DopeFlixFilters {
     open class QueryPartFilter(
         displayName: String,
-        val vals: Array<Pair<String, String>>,
+        private val vals: List<Pair<String, String>>,
     ) : AnimeFilter.Select<String>(
         displayName,
         vals.map { it.first }.toTypedArray(),
@@ -80,28 +81,22 @@ object DopeFlixFilters {
     private object DopeFlixFiltersData {
         val ALL = Pair("All", "all")
 
-        val TYPES = arrayOf(
+        val TYPES = listOf(
             ALL,
             Pair("Movies", "movies"),
             Pair("TV Shows", "tv"),
         )
 
-        val QUALITIES = arrayOf(
+        val QUALITIES = listOf(
             ALL,
             Pair("HD", "HD"),
             Pair("SD", "SD"),
             Pair("CAM", "CAM"),
         )
 
-        val YEARS = arrayOf(
-            ALL,
-            Pair("2025", "2025"),
-            Pair("2024", "2024"),
-            Pair("2023", "2023"),
-            Pair("2022", "2022"),
-            Pair("2021", "2021"),
-            Pair("Older", "older-2021"),
-        )
+        val YEARS = Calendar.getInstance()[Calendar.YEAR].let { current ->
+            mapOf(ALL) + (current downTo 2000).map { "$it" to "$it" }
+        }.toList()
 
         val GENRES = arrayOf(
             Pair("Action", "10"),
