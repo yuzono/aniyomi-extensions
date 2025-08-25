@@ -114,9 +114,14 @@ abstract class DopeFlix(
     }
 
     override fun popularAnimeFromElement(element: Element) = SAnime.create().apply {
-        element.selectFirst("a")!!.let {
-            setUrlWithoutDomain(it.attr("href"))
-            title = it.attr("title")
+        element.selectFirst("a")!!.let { a ->
+            val url = a.attr("href")
+                .removeSuffix("/")
+                .let {
+                    it.substringBeforeLast("/") + "/watch-" + it.substringAfterLast("-")
+                }
+            setUrlWithoutDomain(url)
+            title = a.attr("title")
         }
         thumbnail_url = element.selectFirst("img")!!.attr("data-src")
     }
