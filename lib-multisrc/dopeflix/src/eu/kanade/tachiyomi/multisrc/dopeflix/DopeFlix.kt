@@ -55,19 +55,17 @@ abstract class DopeFlix(
         clearOldHosts()
     }
 
+    override var baseUrl by LazyMutable { preferences.domainUrl }
+
     private var docHeaders by LazyMutable {
         newHeaders()
     }
-
-    override var baseUrl by LazyMutable { preferences.domainUrl }
-
-    private val cacheControl by lazy { CacheControl.Builder().maxAge(6.hours).build() }
 
     private fun newHeaders(): Headers {
         return headers.newBuilder().apply {
             add(
                 "Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             )
             add("Host", baseUrl.toHttpUrl().host)
             add("Referer", "$baseUrl/")
@@ -80,6 +78,8 @@ abstract class DopeFlix(
         add("Referer", referer)
         add("X-Requested-With", "XMLHttpRequest")
     }.build()
+
+    private val cacheControl by lazy { CacheControl.Builder().maxAge(6.hours).build() }
 
     // ============================== Popular ===============================
 
@@ -108,8 +108,8 @@ abstract class DopeFlix(
 
     override fun popularAnimeRequest(page: Int): Request {
         return when (page) {
-            1 -> GET("$baseUrl/home/", apiHeaders(), cacheControl)
-            else -> GET("$baseUrl/movie?page=${page - 1}", apiHeaders(), cacheControl)
+            1 -> GET("$baseUrl/home/", docHeaders, cacheControl)
+            else -> GET("$baseUrl/movie?page=${page - 1}", docHeaders, cacheControl)
         }
     }
 
@@ -145,8 +145,8 @@ abstract class DopeFlix(
 
     override fun latestUpdatesRequest(page: Int): Request {
         return when (page) {
-            1 -> GET("$baseUrl/home/", apiHeaders(), cacheControl)
-            else -> GET("$baseUrl/tv-show?page=${page - 1}", apiHeaders(), cacheControl)
+            1 -> GET("$baseUrl/home/", docHeaders, cacheControl)
+            else -> GET("$baseUrl/tv-show?page=${page - 1}", docHeaders, cacheControl)
         }
     }
 
@@ -175,7 +175,7 @@ abstract class DopeFlix(
             addQueryParameter("page", page.toString())
         }.build()
 
-        return GET(url, apiHeaders(), cacheControl)
+        return GET(url, docHeaders, cacheControl)
     }
 
     override fun searchAnimeFromElement(element: Element) = popularAnimeFromElement(element)
@@ -325,13 +325,12 @@ abstract class DopeFlix(
     override fun videoListSelector() = "a.link-item"
 
     override fun videoListRequest(episode: SEpisode): Request {
-        return GET("$baseUrl${episode.url}", apiHeaders())
+        return GET("$baseUrl${episode.url}", apiHeaders("$baseUrl${episode.url}"))
     }
 
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         client.newCall(videoListRequest(episode)).awaitSuccess().use { response ->
 
-            val episodeReferer = response.request.header("referer")!!
             val hosterSelection = preferences.hostToggle
 
             val serversDoc = response.asJsoup()
@@ -344,7 +343,7 @@ abstract class DopeFlix(
                 if (hosterSelection.contains(name, true).not()) return@parallelMapNotNull null
 
                 val link = client.newCall(
-                    GET("$baseUrl/ajax/episode/sources/$id", apiHeaders(episodeReferer)),
+                    GET("$baseUrl/ajax/episode/sources/$id", apiHeaders("$baseUrl${episode.url}")),
                 ).await().parseAs<SourcesResponse>().link ?: ""
 
                 VideoData(link, name)
@@ -364,7 +363,7 @@ abstract class DopeFlix(
         }
     }
 
-    private var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, docHeaders, megaCloudApi) }
+    private var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
 
     private fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {

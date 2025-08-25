@@ -59,7 +59,7 @@ class DopeFlixExtractor(
         val megaCloudServerUrl = "https://$host"
 
         val megaCloudHeaders = headers.newBuilder()
-            .add("Accept", "*/*")
+            .add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
             .add("X-Requested-With", "XMLHttpRequest")
             .add("Referer", "${megaCloudServerUrl}/")
             .build()
@@ -96,7 +96,7 @@ class DopeFlixExtractor(
                     .execute().use { it.body.string() }
                 Regex("\"file\":\"(.*?)\"")
                     .find(decryptedResponse)
-                    ?.groupValues?.get(1)
+                    ?.groupValues?.getOrNull(1)
                     ?: throw Exception("Video URL not found in decrypted response")
             }
 
