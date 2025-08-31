@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.ar.faselhd
 
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
@@ -12,6 +11,7 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.addListPreference
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -24,15 +24,13 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "فاصل اعلاني"
 
-    override val baseUrl = "https://www.faselhd.pro"
+    override val baseUrl = "https://www.faselhds.life"
 
     override val lang = "ar"
 
     override val supportsLatest = true
 
     private val preferences by getPreferencesLazy()
-
-    private val webViewResolver by lazy { WebViewResolver() }
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
@@ -49,8 +47,10 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun popularAnimeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
         anime.setUrlWithoutDomain(element.attr("href"))
-        anime.title = element.select("div.imgdiv-class img").attr("alt")
-        anime.thumbnail_url = element.select("div.imgdiv-class img").attr("data-src")
+        element.select("div.imgdiv-class img").let {
+            anime.title = it.attr("alt")
+            anime.thumbnail_url = it.attr("data-src")
+        }
         return anime
     }
 
@@ -106,11 +106,21 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun videoListSelector() = throw UnsupportedOperationException()
 
+    private val videoRegex = Regex("""(https?:)?//[^"]+\.m3u8""")
+    private val masterRegex = Regex("""(https?:)?//[^"]+master\.m3u8""")
+
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
         val iframe = document.selectFirst("iframe")!!.attr("src").substringBefore("&img")
-        val webViewResult = webViewResolver.getUrl(iframe, headers)
-        return if (webViewResult.isNotBlank()) playlistUtils.extractFromHls(webViewResult) else emptyList()
+        client.newCall(GET(iframe, headers)).execute().use {
+            val body = it.asJsoup().html()
+            val playlist = masterRegex.find(body)?.value
+                ?: videoRegex.find(body)?.value
+            playlist?.let {
+                return playlistUtils.extractFromHls(it)
+            }
+        }
+        return emptyList()
     }
 
     override fun List<Video>.sort(): List<Video> {
@@ -263,21 +273,13 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // preferred quality settings
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val videoQualityPref = ListPreference(screen.context).apply {
-            key = "preferred_quality"
-            title = "Preferred quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p")
-            entryValues = arrayOf("1080", "720", "480", "360")
-            setDefaultValue("1080")
-            summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }
-        screen.addPreference(videoQualityPref)
+        screen.addListPreference(
+            key = "preferred_quality",
+            title = "Preferred quality",
+            entries = listOf("1080p", "720p", "480p", "360p"),
+            entryValues = listOf("1080", "720", "480", "360"),
+            default = "1080",
+            summary = "%s",
+        )
     }
 }
