@@ -114,7 +114,7 @@ abstract class DopeFlix(
     }
 
     override fun popularAnimeFromElement(element: Element) = SAnime.create().apply {
-        element.selectFirst("a")!!.let { a ->
+        element.selectFirst("a")?.let { a ->
             val url = a.attr("href")
                 .removeSuffix("/")
                 .let {
@@ -123,7 +123,7 @@ abstract class DopeFlix(
             setUrlWithoutDomain(url)
             title = a.attr("title")
         }
-        thumbnail_url = element.selectFirst("img")!!.attr("data-src")
+        thumbnail_url = element.selectFirst("img")?.attr("data-src")
     }
 
     override fun popularAnimeNextPageSelector() = "ul.pagination li.page-item a[title=next]"
@@ -200,8 +200,8 @@ abstract class DopeFlix(
     protected open val detailInfoSelector by lazy { "div.detail_page-infor" }
 
     override fun animeDetailsParse(document: Document) = SAnime.create().apply {
-        document.selectFirst(detailInfoSelector)!!.run {
-            thumbnail_url = selectFirst("div.film-poster img")!!.attr("src")
+        document.selectFirst(detailInfoSelector)?.run {
+            thumbnail_url = selectFirst("div.film-poster img")?.attr("src")
             author = getInfo(tag = "Production:", isList = true)
             genre = getInfo("Genre:", isList = true)
 
