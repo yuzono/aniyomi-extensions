@@ -291,10 +291,10 @@ abstract class DopeFlix(
         }
     }
 
-    protected open suspend fun seasonFromElement(element: Element): List<SEpisode> = client.runCatching {
+    protected open suspend fun seasonFromElement(element: Element): List<SEpisode> = runCatching {
         val season = element.elementSiblingIndex() + 1
         val seasonId = element.attr("data-id")
-        newCall(GET("$baseUrl/ajax/season/episodes/$seasonId", apiHeaders()))
+        client.newCall(GET("$baseUrl/ajax/season/episodes/$seasonId", apiHeaders()))
             .awaitSuccess().use { response ->
                 response.asJsoup().select(episodeListSelector()).map {
                     it.attr("data-season", "%02d".format(season)).let(::episodeFromElement)
@@ -346,7 +346,7 @@ abstract class DopeFlix(
                     .ifEmpty { it.attr("data-id") }
                 val name = it.select("span").text()
 
-                if (hosterSelection.any { it.equals(name, true) }.not()) return@parallelMapNotNull null
+                if (hosterSelection.none { it.equals(name, true) }) return@parallelMapNotNull null
 
                 val link = client.newCall(
                     GET("$baseUrl/ajax/episode/sources/$id", apiHeaders("$baseUrl${episode.url}")),
