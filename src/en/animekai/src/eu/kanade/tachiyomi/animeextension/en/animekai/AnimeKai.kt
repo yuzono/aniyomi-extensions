@@ -125,8 +125,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // =========================== Anime Details ============================
 
     override fun animeDetailsParse(document: Document): SAnime {
-        val anime = SAnime.create()
-        anime.apply {
+        return SAnime.create().apply {
             thumbnail_url = document.select(".poster img").attr("src")
 
             document.selectFirst("div#main-entity")!!.let { info ->
@@ -135,8 +134,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val altTitle = info.selectFirst(".al-title")?.text().orEmpty()
                 val rating = info.selectFirst(".rating")?.text().orEmpty()
 
-                info.selectFirst(".detail")?.let { detail ->
-                    author = detail.getInfo("Studios:")
+                info.selectFirst(".detail div")?.let { detail ->
+                    author = detail.getInfo("Studios:", isList = true)
+                        ?: detail.getInfo("Producers:", isList = true)
                     status = detail.getInfo("Status:")?.run(::parseStatus) ?: SAnime.UNKNOWN
                     genre = detail.getInfo("Genres:", isList = true)
 
@@ -147,12 +147,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                         detail.getInfo("Date aired:", full = true)?.also(::append)
                         detail.getInfo("Broadcast:", full = true)?.also(::append)
                         detail.getInfo("Duration:", full = true)?.also(::append)
-                        if (rating.isNotBlank()) append("\nRating: $rating")
+                        if (rating.isNotBlank()) append("\n**Rating:** $rating")
                         detail.getInfo("MAL:", full = true)?.also(::append)
                         if (altTitle.isNotBlank()) {
                             altTitle.replace("$title;", "")
                                 .trim().takeIf { it.isNotBlank() }
-                                ?.let { append("\nAlternative Title: $it") }
+                                ?.let { append("\n**Alternative Title:** $it") }
                         }
                         detail.select("div:contains(Links:) a").forEach {
                             append("\n[${it.text()}](${it.attr("href")})")
@@ -162,7 +162,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 }
             }
         }
-        return anime
     }
 
     private fun Element.getInfo(
@@ -171,11 +170,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         full: Boolean = false,
     ): String? {
         if (isList) {
-            return select("div:contains($tag) > a").eachText().joinToString()
+            return select("div:contains($tag) a").eachText().joinToString()
         }
         val value = selectFirst("div:contains($tag)")
             ?.text()?.removePrefix(tag)?.trim()
-        return if (full && value != null) "\n$tag $value" else value
+        return if (full && value != null) "\n**$tag** $value" else value
     }
 
     // ============================== Episodes ==============================
@@ -184,7 +183,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val animeId = client.newCall(animeDetailsRequest(anime))
             .execute().use {
                 val document = it.asJsoup()
-                //document.selectFirst("div.rate-box")?.attr("data-id")
+                // document.selectFirst("div.rate-box")?.attr("data-id")
                 document.selectFirst("div[data-id]")?.attr("data-id")
                     ?: throw IllegalStateException("Anime ID not found")
             }
