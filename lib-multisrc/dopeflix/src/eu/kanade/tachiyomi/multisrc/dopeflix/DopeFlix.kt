@@ -346,7 +346,7 @@ abstract class DopeFlix(
                     .ifEmpty { it.attr("data-id") }
                 val name = it.select("span").text()
 
-                if (hosterSelection.contains(name, true).not()) return@parallelMapNotNull null
+                if (hosterSelection.any { it.equals(name, true) }.not()) return@parallelMapNotNull null
 
                 val link = client.newCall(
                     GET("$baseUrl/ajax/episode/sources/$id", apiHeaders("$baseUrl${episode.url}")),
@@ -499,10 +499,6 @@ abstract class DopeFlix(
             addQueryParameter(query, value)
         }
         return this
-    }
-
-    protected open fun Set<String>.contains(s: String, ignoreCase: Boolean): Boolean {
-        return any { it.equals(s, ignoreCase) }
     }
 
     companion object {
