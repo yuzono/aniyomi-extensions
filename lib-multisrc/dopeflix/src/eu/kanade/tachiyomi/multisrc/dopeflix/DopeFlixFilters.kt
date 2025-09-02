@@ -95,7 +95,7 @@ object DopeFlixFilters {
         )
 
         val YEARS = Calendar.getInstance()[Calendar.YEAR].let { current ->
-            mapOf(ALL) + (current downTo 2000).map { "$it" to "$it" }
+            mapOf(ALL) + (current downTo 2021).map { "$it" to "$it" } + Pair("Older", "older-2021")
         }.toList()
 
         val GENRES = arrayOf(
