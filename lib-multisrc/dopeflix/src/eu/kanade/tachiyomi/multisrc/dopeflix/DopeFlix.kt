@@ -350,7 +350,8 @@ abstract class DopeFlix(
 
                 val link = client.newCall(
                     GET("$baseUrl/ajax/episode/sources/$id", apiHeaders("$baseUrl${episode.url}")),
-                ).await().parseAs<SourcesResponse>().link ?: ""
+                ).await().parseAs<SourcesResponse>().link
+                    ?: return@parallelMapNotNull null
 
                 VideoData(link, name)
             }
@@ -369,7 +370,7 @@ abstract class DopeFlix(
         }
     }
 
-    protected open var dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
+    protected open val dopeFlixExtractor by LazyMutable { DopeFlixExtractor(client, headers, megaCloudApi) }
 
     protected open fun extractVideo(server: VideoData): List<Video> {
         return when (server.name) {
@@ -445,7 +446,6 @@ abstract class DopeFlix(
             baseUrl = it
             preferences.domainUrl = it
             docHeaders = newHeaders()
-            dopeFlixExtractor = DopeFlixExtractor(client, docHeaders, megaCloudApi)
         }
 
         screen.addListPreference(

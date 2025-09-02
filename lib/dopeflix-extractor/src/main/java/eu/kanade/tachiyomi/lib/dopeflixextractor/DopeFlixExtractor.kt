@@ -113,7 +113,7 @@ class DopeFlixExtractor(
                 if (jsonStr.isEmpty()) throw IllegalStateException("keys.json is empty")
                 val key = json.decodeFromString<Map<String, String>>(jsonStr)["mega"]
                     ?: throw IllegalStateException("Mega key not found in keys.json")
-                Log.i("MegaCloudExtractor", "Using Mega Key: $key")
+                Log.d("MegaCloudExtractor", "Using Mega Key: $key")
                 key
             }
 
