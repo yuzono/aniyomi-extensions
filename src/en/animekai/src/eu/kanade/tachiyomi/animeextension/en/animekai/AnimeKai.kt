@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.animekai
 
-import android.util.Log
 import android.webkit.URLUtil
 import android.widget.Toast
 import androidx.preference.EditTextPreference
@@ -9,7 +8,6 @@ import androidx.preference.MultiSelectListPreference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.animeextension.BuildConfig
-import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiUtils.vrfEncrypt
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -22,7 +20,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelFlatMapBlocking
-import eu.kanade.tachiyomi.util.parallelMapBlocking
+import eu.kanade.tachiyomi.util.parallelMapNotNullBlocking
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
@@ -33,8 +31,6 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.injectLazy
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -198,13 +194,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     ?: throw IllegalStateException("Anime ID not found")
             }
 
-        val vrf = vrfEncrypt(animeId)
-        Log.e("AnimeKai", "Anime ID: $animeId, vrf: $vrf")
-
         val decoded = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$animeId"))
             .execute().use { it.body.string() }
-        Log.e("AnimeKai", "Anime ID: $animeId, token: $decoded")
-        return GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded")
+        return GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", headers)
     }
 
     override fun episodeListSelector() = "div.eplist a"
@@ -216,50 +208,52 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val document = response.parseAs<ResultResponse>().toDocument()
 
         val episodeElements = document.select(episodeListSelector())
-        return episodeElements.parallelMapBlocking { episodeFromElement(it, animeUrl) }.reversed()
+        return episodeElements.parallelMapNotNullBlocking {
+            runCatching {
+                episodeFromElement(it, animeUrl)
+            }.getOrNull()
+        }.reversed()
     }
 
     override fun episodeFromElement(element: Element): SEpisode = throw UnsupportedOperationException()
 
     private fun episodeFromElement(element: Element, animeUrl: String): SEpisode {
-        val title = element.parent()?.attr("title") ?: ""
+        val token = element.attr("token").takeIf { it.isNotEmpty() } ?: throw IllegalStateException("Token not found")
+        val epNum = element.attr("num")
+        val sub = if (element.attr("langs").toInt() == 1) "Sub" else ""
+        val dub = if (element.attr("langs").toInt() == 3) "Dub" else ""
 
-        val epNum = element.attr("data-num")
-        val ids = element.attr("data-ids")
-        val sub = if (element.attr("data-sub").toInt() == 1) "Sub" else ""
-        val dub = if (element.attr("data-dub").toInt() == 1) "Dub" else ""
-        val softSub = if (SOFTSUB_REGEX.find(title) != null) "SoftSub" else ""
-
-        val name = element.parent()?.select("span.d-title")?.text().orEmpty()
         val namePrefix = "Episode $epNum"
+        val name = element.selectFirst("span")?.text()
+            ?.takeIf { it.isNotBlank() && it != namePrefix }
+            ?.let { ": $it" }
+            .orEmpty()
 
         return SEpisode.create().apply {
-            this.name = "Episode $epNum" +
-                if (name.isNotEmpty() && name != namePrefix) ": $name" else ""
-            this.url = "$ids&epurl=$animeUrl/ep-$epNum"
+            this.name = namePrefix + name
+            this.url = token
             episode_number = epNum.toFloat()
-            date_upload = RELEASE_REGEX.find(title)?.let {
-                parseDate(it.groupValues[1])
-            } ?: 0L
-            scanlator = arrayOf(sub, softSub, dub).filter(String::isNotBlank).joinToString()
+            scanlator = arrayOf(sub, dub).filter(String::isNotBlank).joinToString()
         }
     }
 
     // ============================ Video Links =============================
 
     override fun videoListRequest(episode: SEpisode): Request {
-        val ids = episode.url.substringBefore("&")
-        val vrf = vrfEncrypt(ids)
-        val url = "/ajax/server/list/$ids?vrf=$vrf"
-        val epurl = episode.url.substringAfter("epurl=")
+        val token = episode.url
+        val decodedToken = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$token"))
+            .execute().use { it.body.string() }
 
-        val listHeaders = headers.newBuilder().apply {
-            add("Accept", "application/json, text/javascript, */*; q=0.01")
-            add("Referer", baseUrl + epurl)
-            add("X-Requested-With", "XMLHttpRequest")
-        }.build()
+//        val url = "/ajax/server/list/$ids?vrf="
+//        val epurl = episode.url.substringAfter("epurl=")
 
-        return GET("$baseUrl$url", listHeaders)
+//        val listHeaders = headers.newBuilder().apply {
+//            add("Accept", "application/json, text/javascript, */*; q=0.01")
+//            add("Referer", baseUrl + epurl)
+//            add("X-Requested-With", "XMLHttpRequest")
+//        }.build()
+
+        return GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", headers)
     }
 
     data class VideoData(
@@ -273,16 +267,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             ?: throw IllegalStateException("Referrer header not found in request")
         val epurl = referer.toHttpUrl().encodedPath
         val document = response.parseAs<ResultResponse>().toDocument()
-        val hosterSelection = getHosters()
-        val typeSelection = preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, PREF_TYPES_TOGGLE_DEFAULT)!!
 
-        return document.select("div.servers > div").parallelFlatMapBlocking { elem ->
-            val type = elem.attr("data-type").replaceFirstChar { it.uppercase() }
-            elem.select("li").mapNotNull { serverElement ->
-                val serverId = serverElement.attr("data-link-id")
-                val serverName = serverElement.text().lowercase()
-                if (hosterSelection.contains(serverName, true).not()) return@mapNotNull null
-                if (typeSelection.contains(type, true).not()) return@mapNotNull null
+        return document.select("div.server-items").parallelFlatMapBlocking { elem ->
+            val type = elem.attr("data-id").replaceFirstChar { it.uppercase() }
+            elem.select("data-lid").mapNotNull { serverElement ->
+                val serverId = serverElement.attr("data-lid")
+                val serverName = serverElement.text()
 
                 VideoData(type, serverId, serverName)
             }
@@ -411,12 +401,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         )
     }
 
-    @Synchronized
-    private fun parseDate(dateStr: String): Long {
-        return runCatching { DATE_FORMATTER.parse(dateStr)?.time }
-            .getOrNull() ?: 0L
-    }
-
     private fun parseStatus(statusString: String): Int {
         return when (statusString) {
             "Finished Airing" -> SAnime.COMPLETED
@@ -456,13 +440,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     companion object {
         private const val DOMAIN = "animekai.to"
-
-        private val SOFTSUB_REGEX by lazy { Regex("""\bsoftsub\b""", RegexOption.IGNORE_CASE) }
-        private val RELEASE_REGEX by lazy { Regex("""Release: (\d+/\d+/\d+ \d+:\d+)""") }
-
-        private val DATE_FORMATTER by lazy {
-            SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.ENGLISH)
-        }
 
         private const val PREF_DOMAIN_KEY = "preferred_domain"
         private const val PREF_DOMAIN_DEFAULT = "https://$DOMAIN"
