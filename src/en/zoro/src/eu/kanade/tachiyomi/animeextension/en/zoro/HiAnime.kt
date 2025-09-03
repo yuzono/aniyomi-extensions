@@ -92,7 +92,10 @@ class HiAnime :
             "hianime.is",
             "hianime.bz",
             "hianime.pe",
+            "hianime.cx",
+            "hianime.do",
             "hianimez.is",
+            "hianimez.to",
         )
         private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
         private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
