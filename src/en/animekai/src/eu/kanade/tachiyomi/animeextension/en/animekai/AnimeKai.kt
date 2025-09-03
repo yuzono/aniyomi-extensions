@@ -134,30 +134,30 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val altTitle = info.selectFirst(".al-title")?.text().orEmpty()
                 val rating = info.selectFirst(".rating")?.text().orEmpty()
 
-                info.selectFirst(".detail div")?.let { detail ->
-                    author = detail.getInfo("Studios:", isList = true)
-                        ?: detail.getInfo("Producers:", isList = true)
+                info.selectFirst("div.detail")?.let { detail ->
+                    author = detail.getInfo("Studios:", isList = true)?.takeIf { it.isNotEmpty() }
+                        ?: detail.getInfo("Producers:", isList = true)?.takeIf { it.isNotEmpty() }
                     status = detail.getInfo("Status:")?.run(::parseStatus) ?: SAnime.UNKNOWN
                     genre = detail.getInfo("Genres:", isList = true)
 
                     description = buildString {
                         info.selectFirst(".desc")?.text()?.let { append(it + "\n") }
-                        detail.getInfo("Country:", full = true)?.also(::append)
-                        detail.getInfo("Premiered:", full = true)?.also(::append)
-                        detail.getInfo("Date aired:", full = true)?.also(::append)
-                        detail.getInfo("Broadcast:", full = true)?.also(::append)
-                        detail.getInfo("Duration:", full = true)?.also(::append)
+                        detail.getInfo("Country:", full = true)?.run(::append)
+                        detail.getInfo("Premiered:", full = true)?.run(::append)
+                        detail.getInfo("Date aired:", full = true)?.run(::append)
+                        detail.getInfo("Broadcast:", full = true)?.run(::append)
+                        detail.getInfo("Duration:", full = true)?.run(::append)
                         if (rating.isNotBlank()) append("\n**Rating:** $rating")
-                        detail.getInfo("MAL:", full = true)?.also(::append)
+                        detail.getInfo("MAL:", full = true)?.run(::append)
                         if (altTitle.isNotBlank()) {
                             altTitle.replace("$title;", "")
                                 .trim().takeIf { it.isNotBlank() }
                                 ?.let { append("\n**Alternative Title:** $it") }
                         }
-                        detail.select("div:contains(Links:) a").forEach {
+                        detail.select("div div div:contains(Links:) a").forEach {
                             append("\n[${it.text()}](${it.attr("href")})")
                         }
-                        append("Img here")
+                        document.getCover()?.let { append("\n\n![Cover]($it)") }
                     }
                 }
             }
@@ -170,11 +170,21 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         full: Boolean = false,
     ): String? {
         if (isList) {
-            return select("div:contains($tag) a").eachText().joinToString()
+            return select("div div div:contains($tag) a").eachText().joinToString()
         }
-        val value = selectFirst("div:contains($tag)")
+        val value = selectFirst("div div div:contains($tag)")
             ?.text()?.removePrefix(tag)?.trim()
         return if (full && value != null) "\n**$tag** $value" else value
+    }
+
+    private val coverUrlRegex by lazy { """background-image:\s*url\(["']?([^"')]+)["']?\)""".toRegex() }
+    private val coverSelector by lazy { "div.watch-section-bg" }
+
+    private fun Document.getCover(): String? {
+        return selectFirst(coverSelector)?.let {
+            val style = it.attr("style")
+            coverUrlRegex.find(style)?.groupValues?.getOrNull(1)
+        }
     }
 
     // ============================== Episodes ==============================
