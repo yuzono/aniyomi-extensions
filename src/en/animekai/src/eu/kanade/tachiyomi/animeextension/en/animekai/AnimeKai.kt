@@ -210,8 +210,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             ?: throw IllegalStateException("Token not found")
         val epNum = element.attr("num")
         val subdubType = element.attr("langs").toIntOrNull() ?: 0
-        val sub = if (subdubType == 1) "Sub" else ""
-        val dub = if (subdubType == 3) "Dub" else ""
+        val subdub = when (subdubType) {
+            1 -> "Soft-Sub / Hard-Sub"
+            3 -> "Dub / Soft-Sub / Hard-Sub"
+            else -> ""
+        }
 
         val namePrefix = "Episode $epNum"
         val name = element.selectFirst("span")?.text()
@@ -223,7 +226,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             this.name = namePrefix + name
             this.url = token
             episode_number = epNum.toFloat()
-            scanlator = arrayOf(sub, dub).filter(String::isNotBlank).joinToString()
+            scanlator = subdub
         }
     }
 
@@ -239,7 +242,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val document = response.parseAs<ResultResponse>().toDocument()
                 document.select("div.server-items[data-id]")
                     .flatMap { typeElm ->
-                        val type = typeElm.attr("data-id").replaceFirstChar { it.uppercase() }
+                        val type = typeElm.attr("data-id")
                         typeElm.select("span.server[data-lid]")
                             .map { serverElm ->
                                 val serverId = serverElm.attr("data-lid")
@@ -286,8 +289,13 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 }
             }
 
-        val nameSuffix = if (type == "Softsub") "Soft Sub" else type
-        val name = "$serverName | [$nameSuffix]"
+        val typeSuffix = when(type) {
+            "sub" -> "Hard Sub"
+            "softsub" -> "Soft Sub"
+            "dub" -> "Dub & S-Sub"
+            else -> type
+        }
+        val name = "$serverName | [$typeSuffix]"
 
         return runCatching {
             universalExtractor.videosFromUrl(iframe, headers, name)
