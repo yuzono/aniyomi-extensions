@@ -12,25 +12,21 @@ import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
-import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
-import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelFlatMapBlocking
-import eu.kanade.tachiyomi.util.parallelMapNotNullBlocking
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
-import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.injectLazy
 
 class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -48,8 +44,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val lang = "en"
 
     override val supportsLatest = true
-
-    private val json: Json by injectLazy()
 
     private val preferences by getPreferencesLazy()
 
@@ -189,7 +183,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val animeId = client.newCall(animeDetailsRequest(anime))
             .execute().use {
                 val document = it.asJsoup()
-                // document.selectFirst("div.rate-box")?.attr("data-id")
                 document.selectFirst("div[data-id]")?.attr("data-id")
                     ?: throw IllegalStateException("Anime ID not found")
             }
@@ -202,26 +195,23 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun episodeListSelector() = "div.eplist a"
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val referer = response.request.header("Referer")
-            ?: throw IllegalStateException("Referrer header not found in request")
-        val animeUrl = referer.toHttpUrl().encodedPath
         val document = response.parseAs<ResultResponse>().toDocument()
 
         val episodeElements = document.select(episodeListSelector())
-        return episodeElements.parallelMapNotNullBlocking {
+        return episodeElements.mapNotNull {
             runCatching {
-                episodeFromElement(it, animeUrl)
+                episodeFromElement(it)
             }.getOrNull()
         }.reversed()
     }
 
-    override fun episodeFromElement(element: Element): SEpisode = throw UnsupportedOperationException()
-
-    private fun episodeFromElement(element: Element, animeUrl: String): SEpisode {
-        val token = element.attr("token").takeIf { it.isNotEmpty() } ?: throw IllegalStateException("Token not found")
+    override fun episodeFromElement(element: Element): SEpisode {
+        val token = element.attr("token").takeIf { it.isNotEmpty() }
+            ?: throw IllegalStateException("Token not found")
         val epNum = element.attr("num")
-        val sub = if (element.attr("langs").toInt() == 1) "Sub" else ""
-        val dub = if (element.attr("langs").toInt() == 3) "Dub" else ""
+        val subdubType = element.attr("langs").toIntOrNull() ?: 0
+        val sub = if (subdubType == 1) "Sub" else ""
+        val dub = if (subdubType == 3) "Dub" else ""
 
         val namePrefix = "Episode $epNum"
         val name = element.selectFirst("span")?.text()
@@ -239,45 +229,30 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================ Video Links =============================
 
-    override fun videoListRequest(episode: SEpisode): Request {
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val token = episode.url
         val decodedToken = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$token"))
-            .execute().use { it.body.string() }
+            .awaitSuccess().use { it.body.string() }
 
-//        val url = "/ajax/server/list/$ids?vrf="
-//        val epurl = episode.url.substringAfter("epurl=")
+        val servers = client.newCall(GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", headers))
+            .awaitSuccess().use { response ->
+                val document = response.parseAs<ResultResponse>().toDocument()
+                document.select("div.server-items[data-id]")
+                    .flatMap { typeElm ->
+                        val type = typeElm.attr("data-id").replaceFirstChar { it.uppercase() }
+                        typeElm.select("span.server[data-lid]")
+                            .map { serverElm ->
+                                val serverId = serverElm.attr("data-lid")
+                                val serverName = serverElm.text()
 
-//        val listHeaders = headers.newBuilder().apply {
-//            add("Accept", "application/json, text/javascript, */*; q=0.01")
-//            add("Referer", baseUrl + epurl)
-//            add("X-Requested-With", "XMLHttpRequest")
-//        }.build()
-
-        return GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", headers)
-    }
-
-    data class VideoData(
-        val type: String,
-        val serverId: String,
-        val serverName: String,
-    )
-
-    override fun videoListParse(response: Response): List<Video> {
-        val referer = response.request.header("Referer")
-            ?: throw IllegalStateException("Referrer header not found in request")
-        val epurl = referer.toHttpUrl().encodedPath
-        val document = response.parseAs<ResultResponse>().toDocument()
-
-        return document.select("div.server-items").parallelFlatMapBlocking { elem ->
-            val type = elem.attr("data-id").replaceFirstChar { it.uppercase() }
-            elem.select("data-lid").mapNotNull { serverElement ->
-                val serverId = serverElement.attr("data-lid")
-                val serverName = serverElement.text()
-
-                VideoData(type, serverId, serverName)
+                                VideoData(type, serverId, serverName)
+                            }
+                    }
             }
+
+        return servers.parallelCatchingFlatMap { server ->
+            extractVideo(server)
         }
-            .parallelFlatMapBlocking { extractVideo(it, epurl) }
     }
 
     override fun videoListSelector() = throw UnsupportedOperationException()
@@ -288,105 +263,35 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================= Utilities ==============================
 
-    private val playlistUtils by lazy { PlaylistUtils(client, headers) }
-//    private val vidsrcExtractor by lazy { VidsrcExtractor(client, headers) }
-//    private val filemoonExtractor by lazy { FilemoonExtractor(client) }
-//    private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
-//    private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
-    private fun extractVideo(server: VideoData, epUrl: String): List<Video> {
-        /**
-         * Calling server script and return the encrypted JSON response here, will work on decrypting it later.
-         */
-//        val vrf = utils.vrfEncrypt(server.serverId)
-//
-//        val listHeaders = headers.newBuilder().apply {
-//            add("Accept", "application/json, text/javascript, */*; q=0.01")
-//            add("Referer", baseUrl + epUrl)
-//            add("X-Requested-With", "XMLHttpRequest")
-//        }.build()
-//
-//        val response = client.newCall(
-//            GET("$baseUrl/ajax/server/${server.serverId}?vrf=$vrf", listHeaders),
-//        ).execute()
-//        if (response.code != 200) return emptyList()
+    private suspend fun extractVideo(server: VideoData): List<Video> {
+        val (type, lid, serverName) = server
+
+        val decodedLid = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$lid"))
+            .awaitSuccess().use { it.body.string() }
+
+        val encodedLink = client.newCall(GET("$baseUrl/ajax/links/view?id=$lid&_=$decodedLid", headers))
+            .awaitSuccess().use { json ->
+                json.parseAs<ResultResponse>().result
+            }
+
+        val iframe = client.newCall(GET("${BuildConfig.KAISVA}/?f=d&d=$encodedLink"))
+            .awaitSuccess().use { json ->
+                val url = json.parseAs<IframeResponse>().url
+                if (url.contains("?")) {
+                    "$url&autostart=true"
+                } else {
+                    "$url?autostart=true"
+                }
+            }
+
+        val nameSuffix = if (type == "Softsub") "Soft Sub" else type
+        val name = "$serverName | [$nameSuffix]"
 
         return runCatching {
-//            val parsed = response.parseAs<ServerResponse>()
-//            val embedLink = utils.vrfDecrypt(parsed.result.url)
-            when (server.serverName) {
-                "f4 - noads" -> videosFromUrl(server.serverId, "F4 - Noads", server.type)
-//                "vidstream" -> vidsrcExtractor.videosFromUrl(embedLink, "Vidstream", server.type)
-//                "megaf" -> vidsrcExtractor.videosFromUrl(embedLink, "MegaF", server.type)
-//                "moonf" -> filemoonExtractor.videosFromUrl(embedLink, "MoonF - ${server.type} - ")
-//                "streamtape" -> streamtapeExtractor.videoFromUrl(embedLink, "StreamTape - ${server.type}")?.let(::listOf) ?: emptyList()
-//                "mp4u" -> mp4uploadExtractor.videosFromUrl(embedLink, headers, suffix = " - ${server.type}")
-                else -> emptyList()
-            }
+            universalExtractor.videosFromUrl(iframe, headers, name)
         }.getOrElse { emptyList() }
-    }
-
-    // one-piece-episode-1128-ep-id-1128-sv-id-41
-    private val episodeUrlRegex = Regex("""([\w-]+)-episode-(\d+)""")
-
-    // sources:[{"file":"https://hlsx3cdn.echovideo.to/one-piece/1128/master.m3u8","quality":"default"},{"file":"https://hlsx3cdn.echovideo.to/one-piece/1128/master.m3u8","quality":"default"}]
-    // sources:[{"file":"https://hlsx112cdn.echovideo.to/embed-2/3326505230727/11262573528/1/1/0f37b1b5b55ea4d35fab74f86f8768aba2cc09a5/master.m3u8","quality":"default"}],tracks:[{"file":"https://s.megastatics.com/subtitle/c1c05d1df7016a987f7f0277170a602f/c1c05d1df7016a987f7f0277170a602f.vtt","label":"English","kind":"captions","default":true}]
-    private val playlistRegex = Regex("""sources:\[\{"file":"([^"]+)"(.*tracks:.*)?""")
-    private val subtitlesRegex = Regex("""\{"file":"([^"]+)","label":"([^"]+)","kind":"captions"""")
-
-    private fun videosFromUrl(
-        embedLink: String,
-        hosterName: String,
-        type: String = "",
-    ): List<Video> {
-        val matchResult = episodeUrlRegex.find(embedLink)
-            ?: throw IllegalStateException("Episode ID not found in embed link: $embedLink")
-        val episodeId = matchResult.groupValues[0]
-        val animeName = matchResult.groupValues[1]
-        val episodeNumber = matchResult.groupValues[2]
-
-        // Should construct this link:
-        // $baseUrl/ajax/player/?ep=one-piece-episode-1280&dub=false&sn=one-piece&epn=1130&g=true&autostart=true
-        val url = baseUrl.toHttpUrl().newBuilder().apply {
-            addPathSegment("ajax")
-            addPathSegment("player")
-            addQueryParameter("ep", episodeId)
-            addQueryParameter("dub", (type.lowercase() == "dub").toString())
-            addQueryParameter("sn", animeName) // Might need to add "-dub" if type is "Dub"
-            if (type == "S-sub") {
-                addQueryParameter("svr", "z")
-            }
-            addQueryParameter("epn", episodeNumber)
-            addQueryParameter("g", "true")
-        }
-
-        val response = client.newCall(GET(url.build() /*refererHeaders*/)).execute()
-        if (response.code != 200) {
-            throw IllegalStateException("Failed to fetch video links: ${response.message}")
-        }
-
-        val data = response.body.string()
-
-        val sources = playlistRegex.find(data)?.groupValues
-            ?: throw IllegalStateException("Playlist URL not found in response: $data")
-        val playlistUrl = sources[1]
-
-        val subtitles = sources[2].let { tracks ->
-            subtitlesRegex.findAll(tracks)
-                .map { it.groupValues.drop(1) }
-                .map { Pair(it[0], it[1]) }
-        }
-
-        return playlistUtils.extractFromHls(
-            playlistUrl = playlistUrl,
-            referer = "$baseUrl/",
-            videoNameGen = { q -> hosterName + (if (type.isBlank()) "" else " - $type") + " - $q" },
-            subtitleList = subtitles.map { (file, label) -> Track(url = file, lang = label) }.toList(),
-        )
-    }
-
-    private fun Set<String>.contains(s: String, ignoreCase: Boolean): Boolean {
-        return any { it.equals(s, ignoreCase) }
     }
 
     override fun List<Video>.sort(): List<Video> {
@@ -407,16 +312,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "Releasing" -> SAnime.ONGOING
             else -> SAnime.UNKNOWN
         }
-    }
-
-    private fun resolveSearchAnime(document: Document): Document {
-        if (document.location().startsWith("$baseUrl/filter?keyword=")) { // redirected to search
-            val element = document.selectFirst(searchAnimeSelector())
-            val foundAnimePath = element?.selectFirst("a[href]")?.attr("href")
-                ?: throw IllegalStateException("Search element not found (resolveSearch)")
-            return client.newCall(GET(baseUrl + foundAnimePath)).execute().asJsoup()
-        }
-        return document
     }
 
     private fun getHosters(): Set<String> {

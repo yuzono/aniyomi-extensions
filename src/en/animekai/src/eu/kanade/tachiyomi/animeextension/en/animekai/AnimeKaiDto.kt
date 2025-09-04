@@ -4,6 +4,12 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
+data class VideoData(
+    val type: String,
+    val serverId: String,
+    val serverName: String,
+)
+
 @Serializable
 data class ResultResponse(
     val result: String,
@@ -13,27 +19,16 @@ data class ResultResponse(
     }
 }
 
+// {"url":"https:\/\/megaup.site\/e\/0cv1ZHy0WSyJcOLwFrpK6BPpCQ","skip":...}
 @Serializable
-data class Image(
-    val coverType: String?,
-    val url: String?,
+data class IframeResponse(
+    val url: String,
+    val skip: SkipDto?,
 )
 
+// "skip":{"intro":[0,0],"outro":[0,0]}
 @Serializable
-data class Episode(
-    val episode: String?,
-    val airDate: String?, // Keeping only one field
-    val runtime: Int?, // Keeping only one field
-    val image: String?,
-    val title: Map<String, String>?,
-    val overview: String?,
-    val rating: String?,
-    val finaleType: String?,
-)
-
-@Serializable
-data class AnimeData(
-    val titles: Map<String, String>?,
-    val images: List<Image>?,
-    val episodes: Map<String, Episode>?,
+data class SkipDto(
+    val intro: List<Int>?,
+    val outro: List<Int>?,
 )
