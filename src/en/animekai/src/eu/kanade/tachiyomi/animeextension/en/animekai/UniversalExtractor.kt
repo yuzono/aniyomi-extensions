@@ -9,6 +9,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import okhttp3.Headers
@@ -25,12 +26,13 @@ class UniversalExtractor(private val client: OkHttpClient) {
     private val handler by lazy { Handler(Looper.getMainLooper()) }
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun videosFromUrl(origRequestUrl: String, origRequestHeader: Headers, name: String?): List<Video> {
+    fun videosFromUrl(origRequestUrl: String, origRequestHeader: Headers, name: String?, withSub: Boolean = true): List<Video> {
         Log.d(tag, "Fetching videos from: $origRequestUrl")
         val host = origRequestUrl.toHttpUrl().host.substringBefore(".").proper()
-        val latch = CountDownLatch(1)
+        val latch = CountDownLatch(if (withSub) 99 else 1)
         var webView: WebView? = null
         var resultUrl = ""
+        val subtitleUrls = mutableListOf<String>()
         val playlistUtils by lazy { PlaylistUtils(client, origRequestHeader) }
         val headers = origRequestHeader.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }.toMutableMap()
 
@@ -48,8 +50,10 @@ class UniversalExtractor(private val client: OkHttpClient) {
                 }
                 newView.webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
-                        Log.d(tag, "Page loaded, injecting script")
-                        view?.evaluateJavascript(CHECK_SCRIPT) {}
+                        if (!origRequestUrl.contains("autostart=true")) {
+                            Log.d(tag, "Page loaded, injecting script")
+                            view?.evaluateJavascript(CHECK_SCRIPT) {}
+                        }
                     }
 
                     override fun shouldInterceptRequest(
@@ -58,15 +62,18 @@ class UniversalExtractor(private val client: OkHttpClient) {
                     ): WebResourceResponse? {
                         val url = request.url.toString()
                         Log.d(tag, "Intercepted URL: $url")
-                        if (VIDEO_REGEX.containsMatchIn(url)) {
+                        if (resultUrl.isBlank() && VIDEO_REGEX.containsMatchIn(url)) {
                             resultUrl = url
                             latch.countDown()
+                        }
+                        if (SUBTITLE_REGEX.containsMatchIn(url)) {
+                            subtitleUrls.add(url)
                         }
                         return super.shouldInterceptRequest(view, request)
                     }
                 }
 
-                webView?.loadUrl("$origRequestUrl&dl=1", headers)
+                webView?.loadUrl(origRequestUrl, headers)
             }
 
             latch.await(TIMEOUT_SEC, TimeUnit.SECONDS)
@@ -80,20 +87,41 @@ class UniversalExtractor(private val client: OkHttpClient) {
             }
         }
 
+        val subtitleList = subtitleUrls.distinct().map { subUrl ->
+            val label = extractLabelFromUrl(subUrl)
+            Track(subUrl, label)
+        }
+
         val prefix = name ?: host
 
         return when {
             "m3u8" in resultUrl -> {
                 Log.d(tag, "m3u8 URL: $resultUrl")
-                playlistUtils.extractFromHls(resultUrl, origRequestUrl, videoNameGen = { "$prefix: $it" })
+                playlistUtils.extractFromHls(
+                    playlistUrl = resultUrl,
+                    referer = origRequestUrl,
+                    subtitleList = subtitleList,
+                    videoNameGen = { "$prefix: $it" },
+                )
             }
             "mpd" in resultUrl -> {
                 Log.d(tag, "mpd URL: $resultUrl")
-                playlistUtils.extractFromDash(resultUrl, { it -> "$prefix: $it" }, referer = origRequestUrl)
+                playlistUtils.extractFromDash(
+                    mpdUrl = resultUrl,
+                    videoNameGen = { it -> "$prefix: $it" },
+                    subtitleList = subtitleList,
+                    referer = origRequestUrl,
+                )
             }
             "mp4" in resultUrl -> {
                 Log.d(tag, "mp4 URL: $resultUrl")
-                Video(resultUrl, "$prefix: MP4", resultUrl, Headers.headersOf("referer", origRequestUrl)).let(::listOf)
+                Video(
+                    url = resultUrl,
+                    quality = "$prefix: MP4",
+                    videoUrl = resultUrl,
+                    headers = Headers.headersOf("referer", origRequestUrl),
+                    subtitleTracks = subtitleList,
+                ).let(::listOf)
             }
             else -> emptyList()
         }
@@ -109,27 +137,47 @@ class UniversalExtractor(private val client: OkHttpClient) {
         }
     }
 
+    private fun extractLabelFromUrl(url: String): String {
+        val file = url.substringAfterLast("/")
+        return when (val code = file.substringBefore("_").lowercase()) {
+            "eng" -> "English"
+            "ger", "deu" -> "German"
+            "spa" -> "Spanish"
+            "fre", "fra" -> "French"
+            "ita" -> "Italian"
+            "jpn" -> "Japanese"
+            "chi", "zho" -> "Chinese"
+            "kor" -> "Korean"
+            "rus" -> "Russian"
+            "ara" -> "Arabic"
+            "hin" -> "Hindi"
+            "por" -> "Portuguese"
+            "vie" -> "Vietnamese"
+            "pol" -> "Polish"
+            "ukr" -> "Ukrainian"
+            "swe" -> "Swedish"
+            "ron", "rum" -> "Romanian"
+            "ell", "gre" -> "Greek"
+            "hun" -> "Hungarian"
+            "fas", "per" -> "Persian"
+            "tha" -> "Thai"
+            else -> code.uppercase()
+        }
+    }
+
     companion object {
         const val TIMEOUT_SEC: Long = 10
         private val VIDEO_REGEX by lazy { Regex(".*\\.(mp4|m3u8|mpd)(\\?.*)?$", RegexOption.IGNORE_CASE) }
+
+        // subs/ita_6.vtt; subs/ai_eng_3.vtt
+        private val SUBTITLE_REGEX by lazy { Regex(""".*/subs/\w+\.vtt(\?.*)?$""", RegexOption.IGNORE_CASE) }
         private val CHECK_SCRIPT by lazy {
             """
-            setInterval(() => {
-                var playButton = document.getElementById('player-button-container')
-                if (playButton) {
-                    playButton.click()
-                }
-                var downloadButton = document.querySelector(".downloader-button")
-                if (downloadButton) {
-                    if (downloadButton.href) {
-                        location.href = downloadButton.href
-                    } else {
-                        downloadButton.click()
-                    }
-                }
-                // Default jwplayer instance
-                try { jwplayer(0).play(); } catch {}
-            }, 2500)
+            (() => {
+                const btn = document.querySelector('button, .vjs-big-play-button');
+                if (btn) btn.click();
+                return "clicked";
+            })();
             """.trimIndent()
         }
     }

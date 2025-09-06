@@ -326,7 +326,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
              *    using random file extension but can be replaced to .ts;
              *  - Dub & S-Sub are similar to Server 2;
              */
-            universalExtractor.videosFromUrl(iframe, headers, name)
+            if (type == "sub") {
+                universalExtractor.videosFromUrl(iframe, headers, name, withSub = false)
+            } else {
+                universalExtractor.videosFromUrl(iframe, headers, name)
+            }
         } catch (e: Exception) {
             Log.e("AnimeKai", "Failed to extract video from iframe: $iframe", e)
             emptyList()
