@@ -61,7 +61,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================== Popular ===============================
 
     override fun popularAnimeRequest(page: Int): Request {
-        return GET("$baseUrl/browser?keyword=&status[]=releasing&sort=trending")
+        return GET("$baseUrl/trending?page=$page")
     }
 
     override fun popularAnimeSelector() = "div.aitem-wrapper div.aitem"
@@ -81,7 +81,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // =============================== Latest ===============================
 
     override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/browser?keyword=&status[]=releasing&sort=updated_date")
+        return GET("$baseUrl/updates?page=$page")
     }
 
     override fun latestUpdatesSelector() = popularAnimeSelector()
