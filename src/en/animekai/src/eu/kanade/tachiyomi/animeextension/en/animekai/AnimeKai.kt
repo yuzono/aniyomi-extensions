@@ -108,6 +108,21 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        val seasons = document.select("#seasons div.season div.aitem div.inner").mapNotNull { season ->
+            SAnime.create().apply {
+                val url = season.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+                setUrlWithoutDomain(url)
+                thumbnail_url = season.selectFirst("img")?.attr("src")
+                title = season.select("div.detail span").text()
+            }
+        }
+
+        val related = document.select(relatedAnimeListSelector()).map { relatedAnimeFromElement(it) }
+        return seasons + related
+    }
+
     // ============================== Filters ===============================
 
     override fun getFilterList(): AnimeFilterList = AnimeKaiFilters.FILTER_LIST
