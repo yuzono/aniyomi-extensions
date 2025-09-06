@@ -224,8 +224,8 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val epNum = element.attr("num")
         val subdubType = element.attr("langs").toIntOrNull() ?: 0
         val subdub = when (subdubType) {
-            1 -> "Soft-Sub / Hard-Sub"
-            3 -> "Dub / Soft-Sub / Hard-Sub"
+            1 -> "Sub"
+            3 -> "Dub & Sub"
             else -> ""
         }
 
