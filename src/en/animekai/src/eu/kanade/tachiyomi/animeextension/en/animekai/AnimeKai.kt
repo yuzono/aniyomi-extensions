@@ -1,13 +1,9 @@
 package eu.kanade.tachiyomi.animeextension.en.animekai
 
 import android.util.Log
-import android.webkit.URLUtil
-import android.widget.Toast
-import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
 import androidx.preference.PreferenceScreen
-import androidx.preference.SwitchPreferenceCompat
 import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -20,6 +16,9 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.LazyMutable
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -32,27 +31,25 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "AnimeKai"
 
-    override val baseUrl by lazy {
-        val customDomain = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-        if (customDomain.isNullOrBlank()) {
-            preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)!!
-        } else {
-            customDomain
-        }
-    }
-
     override val lang = "en"
 
     override val supportsLatest = true
 
     private val preferences by getPreferencesLazy()
 
+    override var baseUrl: String
+        by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+
     override fun headersBuilder(): Headers.Builder {
         return super.headersBuilder()
             .add("Referer", "$baseUrl/")
     }
 
-    override val client by lazy {
+    private var docHeaders by LazyMutable {
+        headersBuilder().build()
+    }
+
+    override var client by LazyMutable {
         network.client.newBuilder()
             .rateLimitHost(baseUrl.toHttpUrl(), 5)
             .build()
@@ -202,7 +199,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         val decoded = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$animeId"))
             .execute().use { it.body.string() }
-        return GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", headers)
+        return GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", docHeaders)
     }
 
     override fun episodeListSelector() = "div.eplist a"
@@ -250,7 +247,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val decodedToken = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$token"))
             .awaitSuccess().use { it.body.string() }
 
-        val servers = client.newCall(GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", headers))
+        val servers = client.newCall(GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", docHeaders))
             .awaitSuccess().use { response ->
                 val document = response.parseAs<ResultResponse>().toDocument()
                 document.select("div.server-items[data-id]")
@@ -292,7 +289,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val decodedLid = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$lid"))
             .awaitSuccess().use { it.body.string() }
 
-        val encodedLink = client.newCall(GET("$baseUrl/ajax/links/view?id=$lid&_=$decodedLid", headers))
+        val encodedLink = client.newCall(GET("$baseUrl/ajax/links/view?id=$lid&_=$decodedLid", docHeaders))
             .awaitSuccess().use { json ->
                 json.parseAs<ResultResponse>().result
             }
@@ -327,9 +324,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
              *  - Dub & S-Sub are similar to Server 2;
              */
             if (type == "sub") {
-                universalExtractor.videosFromUrl(iframe, headers, name, withSub = false)
+                universalExtractor.videosFromUrl(iframe, docHeaders, name, withSub = false)
             } else {
-                universalExtractor.videosFromUrl(iframe, headers, name)
+                universalExtractor.videosFromUrl(iframe, docHeaders, name)
             }
         } catch (e: Exception) {
             Log.e("AnimeKai", "Failed to extract video from iframe: $iframe", e)
@@ -357,95 +354,51 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    private fun getHosters(): Set<String> {
-        val hosterSelection = preferences.getStringSet(PREF_HOSTER_KEY, PREF_HOSTER_DEFAULT)!!
-        var invalidRecord = false
-        hosterSelection.forEach { str ->
-            val index = HOSTERS_NAMES.indexOf(str)
-            if (index == -1) {
-                invalidRecord = true
-            }
-        }
-
-        // found invalid record, reset to defaults
-        if (invalidRecord) {
-            preferences.edit().putStringSet(PREF_HOSTER_KEY, PREF_HOSTER_DEFAULT).apply()
-            return PREF_HOSTER_DEFAULT.toSet()
-        }
-
-        return hosterSelection.toSet()
-    }
-
     companion object {
-        private const val DOMAIN = "animekai.to"
-
         private const val PREF_DOMAIN_KEY = "preferred_domain"
-        private const val PREF_DOMAIN_DEFAULT = "https://$DOMAIN"
-
-        private const val PREF_CUSTOM_DOMAIN_KEY = "custom_domain"
+        private val DOMAIN_ENTRIES = listOf(
+            "animekai.to",
+            "animekai.bz",
+            "animekai.cc",
+            "animekai.ac",
+        )
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
+        private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
 
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
 
         private const val PREF_LANG_KEY = "preferred_language"
-        private const val PREF_LANG_DEFAULT = "Sub"
+        private const val PREF_LANG_DEFAULT = "[Soft Sub]"
 
         private const val PREF_SERVER_KEY = "preferred_server"
-        private const val PREF_SERVER_DEFAULT = "Vidstream"
-
-        private const val PREF_MARK_FILLERS_KEY = "mark_fillers"
-        private const val PREF_MARK_FILLERS_DEFAULT = true
+        private const val PREF_SERVER_DEFAULT = "Server 1"
 
         private const val PREF_HOSTER_KEY = "hoster_selection"
         private val HOSTERS = arrayOf(
-            "F4 - Noads",
-            "Vidstream",
-            "Megaf",
-            "MoonF",
-            "StreamTape",
-            "MP4u",
+            "Server 1",
+            "Server 2",
         )
-        private val HOSTERS_NAMES = arrayOf(
-            "f4 - noads",
-            "vidstream",
-            "megaf",
-            "moonf",
-            "streamtape",
-            "mp4u",
-        )
-        private val PREF_HOSTER_DEFAULT = HOSTERS_NAMES.toSet()
+        private val PREF_HOSTER_DEFAULT = HOSTERS.toSet()
 
         private const val PREF_TYPE_TOGGLE_KEY = "type_selection"
-        private val TYPES = arrayOf("Sub", "S-sub", "Dub")
+        private val TYPES = arrayOf("[Hard Sub]", "[Soft Sub]", "[Dub & S-Sub]")
         private val PREF_TYPES_TOGGLE_DEFAULT = TYPES.toSet()
     }
 
     // ============================== Settings ==============================
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        // validate hosters preferences and if invalid reset
-        try {
-            getHosters()
-        } catch (e: Exception) {
-            Toast.makeText(screen.context, e.toString(), Toast.LENGTH_LONG).show()
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = "Preferred domain",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        ) {
+            baseUrl = it
         }
-
-        ListPreference(screen.context).apply {
-            key = PREF_DOMAIN_KEY
-            title = "Preferred domain"
-            entries = arrayOf(DOMAIN)
-            entryValues = arrayOf(PREF_DOMAIN_DEFAULT)
-            setDefaultValue(PREF_DOMAIN_DEFAULT)
-            summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
             key = PREF_QUALITY_KEY
@@ -483,7 +436,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             key = PREF_SERVER_KEY
             title = "Preferred Server"
             entries = HOSTERS
-            entryValues = HOSTERS_NAMES
+            entryValues = HOSTERS
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
 
@@ -495,21 +448,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }.also(screen::addPreference)
 
-        SwitchPreferenceCompat(screen.context).apply {
-            key = PREF_MARK_FILLERS_KEY
-            title = "Mark filler episodes"
-            setDefaultValue(PREF_MARK_FILLERS_DEFAULT)
-            setOnPreferenceChangeListener { _, newValue ->
-                Toast.makeText(screen.context, "Restart App to apply new setting.", Toast.LENGTH_LONG).show()
-                preferences.edit().putBoolean(key, newValue as Boolean).commit()
-            }
-        }.also(screen::addPreference)
-
         MultiSelectListPreference(screen.context).apply {
             key = PREF_HOSTER_KEY
             title = "Enable/Disable Hosts"
             entries = HOSTERS
-            entryValues = HOSTERS_NAMES
+            entryValues = HOSTERS
             setDefaultValue(PREF_HOSTER_DEFAULT)
 
             setOnPreferenceChangeListener { _, newValue ->
@@ -528,31 +471,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             setOnPreferenceChangeListener { _, newValue ->
                 @Suppress("UNCHECKED_CAST")
                 preferences.edit().putStringSet(key, newValue as Set<String>).commit()
-            }
-        }.also(screen::addPreference)
-
-        EditTextPreference(screen.context).apply {
-            key = PREF_CUSTOM_DOMAIN_KEY
-            title = "Custom domain"
-            setDefaultValue(null)
-            val currentValue = preferences.getString(PREF_CUSTOM_DOMAIN_KEY, null)
-            summary = if (currentValue.isNullOrBlank()) {
-                "Custom domain of your choosing"
-            } else {
-                "Domain: \"$currentValue\". \nLeave blank to disable. Overrides any domain preferences!"
-            }
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val newDomain = newValue.toString().trim().removeSuffix("/")
-                if (newDomain.isBlank() || URLUtil.isValidUrl(newDomain)) {
-                    summary = "Restart to apply changes"
-                    Toast.makeText(screen.context, "Restart App to apply changes", Toast.LENGTH_LONG).show()
-                    preferences.edit().putString(key, newDomain).apply()
-                    true
-                } else {
-                    Toast.makeText(screen.context, "Invalid url. Url example: $PREF_DOMAIN_DEFAULT", Toast.LENGTH_LONG).show()
-                    false
-                }
             }
         }.also(screen::addPreference)
     }
