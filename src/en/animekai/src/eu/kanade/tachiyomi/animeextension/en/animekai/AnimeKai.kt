@@ -121,7 +121,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             document.selectFirst("div#main-entity")!!.let { info ->
                 title = info.selectFirst("h1.title")?.text().orEmpty()
                 val jptitle = info.selectFirst("h1.title")?.attr("data-jp").orEmpty()
-                val altTitle = info.selectFirst(".al-title")?.text().orEmpty()
+                val altTitles = info.selectFirst(".al-title")?.text().orEmpty()
+                    .split(";").map { it.trim() }.distinctBy { it.lowercase() }
+                    .filterNot { it.lowercase() == title.lowercase() }.joinToString("; ")
                 val rating = info.selectFirst(".rating")?.text().orEmpty()
 
                 info.selectFirst("div.detail")?.let { detail ->
@@ -139,11 +141,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                         detail.getInfo("Duration:", full = true)?.run(::append)
                         if (rating.isNotBlank()) append("\n**Rating:** $rating")
                         detail.getInfo("MAL:", full = true)?.run(::append)
-                        if (altTitle.isNotBlank()) {
-                            altTitle.replace("$title;", "")
-                                .trim().takeIf { it.isNotBlank() }
-                                ?.let { append("\n**Alternative Title:** $it") }
-                        }
+                        if (altTitles.isNotBlank()) { append("\n**Alternative Title:** $altTitles") }
                         detail.select("div div div:contains(Links:) a").forEach {
                             append("\n[${it.text()}](${it.attr("href")})")
                         }
@@ -334,7 +332,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun parseStatus(statusString: String): Int {
         return when (statusString) {
-            "Finished Airing" -> SAnime.COMPLETED
+            "Completed", "Finished Airing" -> SAnime.COMPLETED
             "Releasing" -> SAnime.ONGOING
             else -> SAnime.UNKNOWN
         }
