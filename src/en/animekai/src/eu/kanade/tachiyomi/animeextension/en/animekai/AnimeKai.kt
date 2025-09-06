@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.animekai
 
+import android.util.Log
 import android.webkit.URLUtil
 import android.widget.Toast
 import androidx.preference.EditTextPreference
@@ -18,7 +19,6 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
@@ -253,8 +253,13 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     }
             }
 
-        return servers.parallelCatchingFlatMap { server ->
-            extractVideo(server)
+        return servers.flatMap { server ->
+            try {
+                extractVideo(server)
+            } catch (e: Exception) {
+                Log.e("AnimeKai", "Failed to extract video from server: $server", e)
+                emptyList()
+            }
         }
     }
 
@@ -289,7 +294,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 }
             }
 
-        val typeSuffix = when(type) {
+        val typeSuffix = when (type) {
             "sub" -> "Hard Sub"
             "softsub" -> "Soft Sub"
             "dub" -> "Dub & S-Sub"
@@ -297,9 +302,22 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
         val name = "$serverName | [$typeSuffix]"
 
-        return runCatching {
+        return try {
+            /*
+             * Server 2:
+             *  - Playlist like: `list.m3u8` with .ts file;
+             *  - The Dub will load separated sub .vtt file;
+             *  - The S-Sub seems using embedded subs;
+             * Server 1:
+             *  - Playlist like: `list,Z3r-aM6peKE-ic4lJkPfnljqs9Q0UQ.m3u8`, all the segments are
+             *    using random file extension but can be replaced to .ts;
+             *  - Dub & S-Sub are similar to Server 2;
+             */
             universalExtractor.videosFromUrl(iframe, headers, name)
-        }.getOrElse { emptyList() }
+        } catch (e: Exception) {
+            Log.e("AnimeKai", "Failed to extract video from iframe: $iframe", e)
+            emptyList()
+        }
     }
 
     override fun List<Video>.sort(): List<Video> {
