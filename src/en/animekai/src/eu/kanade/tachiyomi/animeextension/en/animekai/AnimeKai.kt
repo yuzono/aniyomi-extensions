@@ -1,8 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.en.animekai
 
+import android.content.SharedPreferences
 import android.util.Log
-import androidx.preference.ListPreference
-import androidx.preference.MultiSelectListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -18,6 +17,7 @@ import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
+import extensions.utils.addSetPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
@@ -68,7 +68,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             element.selectFirst("a.poster")?.attr("href")?.let {
                 setUrlWithoutDomain(it)
             }
-            title = element.select("a.title").text()
+            title = element.selectFirst("a.title")?.getTitle() ?: ""
             thumbnail_url = element.select("a.poster img").attr("data-src")
         }
     }
@@ -100,7 +100,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun relatedAnimeFromElement(element: Element): SAnime {
         return SAnime.create().apply {
             setUrlWithoutDomain(element.attr("href"))
-            title = element.select("div.title").text()
+            title = element.selectFirst("div.title")?.getTitle() ?: ""
             thumbnail_url = element.attr("style").substringAfter("('").substringBefore("')")
         }
     }
@@ -131,10 +131,15 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             thumbnail_url = document.select(".poster img").attr("src")
 
             document.selectFirst("div#main-entity")!!.let { info ->
-                title = info.selectFirst("h1.title")?.text().orEmpty()
-                val jptitle = info.selectFirst("h1.title")?.attr("data-jp").orEmpty()
-                val altTitles = info.selectFirst(".al-title")?.text().orEmpty()
-                    .split(";").map { it.trim() }.distinctBy { it.lowercase() }
+                val (enTitle, jpTitle) = info.selectFirst("h1.title").let {
+                    title = it?.getTitle() ?: ""
+                    it?.text().orEmpty() to it?.attr("data-jp").orEmpty()
+                }
+                val altTitles = (
+                    info.selectFirst(".al-title")?.text().orEmpty()
+                        .split(";") + listOf(enTitle, jpTitle)
+                    )
+                    .map { it.trim() }.distinctBy { it.lowercase() }
                     .filterNot { it.lowercase() == title.lowercase() }.joinToString("; ")
                 val rating = info.selectFirst(".rating")?.text().orEmpty()
 
@@ -247,16 +252,22 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val decodedToken = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$token"))
             .awaitSuccess().use { it.body.string() }
 
+        val typeSelection = preferences.typeToggle
+        val hosterSelection = preferences.hostToggle
+
         val servers = client.newCall(GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", docHeaders))
             .awaitSuccess().use { response ->
                 val document = response.parseAs<ResultResponse>().toDocument()
                 document.select("div.server-items[data-id]")
                     .flatMap { typeElm ->
-                        val type = typeElm.attr("data-id")
+                        val type = typeElm.attr("data-id") // sub, softsub, dub
+                        if (type !in typeSelection) return@flatMap emptyList()
+
                         typeElm.select("span.server[data-lid]")
-                            .map { serverElm ->
+                            .mapNotNull { serverElm ->
                                 val serverId = serverElm.attr("data-lid")
                                 val serverName = serverElm.text()
+                                if (serverName !in hosterSelection) return@mapNotNull null
 
                                 VideoData(type, serverId, serverName)
                             }
@@ -335,14 +346,16 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
-        val lang = preferences.getString(PREF_LANG_KEY, PREF_LANG_DEFAULT)!!
-        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
+        val quality = preferences.prefQuality
+        val server = preferences.prefServer
+        val type = preferences.prefType
+        val qualitiesList = PREF_QUALITY_ENTRIES.reversed()
 
-        return this.sortedWith(
-            compareByDescending<Video> { it.quality.contains(lang) }
-                .thenByDescending { it.quality.contains(quality) }
-                .thenByDescending { it.quality.contains(server, true) },
+        return sortedWith(
+            compareByDescending<Video> { it.quality.contains(quality) }
+                .thenByDescending { video -> qualitiesList.indexOfLast { video.quality.contains(it) } }
+                .thenByDescending { it.quality.contains(server, true) }
+                .thenByDescending { it.quality.contains(type, true) },
         )
     }
 
@@ -351,6 +364,18 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "Completed", "Finished Airing" -> SAnime.COMPLETED
             "Releasing" -> SAnime.ONGOING
             else -> SAnime.UNKNOWN
+        }
+    }
+
+    private fun Element.getTitle(): String {
+        val enTitle = selectFirst("h1.title")?.text().orEmpty()
+        val jpTitle = selectFirst("h1.title")?.attr("data-jp").orEmpty()
+        return if (useEnglish && enTitle.isNotBlank()) {
+            enTitle
+        } else if (jpTitle.isNotBlank()) {
+            jpTitle
+        } else {
+            enTitle
         }
     }
 
@@ -363,30 +388,54 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "animekai.ac",
         )
         private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
-        private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
+        private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES.first()
+
+        private const val PREF_TITLE_LANG_KEY = "preferred_title_lang"
+        private const val PREF_TITLE_LANG_DEFAULT = "English"
+        private val PREF_TITLE_LANG_LIST = listOf("Romaji", "English")
 
         private const val PREF_QUALITY_KEY = "preferred_quality"
-        private const val PREF_QUALITY_DEFAULT = "1080"
-
-        private const val PREF_LANG_KEY = "preferred_language"
-        private const val PREF_LANG_DEFAULT = "[Soft Sub]"
-
-        private const val PREF_SERVER_KEY = "preferred_server"
-        private const val PREF_SERVER_DEFAULT = "Server 1"
+        private val PREF_QUALITY_ENTRIES = listOf("1080p", "720p", "480p", "360p")
+        private val PREF_QUALITY_DEFAULT = PREF_QUALITY_ENTRIES.first()
 
         private const val PREF_HOSTER_KEY = "hoster_selection"
-        private val HOSTERS = arrayOf(
+        private val HOSTERS = listOf(
             "Server 1",
             "Server 2",
         )
-        private val PREF_HOSTER_DEFAULT = HOSTERS.toSet()
+
+        private const val PREF_SERVER_KEY = "preferred_server"
+        private val PREF_SERVER_DEFAULT = HOSTERS.first()
 
         private const val PREF_TYPE_TOGGLE_KEY = "type_selection"
-        private val TYPES = arrayOf("[Hard Sub]", "[Soft Sub]", "[Dub & S-Sub]")
-        private val PREF_TYPES_TOGGLE_DEFAULT = TYPES.toSet()
+        private val TYPES_ENTRIES = listOf("[Hard Sub]", "[Soft Sub]", "[Dub & S-Sub]")
+        private val TYPES_VALUES = listOf("sub", "softsub", "dub")
+
+        private const val PREF_TYPE_KEY = "preferred_type"
+        private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
     }
 
     // ============================== Settings ==============================
+
+    private var useEnglish by LazyMutable { preferences.getTitleLang == "English" }
+
+    private var SharedPreferences.getTitleLang
+        by LazyMutable { preferences.getString(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)!! }
+
+    private var SharedPreferences.prefQuality
+        by LazyMutable { preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!! }
+
+    private var SharedPreferences.prefServer
+        by LazyMutable { preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!! }
+
+    private var SharedPreferences.prefType
+        by LazyMutable { preferences.getString(PREF_TYPE_KEY, PREF_TYPE_DEFAULT)!! }
+
+    private var SharedPreferences.hostToggle: MutableSet<String>
+        by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())!! }
+
+    private var SharedPreferences.typeToggle: MutableSet<String>
+        by LazyMutable { preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, TYPES_ENTRIES.toSet())!! }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
@@ -398,80 +447,77 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             summary = "%s",
         ) {
             baseUrl = it
+            docHeaders = headersBuilder().build()
+            client = network.client.newBuilder()
+                .rateLimitHost(baseUrl.toHttpUrl(), 5)
+                .build()
         }
 
-        ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = "Preferred quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p")
-            entryValues = arrayOf("1080", "720", "480", "360")
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_TITLE_LANG_KEY,
+            title = "Preferred title language",
+            entries = PREF_TITLE_LANG_LIST,
+            entryValues = PREF_TITLE_LANG_LIST,
+            default = PREF_TITLE_LANG_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.getTitleLang = it
+            useEnglish = it == "English"
+        }
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred quality",
+            entries = PREF_QUALITY_ENTRIES,
+            entryValues = PREF_QUALITY_ENTRIES,
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.prefQuality = it
+        }
 
-        ListPreference(screen.context).apply {
-            key = PREF_LANG_KEY
-            title = "Preferred Type"
-            entries = TYPES
-            entryValues = TYPES
-            setDefaultValue(PREF_LANG_DEFAULT)
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_SERVER_KEY,
+            title = "Preferred Server",
+            entries = HOSTERS,
+            entryValues = HOSTERS,
+            default = PREF_SERVER_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.prefServer = it
+        }
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_TYPE_KEY,
+            title = "Preferred Type",
+            entries = TYPES_ENTRIES,
+            entryValues = TYPES_ENTRIES,
+            default = PREF_TYPE_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.prefType = it
+        }
 
-        ListPreference(screen.context).apply {
-            key = PREF_SERVER_KEY
-            title = "Preferred Server"
-            entries = HOSTERS
-            entryValues = HOSTERS
-            setDefaultValue(PREF_SERVER_DEFAULT)
-            summary = "%s"
+        screen.addSetPreference(
+            key = PREF_HOSTER_KEY,
+            title = "Enable/Disable Hosts",
+            summary = "Select which video hosts to show in the episode list",
+            entries = HOSTERS,
+            entryValues = HOSTERS,
+            default = HOSTERS.toSet(),
+        ) {
+            preferences.hostToggle = it.toMutableSet()
+        }
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
-
-        MultiSelectListPreference(screen.context).apply {
-            key = PREF_HOSTER_KEY
-            title = "Enable/Disable Hosts"
-            entries = HOSTERS
-            entryValues = HOSTERS
-            setDefaultValue(PREF_HOSTER_DEFAULT)
-
-            setOnPreferenceChangeListener { _, newValue ->
-                @Suppress("UNCHECKED_CAST")
-                preferences.edit().putStringSet(key, newValue as Set<String>).commit()
-            }
-        }.also(screen::addPreference)
-
-        MultiSelectListPreference(screen.context).apply {
-            key = PREF_TYPE_TOGGLE_KEY
-            title = "Enable/Disable Types"
-            entries = TYPES
-            entryValues = TYPES
-            setDefaultValue(PREF_TYPES_TOGGLE_DEFAULT)
-
-            setOnPreferenceChangeListener { _, newValue ->
-                @Suppress("UNCHECKED_CAST")
-                preferences.edit().putStringSet(key, newValue as Set<String>).commit()
-            }
-        }.also(screen::addPreference)
+        screen.addSetPreference(
+            key = PREF_TYPE_TOGGLE_KEY,
+            title = "Enable/Disable Types",
+            summary = "Select which video types to show in the episode list",
+            entries = TYPES_ENTRIES,
+            entryValues = TYPES_VALUES,
+            default = TYPES_VALUES.toSet(),
+        ) {
+            preferences.typeToggle = it.toMutableSet()
+        }
     }
 }
