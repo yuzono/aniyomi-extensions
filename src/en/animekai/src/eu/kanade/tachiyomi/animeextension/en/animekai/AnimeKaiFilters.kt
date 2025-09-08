@@ -7,15 +7,32 @@ object AnimeKaiFilters {
 
     open class QueryPartFilter(
         displayName: String,
-        private val vals: Array<Pair<String, String>>,
+        private val param: String,
+        private val options: List<Pair<String, String>>,
     ) : AnimeFilter.Select<String>(
         displayName,
-        vals.map { it.first }.toTypedArray(),
+        options.map { it.first }.toTypedArray(),
     ) {
-        fun toQueryPart() = vals[state].second
+        fun toQueryPart() = "$param[]=${options[state].second}"
     }
 
-    open class CheckBoxFilterList(name: String, values: List<CheckBox>) : AnimeFilter.Group<AnimeFilter.CheckBox>(name, values)
+    open class CheckBoxFilterList(
+        name: String,
+        private val param: String,
+        private val options: List<Pair<String, String>>,
+    ) : AnimeFilter.Group<AnimeFilter.CheckBox>(
+        name,
+        options.map { CheckBoxVal(it.first, false) },
+    ) {
+        fun toQueryPart() = state
+            .filter { it.state }
+            .mapNotNull { checkbox ->
+                options.find { it.first == checkbox.name }?.second?.let {
+                    "$param[]=$it"
+                }
+            }
+            .joinToString("&")
+    }
 
     private class CheckBoxVal(name: String, state: Boolean = false) : AnimeFilter.CheckBox(name, state)
 
@@ -28,91 +45,98 @@ object AnimeKaiFilters {
     }
 
     private inline fun <reified R> AnimeFilterList.parseCheckbox(
-        options: Array<Pair<String, String>>,
+        param: String,
+        options: List<Pair<String, String>>,
     ): String {
         return (this.getFirst<R>() as CheckBoxFilterList).state
+            .filter { it.state }
             .mapNotNull { checkbox ->
-                if (checkbox.state) {
-                    options.find { it.first == checkbox.name }!!.second
-                } else {
-                    null
-                }
-            }.joinToString("\",\"").let {
-                if (it.isBlank()) {
-                    "all"
-                } else {
-                    "[\"$it\"]"
+                options.find { it.first == checkbox.name }?.second?.let {
+                    "$param[]=$it"
                 }
             }
+            .joinToString("&")
     }
 
-    class OriginFilter : QueryPartFilter("Origin", AnimeKaiFiltersData.ORIGIN)
-    class SeasonFilter : QueryPartFilter("Season", AnimeKaiFiltersData.SEASONS)
-    class ReleaseYearFilter : QueryPartFilter("Released at", AnimeKaiFiltersData.YEARS)
-    class SortByFilter : QueryPartFilter("Sort By", AnimeKaiFiltersData.SORT_BY)
+    class TypesFilter : CheckBoxFilterList("Types", "type", AnimeKaiFiltersData.TYPES)
+    class GenresFilter : CheckBoxFilterList("Genres", "genre", AnimeKaiFiltersData.GENRES)
+    class StatusFilter : CheckBoxFilterList("Status", "status", AnimeKaiFiltersData.STATUS)
 
-    class TypesFilter : CheckBoxFilterList(
-        "Types",
-        AnimeKaiFiltersData.TYPES.map { CheckBoxVal(it.first, false) },
-    )
+    class SortByFilter : QueryPartFilter("Sort By", "sort", AnimeKaiFiltersData.SORT_BY)
 
-    class GenresFilter : CheckBoxFilterList(
-        "Genres",
-        AnimeKaiFiltersData.GENRES.map { CheckBoxVal(it.first, false) },
-    )
+    class SeasonsFilter : CheckBoxFilterList("Season", "season", AnimeKaiFiltersData.SEASONS)
+    class YearsFilter : CheckBoxFilterList("Year", "year", AnimeKaiFiltersData.YEARS)
+    class RatingFilter : CheckBoxFilterList("Rating", "rating", AnimeKaiFiltersData.RATINGS)
+    class CountriesFilter : CheckBoxFilterList("Origin Country", "country", AnimeKaiFiltersData.COUNTRIES)
+    class LanguagesFilter : CheckBoxFilterList("Language", "language", AnimeKaiFiltersData.LANGUAGES)
 
     val FILTER_LIST get() = AnimeFilterList(
-        OriginFilter(),
-        SeasonFilter(),
-        ReleaseYearFilter(),
-        SortByFilter(),
-        AnimeFilter.Separator(),
         TypesFilter(),
         GenresFilter(),
+        StatusFilter(),
+        SortByFilter(),
+        SeasonsFilter(),
+        YearsFilter(),
+        RatingFilter(),
+        CountriesFilter(),
+        LanguagesFilter(),
     )
 
     data class FilterSearchParams(
-        val origin: String = "",
-        val season: String = "",
-        val releaseYear: String = "",
-        val sortBy: String = "",
         val types: String = "",
         val genres: String = "",
+        val status: String = "",
+        val sortBy: String = "",
+        val seasons: String = "",
+        val years: String = "",
+        val rating: String = "",
+        val countries: String = "",
+        val languages: String = "",
     )
 
     internal fun getSearchParameters(filters: AnimeFilterList): FilterSearchParams {
         if (filters.isEmpty()) return FilterSearchParams()
 
         return FilterSearchParams(
-            filters.asQueryPart<OriginFilter>(),
-            filters.asQueryPart<SeasonFilter>(),
-            filters.asQueryPart<ReleaseYearFilter>(),
-            filters.asQueryPart<SortByFilter>(),
-            filters.parseCheckbox<TypesFilter>(AnimeKaiFiltersData.TYPES),
-            filters.parseCheckbox<GenresFilter>(AnimeKaiFiltersData.GENRES),
+            filters.getFirst<TypesFilter>().toQueryPart(),
+            filters.getFirst<GenresFilter>().toQueryPart(),
+            filters.getFirst<StatusFilter>().toQueryPart(),
+            filters.getFirst<SortByFilter>().toQueryPart(),
+            filters.getFirst<SeasonsFilter>().toQueryPart(),
+            filters.getFirst<YearsFilter>().toQueryPart(),
+            filters.getFirst<RatingFilter>().toQueryPart(),
+            filters.getFirst<CountriesFilter>().toQueryPart(),
+            filters.getFirst<LanguagesFilter>().toQueryPart(),
         )
     }
 
     private object AnimeKaiFiltersData {
         val ALL = Pair("All", "all")
 
-        val ORIGIN = arrayOf(
-            Pair("All", "ALL"),
-            Pair("Japan", "JP"),
-            Pair("China", "CN"),
-            Pair("Korea", "KR"),
+        val COUNTRIES = listOf(
+            Pair("China", "2"),
+            Pair("Japan", "11"),
         )
 
-        val SEASONS = arrayOf(
-            ALL,
-            Pair("Winter", "Winter"),
-            Pair("Spring", "Spring"),
-            Pair("Summer", "Summer"),
-            Pair("Fall", "Fall"),
+        val LANGUAGES = listOf(
+            Pair("Hard Sub", "sub"),
+            Pair("Soft Sub", "softsub"),
+            Pair("Dub", "dub"),
+            Pair("Sub & Dub", "subdub"),
         )
 
-        val YEARS = arrayOf(
+        val SEASONS = listOf(
             ALL,
+            Pair("Fall", "fall"),
+            Pair("Summer", "summer"),
+            Pair("Spring", "spring"),
+            Pair("Winter", "winter"),
+            Pair("Unknown", "unknown"),
+        )
+
+        val YEARS = listOf(
+            ALL,
+            Pair("2025", "2025"),
             Pair("2024", "2024"),
             Pair("2023", "2023"),
             Pair("2022", "2022"),
@@ -138,50 +162,46 @@ object AnimeKaiFilters {
             Pair("2002", "2002"),
             Pair("2001", "2001"),
             Pair("2000", "2000"),
-            Pair("1999", "1999"),
-            Pair("1998", "1998"),
-            Pair("1997", "1997"),
-            Pair("1996", "1996"),
-            Pair("1995", "1995"),
-            Pair("1994", "1994"),
-            Pair("1993", "1993"),
-            Pair("1992", "1992"),
-            Pair("1991", "1991"),
-            Pair("1990", "1990"),
-            Pair("1989", "1989"),
-            Pair("1988", "1988"),
-            Pair("1987", "1987"),
-            Pair("1986", "1986"),
-            Pair("1985", "1985"),
-            Pair("1984", "1984"),
-            Pair("1983", "1983"),
-            Pair("1982", "1982"),
-            Pair("1981", "1981"),
-            Pair("1980", "1980"),
-            Pair("1979", "1979"),
-            Pair("1978", "1978"),
-            Pair("1977", "1977"),
-            Pair("1976", "1976"),
-            Pair("1975", "1975"),
+            Pair("1990s", "1990s"),
+            Pair("1980s", "1980s"),
+            Pair("1970s", "1970s"),
+            Pair("1960s", "1960s"),
+            Pair("1950s", "1950s"),
+            Pair("1940s", "1940s"),
+            Pair("1930s", "1930s"),
+            Pair("1920s", "1920s"),
+            Pair("1910s", "1910s"),
+            Pair("1900s", "1900s"),
         )
 
-        val SORT_BY = arrayOf(
-            Pair("Update", "update"),
-            Pair("Name Asc", "Name_ASC"),
-            Pair("Name Desc", "Name_DESC"),
-            Pair("Ratings", "Top"),
+        val SORT_BY = listOf(
+            Pair("Update", "updated_date"),
         )
 
-        val TYPES = arrayOf(
-            Pair("Movie", "Movie"),
-            Pair("ONA", "ONA"),
-            Pair("OVA", "OVA"),
-            Pair("Special", "Special"),
-            Pair("TV", "TV"),
-            Pair("Unknown", "Unknown"),
+        val STATUS = listOf(
+            Pair("Releasing", "releasing"),
+            Pair("Completed", "completed"),
         )
 
-        val GENRES = arrayOf(
+        val TYPES = listOf(
+            Pair("Movie", "movie"),
+            Pair("TV", "tv"),
+            Pair("OVA", "ova"),
+            Pair("ONA", "ona"),
+            Pair("Special", "special"),
+            Pair("Music", "music"),
+        )
+
+        val RATINGS = listOf(
+            Pair("G - All Ages", "g"),
+            Pair("PG - Children", "pg"),
+            Pair("PG-13 - Teens 13 or older", "pg_13"),
+            Pair("R - 17+, Violence & Profanity", "r"),
+            Pair("R+ - Profanity & Mild Nudity", "r+"),
+            Pair("Rx - Hentai", "rx"),
+        )
+
+        val GENRES = listOf(
             Pair("Action", "Action"),
             Pair("Adventure", "Adventure"),
             Pair("Cars", "Cars"),
