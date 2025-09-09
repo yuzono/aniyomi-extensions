@@ -19,6 +19,7 @@ import uy.kohesive.injekt.injectLazy
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class UniversalExtractor(
     private val client: OkHttpClient,
@@ -34,7 +35,7 @@ class UniversalExtractor(
         val host = origRequestUrl.toHttpUrl().host.substringBefore(".").proper()
         val latch = CountDownLatch(if (withSub) MAX_SUBTITLE_ATTEMPTS else 1)
         var webView: WebView? = null
-        var resultUrl = ""
+        val resultUrl = AtomicReference("")
         val subtitleUrls = mutableListOf<String>()
         val playlistUtils by lazy { PlaylistUtils(client, origRequestHeader) }
         val headers = origRequestHeader.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }.toMutableMap()
@@ -65,9 +66,10 @@ class UniversalExtractor(
                     ): WebResourceResponse? {
                         val url = request.url.toString()
                         Log.d(tag, "Intercepted URL: $url")
-                        if (resultUrl.isBlank() && VIDEO_REGEX.containsMatchIn(url)) {
-                            resultUrl = url
-                            latch.countDown()
+                        if (resultUrl.get().isBlank() && VIDEO_REGEX.containsMatchIn(url)) {
+                            if (resultUrl.compareAndSet("", url)) {
+                                latch.countDown()
+                            }
                         }
                         if (SUBTITLE_REGEX.containsMatchIn(url)) {
                             subtitleUrls.add(url)
@@ -97,31 +99,32 @@ class UniversalExtractor(
 
         val prefix = name ?: host
 
+        val finalResultUrl = resultUrl.get()
         return when {
-            "m3u8" in resultUrl -> {
-                Log.d(tag, "m3u8 URL: $resultUrl")
+            "m3u8" in finalResultUrl -> {
+                Log.d(tag, "m3u8 URL: $finalResultUrl")
                 playlistUtils.extractFromHls(
-                    playlistUrl = resultUrl,
+                    playlistUrl = finalResultUrl,
                     referer = origRequestUrl,
                     subtitleList = subtitleList,
                     videoNameGen = { "$prefix: $it" },
                 )
             }
-            "mpd" in resultUrl -> {
-                Log.d(tag, "mpd URL: $resultUrl")
+            "mpd" in finalResultUrl -> {
+                Log.d(tag, "mpd URL: $finalResultUrl")
                 playlistUtils.extractFromDash(
-                    mpdUrl = resultUrl,
+                    mpdUrl = finalResultUrl,
                     videoNameGen = { it -> "$prefix: $it" },
                     subtitleList = subtitleList,
                     referer = origRequestUrl,
                 )
             }
-            "mp4" in resultUrl -> {
-                Log.d(tag, "mp4 URL: $resultUrl")
+            "mp4" in finalResultUrl -> {
+                Log.d(tag, "mp4 URL: $finalResultUrl")
                 Video(
-                    url = resultUrl,
+                    url = finalResultUrl,
                     quality = "$prefix: MP4",
-                    videoUrl = resultUrl,
+                    videoUrl = finalResultUrl,
                     headers = Headers.headersOf("referer", origRequestUrl),
                     subtitleTracks = subtitleList,
                 ).let(::listOf)
