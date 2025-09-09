@@ -1,12 +1,14 @@
 package eu.kanade.tachiyomi.animeextension.en.animekai
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter.CheckBox
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter.TriState
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import okhttp3.HttpUrl
 
 object AnimeKaiFilters {
 
-    open class QueryPartFilter(
+    internal open class QueryPartFilter(
         displayName: String,
         private val param: String,
         private val options: List<Pair<String, String>>,
@@ -19,42 +21,62 @@ object AnimeKaiFilters {
         }
     }
 
-    open class CheckBoxFilterList(
+    internal open class CheckBoxFilterList(
         name: String,
         private val param: String,
         private val options: List<Pair<String, String>>,
-    ) : AnimeFilter.Group<AnimeFilter.CheckBox>(
+    ) : AnimeFilter.Group<CheckBox>(
         name,
         options.map { CheckBoxVal(it.first, false) },
     ) {
         fun addQueryParameters(builder: HttpUrl.Builder) {
             state
                 .filter { it.state }
-                .mapNotNull { checkbox ->
+                .forEach { checkbox ->
                     options.find { it.first == checkbox.name }?.second?.let {
                         builder.addQueryParameter("$param[]", it)
                     }
                 }
         }
     }
+    private class CheckBoxVal(name: String, state: Boolean = false) : CheckBox(name, state)
 
-    private class CheckBoxVal(name: String, state: Boolean = false) : AnimeFilter.CheckBox(name, state)
+    internal open class TriStateFilterList(
+        name: String,
+        private val param: String,
+        private val options: List<Pair<String, String>>,
+    ) : AnimeFilter.Group<TriState>(
+        name,
+        options.map { TriFilterVal(it.first) },
+    ) {
+        fun addQueryParameters(builder: HttpUrl.Builder) {
+            state
+                .filterNot { it.isIgnored() }
+                .forEach { tristate ->
+                    options.find { it.first == tristate.name }?.second?.let {
+                        val state = if (tristate.state == TriState.STATE_INCLUDE) "" else "-"
+                        builder.addQueryParameter("$param[]", "$state$it")
+                    }
+                }
+        }
+    }
+    class TriFilterVal(name: String) : TriState(name)
 
     inline fun <reified R> AnimeFilterList.getFirstOrNull(): R? {
         return this.filterIsInstance<R>().firstOrNull()
     }
 
-    class TypesFilter : CheckBoxFilterList("Types", "type", AnimeKaiFiltersData.TYPES)
-    class GenresFilter : CheckBoxFilterList("Genres", "genre", AnimeKaiFiltersData.GENRES)
-    class StatusFilter : CheckBoxFilterList("Status", "status", AnimeKaiFiltersData.STATUS)
+    internal class TypesFilter : CheckBoxFilterList("Types", "type", AnimeKaiFiltersData.TYPES)
+    internal class GenresFilter : TriStateFilterList("Genres", "genre", AnimeKaiFiltersData.GENRES)
+    internal class StatusFilter : CheckBoxFilterList("Status", "status", AnimeKaiFiltersData.STATUS)
 
-    class SortByFilter : QueryPartFilter("Sort By", "sort", AnimeKaiFiltersData.SORT_BY)
+    internal class SortByFilter : QueryPartFilter("Sort By", "sort", AnimeKaiFiltersData.SORT_BY)
 
-    class SeasonsFilter : CheckBoxFilterList("Season", "season", AnimeKaiFiltersData.SEASONS)
-    class YearsFilter : CheckBoxFilterList("Year", "year", AnimeKaiFiltersData.YEARS)
-    class RatingFilter : CheckBoxFilterList("Rating", "rating", AnimeKaiFiltersData.RATINGS)
-    class CountriesFilter : CheckBoxFilterList("Origin Country", "country", AnimeKaiFiltersData.COUNTRIES)
-    class LanguagesFilter : CheckBoxFilterList("Language", "language", AnimeKaiFiltersData.LANGUAGES)
+    internal class SeasonsFilter : CheckBoxFilterList("Season", "season", AnimeKaiFiltersData.SEASONS)
+    internal class YearsFilter : CheckBoxFilterList("Year", "year", AnimeKaiFiltersData.YEARS)
+    internal class RatingFilter : CheckBoxFilterList("Rating", "rating", AnimeKaiFiltersData.RATINGS)
+    internal class CountriesFilter : CheckBoxFilterList("Origin Country", "country", AnimeKaiFiltersData.COUNTRIES)
+    internal class LanguagesFilter : CheckBoxFilterList("Language", "language", AnimeKaiFiltersData.LANGUAGES)
 
     val FILTER_LIST get() = AnimeFilterList(
         TypesFilter(),
