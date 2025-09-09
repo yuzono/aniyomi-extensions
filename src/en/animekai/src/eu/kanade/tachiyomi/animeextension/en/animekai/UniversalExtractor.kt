@@ -20,7 +20,10 @@ import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-class UniversalExtractor(private val client: OkHttpClient) {
+class UniversalExtractor(
+    private val client: OkHttpClient,
+    private val timeoutSec: Long = DEFAULT_TIMEOUT_SEC,
+) {
     private val tag by lazy { javaClass.simpleName }
     private val context: Application by injectLazy()
     private val handler by lazy { Handler(Looper.getMainLooper()) }
@@ -29,7 +32,7 @@ class UniversalExtractor(private val client: OkHttpClient) {
     fun videosFromUrl(origRequestUrl: String, origRequestHeader: Headers, name: String?, withSub: Boolean = true): List<Video> {
         Log.d(tag, "Fetching videos from: $origRequestUrl")
         val host = origRequestUrl.toHttpUrl().host.substringBefore(".").proper()
-        val latch = CountDownLatch(if (withSub) 99 else 1)
+        val latch = CountDownLatch(if (withSub) MAX_SUBTITLE_ATTEMPTS else 1)
         var webView: WebView? = null
         var resultUrl = ""
         val subtitleUrls = mutableListOf<String>()
@@ -76,7 +79,7 @@ class UniversalExtractor(private val client: OkHttpClient) {
                 webView?.loadUrl(origRequestUrl, headers)
             }
 
-            latch.await(TIMEOUT_SEC, TimeUnit.SECONDS)
+            latch.await(timeoutSec, TimeUnit.SECONDS)
         } catch (e: Exception) {
             Log.e(tag, "Error while waiting for video URL", e)
         } finally {
@@ -166,7 +169,11 @@ class UniversalExtractor(private val client: OkHttpClient) {
     }
 
     companion object {
-        const val TIMEOUT_SEC: Long = 10
+        const val DEFAULT_TIMEOUT_SEC = 10L
+
+        // Used to allow enough intercepted requests for subtitle extraction.
+        const val MAX_SUBTITLE_ATTEMPTS = 99
+
         private val VIDEO_REGEX by lazy { Regex(".*\\.(mp4|m3u8|mpd)(\\?.*)?$", RegexOption.IGNORE_CASE) }
 
         // subs/ita_6.vtt; subs/ai_eng_3.vtt

@@ -26,6 +26,7 @@ import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.LazyMutable
+import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.delegate
@@ -331,7 +332,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================= Utilities ==============================
 
-    private val universalExtractor by lazy { UniversalExtractor(client) }
+    private var universalExtractor by LazyMutable { UniversalExtractor(client, preferences.prefTimeout.toLong()) }
 
     private suspend fun extractVideo(server: VideoData): List<Video> {
         val (type, lid, serverName) = server
@@ -450,6 +451,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         private const val PREF_TYPE_KEY = "preferred_type"
         private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
+
+        private const val PREF_TIMEOUT_KEY = "parsing_timeout"
+        private const val PREF_TIMEOUT_DEFAULT = "10"
     }
 
     // ============================== Settings ==============================
@@ -472,7 +476,10 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())!! }
 
     private var SharedPreferences.typeToggle: MutableSet<String>
-        by LazyMutable { preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, TYPES_ENTRIES.toSet())!! }
+        by LazyMutable { preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, TYPES_VALUES.toSet())!! }
+
+    private var SharedPreferences.prefTimeout
+        by LazyMutable { preferences.getString(PREF_TIMEOUT_KEY, PREF_TIMEOUT_DEFAULT)!! }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
@@ -528,7 +535,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             key = PREF_TYPE_KEY,
             title = "Preferred Type",
             entries = TYPES_ENTRIES,
-            entryValues = TYPES_ENTRIES,
+            entryValues = TYPES_ENTRIES, // Using entries directly for parsing Quality string
             default = PREF_TYPE_DEFAULT,
             summary = "%s",
         ) {
@@ -556,5 +563,21 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         ) {
             preferences.typeToggle = it.toMutableSet()
         }
+
+        screen.addEditTextPreference(
+            key = PREF_TIMEOUT_KEY,
+            default = PREF_TIMEOUT_DEFAULT,
+            title = "Timeout for slow network",
+            summary = timeoutSummary(preferences.prefTimeout),
+            getSummary = timeoutSummary,
+            dialogMessage = "Set timeout to wait for parsing video in seconds",
+            validate = { it.isNotBlank() && (it.toIntOrNull() ?: 0) > 0 },
+            validationMessage = { "The value is invalid. It must be a natural number." },
+        ) {
+            preferences.prefTimeout = it
+            universalExtractor = UniversalExtractor(client, it.toLongOrNull() ?: PREF_TIMEOUT_DEFAULT.toLong())
+        }
     }
+
+    val timeoutSummary: (String) -> String = { "Current: $it seconds" }
 }
