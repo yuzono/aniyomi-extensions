@@ -159,15 +159,22 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             thumbnail_url = document.select(".poster img").attr("src")
 
             document.selectFirst("div#main-entity")!!.let { info ->
-                val (enTitle, jpTitle) = info.selectFirst("h1.title").let {
-                    title = it?.getTitle() ?: ""
-                    it?.text().orEmpty() to it?.attr("data-jp").orEmpty()
-                }
+                val titles = info.selectFirst("h1.title")
+                    ?.also { title = it.getTitle() }
+                    ?.let {
+                        listOf(
+                            it.attr("title"),
+                            it.attr("data-jp"),
+                            it.ownText(),
+                        )
+                    } ?: emptyList()
+
                 val altTitles = (
-                    info.selectFirst(".al-title")?.text().orEmpty()
-                        .split(";") + listOf(enTitle, jpTitle)
+                    info.selectFirst(".al-title")?.text()?.split(";").orEmpty() +
+                        titles
                     )
-                    .map { it.trim() }.distinctBy { it.lowercase() }
+                    .asSequence()
+                    .map { it.trim() }.filterNot { it.isBlank() }.distinctBy { it.lowercase() }
                     .filterNot { it.lowercase() == title.lowercase() }.joinToString("; ")
                 val rating = info.selectFirst(".rating")?.text().orEmpty()
 
@@ -396,14 +403,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     private fun Element.getTitle(): String {
-        val enTitle = selectFirst("h1.title")?.text().orEmpty()
-        val jpTitle = selectFirst("h1.title")?.attr("data-jp").orEmpty()
-        return if (useEnglish && enTitle.isNotBlank()) {
-            enTitle
-        } else if (jpTitle.isNotBlank()) {
-            jpTitle
+        val enTitle = attr("title")
+        val jpTitle = attr("data-jp")
+        return if (useEnglish) {
+            enTitle.ifBlank { text() }
         } else {
-            enTitle
+            jpTitle.ifBlank { text() }
         }
     }
 
