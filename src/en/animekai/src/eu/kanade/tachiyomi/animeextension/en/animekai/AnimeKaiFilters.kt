@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animeextension.en.animekai
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import okhttp3.HttpUrl
 
 object AnimeKaiFilters {
 
@@ -13,7 +14,9 @@ object AnimeKaiFilters {
         displayName,
         options.map { it.first }.toTypedArray(),
     ) {
-        fun toQueryPart() = "$param[]=${options[state].second}"
+        fun addQueryParameters(builder: HttpUrl.Builder) {
+            builder.addQueryParameter(param, options[state].second)
+        }
     }
 
     open class CheckBoxFilterList(
@@ -24,38 +27,21 @@ object AnimeKaiFilters {
         name,
         options.map { CheckBoxVal(it.first, false) },
     ) {
-        fun toQueryPart() = state
-            .filter { it.state }
-            .mapNotNull { checkbox ->
-                options.find { it.first == checkbox.name }?.second?.let {
-                    "$param[]=$it"
+        fun addQueryParameters(builder: HttpUrl.Builder) {
+            state
+                .filter { it.state }
+                .mapNotNull { checkbox ->
+                    options.find { it.first == checkbox.name }?.second?.let {
+                        builder.addQueryParameter("$param[]", it)
+                    }
                 }
-            }
-            .joinToString("&")
+        }
     }
 
     private class CheckBoxVal(name: String, state: Boolean = false) : AnimeFilter.CheckBox(name, state)
 
-    private inline fun <reified R> AnimeFilterList.asQueryPart(): String {
-        return (this.getFirst<R>() as QueryPartFilter).toQueryPart()
-    }
-
-    private inline fun <reified R> AnimeFilterList.getFirst(): R {
-        return this.filterIsInstance<R>().first()
-    }
-
-    private inline fun <reified R> AnimeFilterList.parseCheckbox(
-        param: String,
-        options: List<Pair<String, String>>,
-    ): String {
-        return (this.getFirst<R>() as CheckBoxFilterList).state
-            .filter { it.state }
-            .mapNotNull { checkbox ->
-                options.find { it.first == checkbox.name }?.second?.let {
-                    "$param[]=$it"
-                }
-            }
-            .joinToString("&")
+    inline fun <reified R> AnimeFilterList.getFirstOrNull(): R? {
+        return this.filterIsInstance<R>().firstOrNull()
     }
 
     class TypesFilter : CheckBoxFilterList("Types", "type", AnimeKaiFiltersData.TYPES)
@@ -82,37 +68,7 @@ object AnimeKaiFilters {
         LanguagesFilter(),
     )
 
-    data class FilterSearchParams(
-        val types: String = "",
-        val genres: String = "",
-        val status: String = "",
-        val sortBy: String = "",
-        val seasons: String = "",
-        val years: String = "",
-        val rating: String = "",
-        val countries: String = "",
-        val languages: String = "",
-    )
-
-    internal fun getSearchParameters(filters: AnimeFilterList): FilterSearchParams {
-        if (filters.isEmpty()) return FilterSearchParams()
-
-        return FilterSearchParams(
-            filters.getFirst<TypesFilter>().toQueryPart(),
-            filters.getFirst<GenresFilter>().toQueryPart(),
-            filters.getFirst<StatusFilter>().toQueryPart(),
-            filters.getFirst<SortByFilter>().toQueryPart(),
-            filters.getFirst<SeasonsFilter>().toQueryPart(),
-            filters.getFirst<YearsFilter>().toQueryPart(),
-            filters.getFirst<RatingFilter>().toQueryPart(),
-            filters.getFirst<CountriesFilter>().toQueryPart(),
-            filters.getFirst<LanguagesFilter>().toQueryPart(),
-        )
-    }
-
     private object AnimeKaiFiltersData {
-        val ALL = Pair("All", "all")
-
         val COUNTRIES = listOf(
             Pair("China", "2"),
             Pair("Japan", "11"),
@@ -126,7 +82,6 @@ object AnimeKaiFilters {
         )
 
         val SEASONS = listOf(
-            ALL,
             Pair("Fall", "fall"),
             Pair("Summer", "summer"),
             Pair("Spring", "spring"),
@@ -135,7 +90,6 @@ object AnimeKaiFilters {
         )
 
         val YEARS = listOf(
-            ALL,
             Pair("2025", "2025"),
             Pair("2024", "2024"),
             Pair("2023", "2023"),
@@ -175,7 +129,17 @@ object AnimeKaiFilters {
         )
 
         val SORT_BY = listOf(
-            Pair("Update", "updated_date"),
+            Pair("Updated date", "updated_date"),
+            Pair("Release date", "release_date"),
+            Pair("End date", "end_date"),
+            Pair("Added date", "added_date"),
+            Pair("Trending", "trending"),
+            Pair("Name A-Z", "title_az"),
+            Pair("Average score", "avg_score"),
+            Pair("MAL score", "mal_score"),
+            Pair("Total views", "total_views"),
+            Pair("Total bookmarks", "total_bookmarks"),
+            Pair("Total episodes", "total_episodes"),
         )
 
         val STATUS = listOf(
@@ -202,50 +166,47 @@ object AnimeKaiFilters {
         )
 
         val GENRES = listOf(
-            Pair("Action", "Action"),
-            Pair("Adventure", "Adventure"),
-            Pair("Cars", "Cars"),
-            Pair("Comedy", "Comedy"),
-            Pair("Dementia", "Dementia"),
-            Pair("Demons", "Demons"),
-            Pair("Drama", "Drama"),
-            Pair("Ecchi", "Ecchi"),
-            Pair("Fantasy", "Fantasy"),
-            Pair("Game", "Game"),
-            Pair("Harem", "Harem"),
-            Pair("Historical", "Historical"),
-            Pair("Horror", "Horror"),
-            Pair("Isekai", "Isekai"),
-            Pair("Josei", "Josei"),
-            Pair("Kids", "Kids"),
-            Pair("Magic", "Magic"),
-            Pair("Martial Arts", "Martial Arts"),
-            Pair("Mecha", "Mecha"),
-            Pair("Military", "Military"),
-            Pair("Music", "Music"),
-            Pair("Mystery", "Mystery"),
-            Pair("Parody", "Parody"),
-            Pair("Police", "Police"),
-            Pair("Psychological", "Psychological"),
-            Pair("Romance", "Romance"),
-            Pair("Samurai", "Samurai"),
-            Pair("School", "School"),
-            Pair("Sci-Fi", "Sci-Fi"),
-            Pair("Seinen", "Seinen"),
-            Pair("Shoujo", "Shoujo"),
-            Pair("Shoujo Ai", "Shoujo Ai"),
-            Pair("Shounen", "Shounen"),
-            Pair("Shounen Ai", "Shounen Ai"),
-            Pair("Slice of Life", "Slice of Life"),
-            Pair("Space", "Space"),
-            Pair("Sports", "Sports"),
-            Pair("Super Power", "Super Power"),
-            Pair("Supernatural", "Supernatural"),
-            Pair("Thriller", "Thriller"),
-            Pair("Unknown", "Unknown"),
-            Pair("Vampire", "Vampire"),
-            Pair("Yaoi", "Yaoi"),
-            Pair("Yuri", "Yuri"),
+            Pair("Action", "47"),
+            Pair("Adventure", "1"),
+            Pair("Avant Garde", "235"),
+            Pair("Boys Love", "184"),
+            Pair("Comedy", "7"),
+            Pair("Demons", "127"),
+            Pair("Drama", "66"),
+            Pair("Ecchi", "8"),
+            Pair("Fantasy", "34"),
+            Pair("Girls Love", "926"),
+            Pair("Gourmet", "436"),
+            Pair("Harem", "196"),
+            Pair("Horror", "421"),
+            Pair("Isekai", "77"),
+            Pair("Iyashikei", "225"),
+            Pair("Josei", "555"),
+            Pair("Kids", "35"),
+            Pair("Magic", "78"),
+            Pair("Mahou Shoujo", "857"),
+            Pair("Martial Arts", "92"),
+            Pair("Mecha", "219"),
+            Pair("Military", "134"),
+            Pair("Music", "27"),
+            Pair("Mystery", "48"),
+            Pair("Parody", "356"),
+            Pair("Psychological", "240"),
+            Pair("Reverse Harem", "798"),
+            Pair("Romance", "145"),
+            Pair("School", "9"),
+            Pair("Sci-Fi", "36"),
+            Pair("Seinen", "189"),
+            Pair("Shoujo", "183"),
+            Pair("Shounen", "37"),
+            Pair("Slice of Life", "125"),
+            Pair("Space", "220"),
+            Pair("Sports", "10"),
+            Pair("Super Power", "350"),
+            Pair("Supernatural", "49"),
+            Pair("Suspense", "322"),
+            Pair("Thriller", "241"),
+            Pair("Vampire", "126"),
         )
     }
 }

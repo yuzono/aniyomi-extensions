@@ -4,6 +4,16 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.BuildConfig
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.CountriesFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.GenresFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.LanguagesFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.RatingFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.SeasonsFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.SortByFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.StatusFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.TypesFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.YearsFilter
+import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.getFirstOrNull
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -88,7 +98,25 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // =============================== Search ===============================
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        return GET("$baseUrl/browser?keyword=$query")
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("browser")
+            addQueryParameter("keyword", query)
+            addQueryParameter("page", page.toString())
+
+            if (filters.isNotEmpty()) {
+                filters.getFirstOrNull<TypesFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<GenresFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<StatusFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<SortByFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<SeasonsFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<YearsFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<RatingFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<CountriesFilter>()?.addQueryParameters(this)
+                filters.getFirstOrNull<LanguagesFilter>()?.addQueryParameters(this)
+            }
+        }.build().toString()
+
+        return GET(url, docHeaders)
     }
 
     override fun searchAnimeSelector() = popularAnimeSelector()
