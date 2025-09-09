@@ -30,12 +30,14 @@ import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
+import okhttp3.CacheControl
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import kotlin.time.Duration.Companion.hours
 
 class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -65,10 +67,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             .build()
     }
 
+    private val cacheControl by lazy { CacheControl.Builder().maxAge(1.hours).build() }
+
     // ============================== Popular ===============================
 
     override fun popularAnimeRequest(page: Int): Request {
-        return GET("$baseUrl/trending?page=$page")
+        return GET("$baseUrl/trending?page=$page", docHeaders, cacheControl)
     }
 
     override fun popularAnimeSelector() = "div.aitem-wrapper div.aitem"
@@ -88,7 +92,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // =============================== Latest ===============================
 
     override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/updates?page=$page")
+        return GET("$baseUrl/updates?page=$page", docHeaders, cacheControl)
     }
 
     override fun latestUpdatesSelector() = popularAnimeSelector()
@@ -116,7 +120,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
         }.build().toString()
 
-        return GET(url, docHeaders)
+        return GET(url, docHeaders, cacheControl)
     }
 
     override fun searchAnimeSelector() = popularAnimeSelector()
