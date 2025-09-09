@@ -79,7 +79,7 @@ abstract class DopeFlix(
         add("X-Requested-With", "XMLHttpRequest")
     }.build()
 
-    protected open val cacheControl by lazy { CacheControl.Builder().maxAge(6.hours).build() }
+    protected open val cacheControl by lazy { CacheControl.Builder().maxAge(1.hours).build() }
 
     // ============================== Popular ===============================
 
