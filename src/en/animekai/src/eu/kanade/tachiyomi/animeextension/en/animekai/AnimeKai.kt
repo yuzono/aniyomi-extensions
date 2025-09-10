@@ -64,7 +64,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override var client by LazyMutable {
         network.client.newBuilder()
-            .rateLimitHost(baseUrl.toHttpUrl(), 5)
+            .rateLimitHost(baseUrl.toHttpUrl(), 10)
             .build()
     }
 
