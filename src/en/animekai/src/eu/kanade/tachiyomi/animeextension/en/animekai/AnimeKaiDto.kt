@@ -4,9 +4,15 @@ import kotlinx.serialization.Serializable
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
-data class VideoData(
+data class VideoCode(
     val type: String,
     val serverId: String,
+    val serverName: String,
+)
+
+data class VideoData(
+    val type: String,
+    val iframe: String,
     val serverName: String,
 )
 

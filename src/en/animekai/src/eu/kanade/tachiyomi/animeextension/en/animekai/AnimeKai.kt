@@ -24,6 +24,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.LazyMutable
 import extensions.utils.addEditTextPreference
@@ -310,12 +311,19 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                                 val serverName = serverElm.text()
                                 if (serverName !in hosterSelection) return@mapNotNull null
 
-                                VideoData(type, serverId, serverName)
+                                VideoCode(type, serverId, serverName)
                             }
                     }
             }
 
-        return servers.flatMap { server ->
+        return servers.parallelMapNotNull { server ->
+            try {
+                extractIframe(server)
+            } catch (e: Exception) {
+                Log.e("AnimeKai", "Failed to extract iframe from server: $server", e)
+                null
+            }
+        }.flatMap { server ->
             try {
                 extractVideo(server)
             } catch (e: Exception) {
@@ -335,7 +343,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private var universalExtractor by LazyMutable { UniversalExtractor(client, preferences.prefTimeout.toLong()) }
 
-    private suspend fun extractVideo(server: VideoData): List<Video> {
+    private suspend fun extractIframe(server: VideoCode): VideoData {
         val (type, lid, serverName) = server
 
         val decodedLid = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$lid"))
@@ -362,6 +370,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
         val name = "$serverName | [$typeSuffix]"
 
+        return VideoData(type, iframe, name)
+    }
+
+    private fun extractVideo(server: VideoData): List<Video> {
+        val (type, iframe, serverName) = server
+
         return try {
             /*
              * Server 2:
@@ -374,9 +388,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
              *  - Dub & S-Sub are similar to Server 2;
              */
             if (type == "sub") {
-                universalExtractor.videosFromUrl(iframe, docHeaders, name, withSub = false)
+                universalExtractor.videosFromUrl(iframe, docHeaders, serverName, withSub = false)
             } else {
-                universalExtractor.videosFromUrl(iframe, docHeaders, name)
+                universalExtractor.videosFromUrl(iframe, docHeaders, serverName)
             }
         } catch (e: Exception) {
             Log.e("AnimeKai", "Failed to extract video from iframe: $iframe", e)
@@ -447,6 +461,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_TYPE_TOGGLE_KEY = "type_selection"
         private val TYPES_ENTRIES = listOf("[Hard Sub]", "[Soft Sub]", "[Dub & S-Sub]")
         private val TYPES_VALUES = listOf("sub", "softsub", "dub")
+        private val DEFAULT_TYPES = setOf("sub")
 
         private const val PREF_TYPE_KEY = "preferred_type"
         private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
@@ -477,7 +492,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         by preferences.delegate(PREF_HOSTER_KEY, HOSTERS.toSet())
 
     private val SharedPreferences.typeToggle: Set<String>
-        by preferences.delegate(PREF_TYPE_TOGGLE_KEY, TYPES_VALUES.toSet())
+        by preferences.delegate(PREF_TYPE_TOGGLE_KEY, DEFAULT_TYPES)
 
     private val SharedPreferences.prefTimeout
         by preferences.delegate(PREF_TIMEOUT_KEY, PREF_TIMEOUT_DEFAULT)
@@ -551,7 +566,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             summary = "Select which video types to show in the episode list",
             entries = TYPES_ENTRIES,
             entryValues = TYPES_VALUES,
-            default = TYPES_VALUES.toSet(),
+            default = DEFAULT_TYPES,
         )
 
         screen.addEditTextPreference(
