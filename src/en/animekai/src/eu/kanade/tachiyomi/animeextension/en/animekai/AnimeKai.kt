@@ -134,7 +134,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return SAnime.create().apply {
             setUrlWithoutDomain(element.attr("href"))
             title = element.selectFirst("div.title")?.getTitle() ?: ""
-            thumbnail_url = element.attr("style").substringAfter("('").substringBefore("')")
+            thumbnail_url = element.getBackgroundImage()
         }
     }
 
@@ -226,10 +226,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val coverSelector by lazy { "div.watch-section-bg" }
 
     private fun Document.getCover(): String? {
-        return selectFirst(coverSelector)?.let {
-            val style = it.attr("style")
-            coverUrlRegex.find(style)?.groupValues?.getOrNull(1)
-        }
+        return selectFirst(coverSelector)?.getBackgroundImage()
+    }
+
+    private fun Element.getBackgroundImage(): String? {
+        val style = attr("style")
+        return coverUrlRegex.find(style)?.groupValues?.getOrNull(1)
     }
 
     // ============================== Episodes ==============================
