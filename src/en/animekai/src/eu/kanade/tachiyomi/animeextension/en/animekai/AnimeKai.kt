@@ -563,7 +563,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         screen.addSetPreference(
             key = PREF_TYPE_TOGGLE_KEY,
             title = "Enable/Disable Types",
-            summary = "Select which video types to show in the episode list",
+            summary = "Select which video types to show in the episode list.\nDisable the one you don't want to speed up loading.",
             entries = TYPES_ENTRIES,
             entryValues = TYPES_VALUES,
             default = DEFAULT_TYPES,

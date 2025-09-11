@@ -69,7 +69,9 @@ class UniversalExtractor(
                         Log.d(tag, "Intercepted URL: $url")
                         if (resultUrl.get().isBlank() && VIDEO_REGEX.containsMatchIn(url)) {
                             if (resultUrl.compareAndSet("", url) && !withSub) {
-                                latch.countDown()
+                                if (latch.count > 0) {
+                                    latch.countDown()
+                                }
                             }
                         }
                         if (SUBTITLE_REGEX.containsMatchIn(url)) {
