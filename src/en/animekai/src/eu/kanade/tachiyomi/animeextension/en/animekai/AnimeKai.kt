@@ -493,7 +493,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             baseUrl = it
             docHeaders = headersBuilder().build()
             client = network.client.newBuilder()
-                .rateLimitHost(baseUrl.toHttpUrl(), 5)
+                .rateLimitHost(baseUrl.toHttpUrl(), 10)
                 .build()
         }
 
