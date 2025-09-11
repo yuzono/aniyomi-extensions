@@ -205,7 +205,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                         document.getCover()?.let { append("\n\n![Cover]($it)") }
                     }
                 }
-            } ?: throw Exception("Invalid anime details page format")
+            } ?: throw IllegalStateException("Invalid anime details page format")
         }
     }
 

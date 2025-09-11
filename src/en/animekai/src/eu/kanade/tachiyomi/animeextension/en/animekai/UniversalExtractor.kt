@@ -149,7 +149,7 @@ class UniversalExtractor(
         return this.replaceFirstChar {
             if (it.isLowerCase()) {
                 it.titlecase(
-                    Locale.getDefault(),
+                    Locale.ENGLISH,
                 )
             } else it.toString()
         }
@@ -157,30 +157,7 @@ class UniversalExtractor(
 
     private fun extractLabelFromUrl(url: String): String {
         val file = url.substringAfterLast("/")
-        return when (val code = file.substringBefore("_").lowercase()) {
-            "eng" -> "English"
-            "ger", "deu" -> "German"
-            "spa" -> "Spanish"
-            "fre", "fra" -> "French"
-            "ita" -> "Italian"
-            "jpn" -> "Japanese"
-            "chi", "zho" -> "Chinese"
-            "kor" -> "Korean"
-            "rus" -> "Russian"
-            "ara" -> "Arabic"
-            "hin" -> "Hindi"
-            "por" -> "Portuguese"
-            "vie" -> "Vietnamese"
-            "pol" -> "Polish"
-            "ukr" -> "Ukrainian"
-            "swe" -> "Swedish"
-            "ron", "rum" -> "Romanian"
-            "ell", "gre" -> "Greek"
-            "hun" -> "Hungarian"
-            "fas", "per" -> "Persian"
-            "tha" -> "Thai"
-            else -> code.uppercase()
-        }
+        return file.split("_").firstNotNullOfOrNull { LANG_MAP[it.lowercase()] } ?: file
     }
 
     companion object {
@@ -199,5 +176,29 @@ class UniversalExtractor(
             })();
             """.trimIndent()
         }
+
+        private val LANG_MAP = mapOf(
+            "eng" to "English",
+            "ger" to "German", "deu" to "German",
+            "spa" to "Spanish",
+            "fre" to "French", "fra" to "French",
+            "ita" to "Italian",
+            "jpn" to "Japanese",
+            "chi" to "Chinese", "zho" to "Chinese",
+            "kor" to "Korean",
+            "rus" to "Russian",
+            "ara" to "Arabic",
+            "hin" to "Hindi",
+            "por" to "Portuguese",
+            "vie" to "Vietnamese",
+            "pol" to "Polish",
+            "ukr" to "Ukrainian",
+            "swe" to "Swedish",
+            "ron" to "Romanian", "rum" to "Romanian",
+            "ell" to "Greek", "gre" to "Greek",
+            "hun" to "Hungarian",
+            "fas" to "Persian", "per" to "Persian",
+            "tha" to "Thai",
+        )
     }
 }
