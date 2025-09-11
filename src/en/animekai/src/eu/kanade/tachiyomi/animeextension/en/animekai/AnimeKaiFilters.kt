@@ -151,6 +151,7 @@ object AnimeKaiFilters {
         )
 
         val SORT_BY = listOf(
+            Pair("Most relevant", "most_relevance"),
             Pair("Updated date", "updated_date"),
             Pair("Release date", "release_date"),
             Pair("End date", "end_date"),
