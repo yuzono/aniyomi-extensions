@@ -461,26 +461,26 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private var useEnglish by LazyMutable { preferences.getTitleLang == "English" }
 
-    private var SharedPreferences.getTitleLang
-        by LazyMutable { preferences.getString(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)!! }
+    private val SharedPreferences.getTitleLang
+        by preferences.delegate(PREF_TITLE_LANG_KEY, PREF_TITLE_LANG_DEFAULT)
 
-    private var SharedPreferences.prefQuality
-        by LazyMutable { preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!! }
+    private val SharedPreferences.prefQuality
+        by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
 
-    private var SharedPreferences.prefServer
-        by LazyMutable { preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!! }
+    private val SharedPreferences.prefServer
+        by preferences.delegate(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
 
-    private var SharedPreferences.prefType
-        by LazyMutable { preferences.getString(PREF_TYPE_KEY, PREF_TYPE_DEFAULT)!! }
+    private val SharedPreferences.prefType
+        by preferences.delegate(PREF_TYPE_KEY, PREF_TYPE_DEFAULT)
 
-    private var SharedPreferences.hostToggle: MutableSet<String>
-        by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())!! }
+    private val SharedPreferences.hostToggle: Set<String>
+        by preferences.delegate(PREF_HOSTER_KEY, HOSTERS.toSet())
 
-    private var SharedPreferences.typeToggle: MutableSet<String>
-        by LazyMutable { preferences.getStringSet(PREF_TYPE_TOGGLE_KEY, TYPES_VALUES.toSet())!! }
+    private val SharedPreferences.typeToggle: Set<String>
+        by preferences.delegate(PREF_TYPE_TOGGLE_KEY, TYPES_VALUES.toSet())
 
-    private var SharedPreferences.prefTimeout
-        by LazyMutable { preferences.getString(PREF_TIMEOUT_KEY, PREF_TIMEOUT_DEFAULT)!! }
+    private val SharedPreferences.prefTimeout
+        by preferences.delegate(PREF_TIMEOUT_KEY, PREF_TIMEOUT_DEFAULT)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
@@ -506,7 +506,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             default = PREF_TITLE_LANG_DEFAULT,
             summary = "%s",
         ) {
-            preferences.getTitleLang = it
             useEnglish = it == "English"
         }
 
@@ -517,9 +516,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entryValues = PREF_QUALITY_ENTRIES,
             default = PREF_QUALITY_DEFAULT,
             summary = "%s",
-        ) {
-            preferences.prefQuality = it
-        }
+        )
 
         screen.addListPreference(
             key = PREF_SERVER_KEY,
@@ -528,9 +525,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entryValues = HOSTERS,
             default = PREF_SERVER_DEFAULT,
             summary = "%s",
-        ) {
-            preferences.prefServer = it
-        }
+        )
 
         screen.addListPreference(
             key = PREF_TYPE_KEY,
@@ -539,9 +534,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entryValues = TYPES_ENTRIES, // Using entries directly for parsing Quality string
             default = PREF_TYPE_DEFAULT,
             summary = "%s",
-        ) {
-            preferences.prefType = it
-        }
+        )
 
         screen.addSetPreference(
             key = PREF_HOSTER_KEY,
@@ -550,9 +543,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entries = HOSTERS,
             entryValues = HOSTERS,
             default = HOSTERS.toSet(),
-        ) {
-            preferences.hostToggle = it.toMutableSet()
-        }
+        )
 
         screen.addSetPreference(
             key = PREF_TYPE_TOGGLE_KEY,
@@ -561,9 +552,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entries = TYPES_ENTRIES,
             entryValues = TYPES_VALUES,
             default = TYPES_VALUES.toSet(),
-        ) {
-            preferences.typeToggle = it.toMutableSet()
-        }
+        )
 
         screen.addEditTextPreference(
             key = PREF_TIMEOUT_KEY,
@@ -575,7 +564,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             validate = { it.isNotBlank() && (it.toIntOrNull() ?: 0) > 0 },
             validationMessage = { "The value is invalid. It must be a natural number." },
         ) {
-            preferences.prefTimeout = it
             universalExtractor = UniversalExtractor(client, it.toLongOrNull() ?: PREF_TIMEOUT_DEFAULT.toLong())
         }
     }
