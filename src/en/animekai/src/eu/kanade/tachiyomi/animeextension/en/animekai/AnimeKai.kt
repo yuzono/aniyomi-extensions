@@ -39,6 +39,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.hours
 
 class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
@@ -65,7 +66,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override var client by LazyMutable {
         network.client.newBuilder()
-            .rateLimitHost(baseUrl.toHttpUrl(), RATE_LIMIT)
+            .rateLimitHost(baseUrl.toHttpUrl(), permits = RATE_LIMIT, period = 1, unit = TimeUnit.SECONDS)
             .build()
     }
 
@@ -510,7 +511,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             baseUrl = it
             docHeaders = headersBuilder().build()
             client = network.client.newBuilder()
-                .rateLimitHost(baseUrl.toHttpUrl(), RATE_LIMIT)
+                .rateLimitHost(baseUrl.toHttpUrl(), permits = RATE_LIMIT, period = 1, unit = TimeUnit.SECONDS)
                 .build()
         }
 
