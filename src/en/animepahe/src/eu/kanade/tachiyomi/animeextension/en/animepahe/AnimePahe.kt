@@ -470,8 +470,8 @@ class AnimePahe : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_DOMAIN_KEY = "preffered_domain"
         private const val PREF_DOMAIN_TITLE = "Preferred domain (requires app restart)"
-        private const val PREF_DOMAIN_DEFAULT = "https://animepahe.ru"
-        private val PREF_DOMAIN_ENTRIES = arrayOf("animepahe.ru", "animepahe.com", "animepahe.org")
+        private const val PREF_DOMAIN_DEFAULT = "https://animepahe.si"
+        private val PREF_DOMAIN_ENTRIES = arrayOf("animepahe.si", "animepahe.com", "animepahe.org")
         private val PREF_DOMAIN_VALUES by lazy {
             PREF_DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
         }
