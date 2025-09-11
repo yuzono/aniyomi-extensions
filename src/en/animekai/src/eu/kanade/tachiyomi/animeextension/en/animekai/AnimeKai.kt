@@ -236,23 +236,22 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================== Episodes ==============================
 
-    override fun episodeListRequest(anime: SAnime): Request {
+    override fun episodeListSelector() = "div.eplist a"
+
+    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         val animeId = client.newCall(animeDetailsRequest(anime))
-            .execute().use {
+            .awaitSuccess().use {
                 val document = it.asJsoup()
                 document.selectFirst("div[data-id]")?.attr("data-id")
                     ?: throw IllegalStateException("Anime ID not found")
             }
 
         val decoded = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$animeId"))
-            .execute().use { it.body.string() }
-        return GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", docHeaders)
-    }
+            .awaitSuccess().use { it.body.string() }
 
-    override fun episodeListSelector() = "div.eplist a"
-
-    override fun episodeListParse(response: Response): List<SEpisode> {
-        val document = response.parseAs<ResultResponse>().toDocument()
+        val chapterListRequest = GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", docHeaders)
+        val document = client.newCall(chapterListRequest)
+            .awaitSuccess().use { it.parseAs<ResultResponse>().toDocument() }
 
         val episodeElements = document.select(episodeListSelector())
         return episodeElements.mapNotNull {
