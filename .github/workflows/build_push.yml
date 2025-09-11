@@ -132,6 +132,7 @@ jobs:
           MEGACLOUD_API: ${{ secrets.MEGACLOUD_API }}
           KISSKH_API: ${{ secrets.KISSKH_API }}
           KISSKH_SUB_API: ${{ secrets.KISSKH_SUB_API }}
+          KAISVA: ${{ secrets.KAISVA }}
         run: |
           ./gradlew $(echo '${{ toJson(matrix.chunk.modules) }}' | jq -r 'join(" ")')
 
