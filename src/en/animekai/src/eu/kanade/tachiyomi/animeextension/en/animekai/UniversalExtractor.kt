@@ -16,7 +16,6 @@ import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import uy.kohesive.injekt.injectLazy
-import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -148,9 +147,7 @@ class UniversalExtractor(
     private fun String.proper(): String {
         return this.replaceFirstChar {
             if (it.isLowerCase()) {
-                it.titlecase(
-                    Locale.ENGLISH,
-                )
+                it.titlecase()
             } else it.toString()
         }
     }
