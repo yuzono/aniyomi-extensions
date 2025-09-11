@@ -67,7 +67,7 @@ class UniversalExtractor(
                     ): WebResourceResponse? {
                         val url = request.url.toString()
                         Log.d(tag, "Intercepted URL: $url")
-                        if (resultUrl.get().isBlank() && VIDEO_REGEX.containsMatchIn(url)) {
+                        if (VIDEO_REGEX.containsMatchIn(url)) {
                             if (resultUrl.compareAndSet("", url) && !withSub) {
                                 if (latch.count > 0) {
                                     latch.countDown()

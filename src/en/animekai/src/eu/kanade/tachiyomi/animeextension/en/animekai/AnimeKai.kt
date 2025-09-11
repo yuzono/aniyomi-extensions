@@ -247,8 +247,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     ?: throw IllegalStateException("Anime ID not found")
             }
 
-        val decoded = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$animeId"))
-            .awaitSuccess().use { it.body.string() }
+        val decoded = decode(animeId)
 
         val chapterListRequest = GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", docHeaders)
         val document = client.newCall(chapterListRequest)
@@ -291,8 +290,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val token = episode.url
-        val decodedToken = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$token"))
-            .awaitSuccess().use { it.body.string() }
+        val decodedToken = decode(token)
 
         val typeSelection = preferences.typeToggle
         val hosterSelection = preferences.hostToggle
@@ -346,21 +344,19 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private suspend fun extractIframe(server: VideoCode): VideoData {
         val (type, lid, serverName) = server
 
-        val decodedLid = client.newCall(GET("${BuildConfig.KAISVA}/?f=e&d=$lid"))
-            .awaitSuccess().use { it.body.string() }
+        val decodedLid = decode(lid)
 
         val encodedLink = client.newCall(GET("$baseUrl/ajax/links/view?id=$lid&_=$decodedLid", docHeaders))
             .awaitSuccess().use { json ->
                 json.parseAs<ResultResponse>().result
             }
 
-        val iframe = client.newCall(GET("${BuildConfig.KAISVA}/?f=d&d=$encodedLink"))
-            .awaitSuccess().use { json ->
-                val url = json.parseAs<IframeResponse>().url
-                url.toHttpUrl().newBuilder()
-                    .addQueryParameter("autostart", "true")
-                    .build().toString()
-            }
+        val iframe = decode(encodedLink, "d").let { json ->
+            val url = json.parseAs<IframeResponse>().url
+            url.toHttpUrl().newBuilder()
+                .addQueryParameter("autostart", "true")
+                .build().toString()
+        }
 
         val typeSuffix = when (type) {
             "sub" -> "Hard Sub"
@@ -396,6 +392,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             Log.e("AnimeKai", "Failed to extract video from iframe: $iframe", e)
             emptyList()
         }
+    }
+
+    private suspend fun decode(value: String, type: String = "e"): String {
+        val url = "${BuildConfig.KAISVA}/?f=$type&d=$value"
+        return client.newCall(GET(url)).awaitSuccess().use { it.body.string() }
     }
 
     override fun List<Video>.sort(): List<Video> {
