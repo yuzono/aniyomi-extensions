@@ -31,8 +31,9 @@ class UniversalExtractor(
 
     @SuppressLint("SetJavaScriptEnabled")
     fun videosFromUrl(origRequestUrl: String, origRequestHeader: Headers, name: String?, withSub: Boolean = true): List<Video> {
-        Log.d(tag, "Fetching videos from: $origRequestUrl")
         val host = extractMainDomain(origRequestUrl.toHttpUrl().host).proper()
+        val prefix = name ?: host
+        Log.d(tag, "Fetching videos for $prefix from: $origRequestUrl")
 
         val latch = CountDownLatch(1)
         var webView: WebView? = null
@@ -97,8 +98,6 @@ class UniversalExtractor(
             val label = extractLabelFromUrl(subUrl)
             Track(subUrl, label)
         }
-
-        val prefix = name ?: host
 
         val finalResultUrl = resultUrl.get()
         return when {
