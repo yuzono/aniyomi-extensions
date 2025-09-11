@@ -64,7 +64,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override var client by LazyMutable {
         network.client.newBuilder()
-            .rateLimitHost(baseUrl.toHttpUrl(), 10)
+            .rateLimitHost(baseUrl.toHttpUrl(), RATE_LIMIT)
             .build()
     }
 
@@ -163,7 +163,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return SAnime.create().apply {
             thumbnail_url = document.select(".poster img").attr("src")
 
-            document.selectFirst("div#main-entity")!!.let { info ->
+            document.selectFirst("div#main-entity")?.let { info ->
                 val titles = info.selectFirst("h1.title")
                     ?.also { title = it.getTitle() }
                     ?.let {
@@ -205,7 +205,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                         document.getCover()?.let { append("\n\n![Cover]($it)") }
                     }
                 }
-            }
+            } ?: throw Exception("Invalid anime details page format")
         }
     }
 
@@ -349,11 +349,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val iframe = client.newCall(GET("${BuildConfig.KAISVA}/?f=d&d=$encodedLink"))
             .awaitSuccess().use { json ->
                 val url = json.parseAs<IframeResponse>().url
-                if (url.contains("?")) {
-                    "$url&autostart=true"
-                } else {
-                    "$url?autostart=true"
-                }
+                url.toHttpUrl().newBuilder()
+                    .addQueryParameter("autostart", "true")
+                    .build().toString()
             }
 
         val typeSuffix = when (type) {
@@ -455,6 +453,8 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         private const val PREF_TIMEOUT_KEY = "parsing_timeout"
         private const val PREF_TIMEOUT_DEFAULT = "10"
+
+        private const val RATE_LIMIT = 5
     }
 
     // ============================== Settings ==============================
@@ -494,7 +494,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             baseUrl = it
             docHeaders = headersBuilder().build()
             client = network.client.newBuilder()
-                .rateLimitHost(baseUrl.toHttpUrl(), 10)
+                .rateLimitHost(baseUrl.toHttpUrl(), RATE_LIMIT)
                 .build()
         }
 
