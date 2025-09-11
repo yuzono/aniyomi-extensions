@@ -34,7 +34,7 @@ class UniversalExtractor(
         Log.d(tag, "Fetching videos from: $origRequestUrl")
         val host = extractMainDomain(origRequestUrl.toHttpUrl().host).proper()
 
-        val latch = CountDownLatch(if (withSub) MAX_SUBTITLE_ATTEMPTS else 1)
+        val latch = CountDownLatch(1)
         var webView: WebView? = null
         val resultUrl = AtomicReference("")
         val subtitleUrls = mutableListOf<String>()
@@ -68,7 +68,7 @@ class UniversalExtractor(
                         val url = request.url.toString()
                         Log.d(tag, "Intercepted URL: $url")
                         if (resultUrl.get().isBlank() && VIDEO_REGEX.containsMatchIn(url)) {
-                            if (resultUrl.compareAndSet("", url)) {
+                            if (resultUrl.compareAndSet("", url) && !withSub) {
                                 latch.countDown()
                             }
                         }
@@ -186,9 +186,6 @@ class UniversalExtractor(
 
     companion object {
         const val DEFAULT_TIMEOUT_SEC = 10L
-
-        // Used to allow enough intercepted requests for subtitle extraction.
-        const val MAX_SUBTITLE_ATTEMPTS = 99
 
         private val VIDEO_REGEX by lazy { Regex(".*\\.(mp4|m3u8|mpd)(\\?.*)?$", RegexOption.IGNORE_CASE) }
 
