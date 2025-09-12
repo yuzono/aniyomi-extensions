@@ -464,7 +464,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_TYPE_TOGGLE_KEY = "type_selection"
         private val TYPES_ENTRIES = listOf("[Hard Sub]", "[Soft Sub]", "[Dub & S-Sub]")
         private val TYPES_VALUES = listOf("sub", "softsub", "dub")
-        private val DEFAULT_TYPES = setOf("sub")
+        private val DEFAULT_TYPES = TYPES_VALUES.toSet()
 
         private const val PREF_TYPE_KEY = "preferred_type"
         private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
