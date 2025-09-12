@@ -57,6 +57,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun headersBuilder(): Headers.Builder {
         return super.headersBuilder()
+            .add("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36")
             .add("Referer", "$baseUrl/")
     }
 
@@ -397,7 +398,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private suspend fun decode(value: String, type: String = "e"): String {
         val url = "${BuildConfig.KAISVA}/?f=$type&d=$value"
-        return client.newCall(GET(url)).awaitSuccess().use { it.body.string() }
+        return client.newCall(GET(url, docHeaders)).awaitSuccess().use { it.body.string() }
     }
 
     override fun List<Video>.sort(): List<Video> {
