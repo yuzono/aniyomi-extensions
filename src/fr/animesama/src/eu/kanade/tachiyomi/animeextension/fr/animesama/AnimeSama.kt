@@ -29,7 +29,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Anime-Sama"
 
-    override val baseUrl = "https://anime-sama.fr"
+    override val baseUrl = "https://anime-sama.org"
 
     override val lang = "fr"
 
@@ -40,8 +40,8 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     private val preferences by getPreferencesLazy()
 
     private val database by lazy {
-        client.newCall(GET("$baseUrl/catalogue/listing_all.php", headers)).execute()
-            .asJsoup().select(".cardListAnime")
+        client.newCall(GET("$baseUrl/catalogue", headers)).execute()
+            .asJsoup().select("#list_catalog > div")
     }
 
     // ============================== Popular ===============================
@@ -62,7 +62,8 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val animes = response.asJsoup()
         val seasons = animes.select("#containerAjoutsAnimes > div").flatMap {
-            val animeUrl = it.getElementsByTag("a").attr("href").toHttpUrl()
+            val href = it.getElementsByTag("a").attr("href")
+            val animeUrl = (if (href.startsWith("http")) href else baseUrl + href).toHttpUrl()
             val url = animeUrl.newBuilder()
                 .removePathSegment(animeUrl.pathSize - 2)
                 .removePathSegment(animeUrl.pathSize - 3)
