@@ -39,9 +39,9 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val supportsLatest = true
 
-    private val domain = "anilib.me"
+    private val domain = "v3.animelib.org"
     override val baseUrl = "https://$domain/ru"
-    private val apiUrl = "https://api.lib.social/api"
+    private val apiUrl = "https://api.cdnlibs.org/api"
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
     private val dateFormatter by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH) }
