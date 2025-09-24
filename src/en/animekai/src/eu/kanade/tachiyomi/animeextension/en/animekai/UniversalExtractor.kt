@@ -39,7 +39,6 @@ class UniversalExtractor(
         val resultUrl = AtomicReference("")
         val subtitleUrls = mutableListOf<String>()
         val playlistUtils by lazy { PlaylistUtils(client, origRequestHeader) }
-        val headers = origRequestHeader.toMultimap().mapValues { it.value.getOrNull(0) ?: "" }.toMutableMap()
 
         try {
             handler.post {
@@ -81,7 +80,15 @@ class UniversalExtractor(
                     }
                 }
 
-                webView?.loadUrl(origRequestUrl, headers)
+                // Build HTML with iframe
+                val html = """
+                    <html>
+                      <body style="margin:0;padding:0;">
+                        <iframe src="$origRequestUrl" width="100%" height="100%" frameborder="0" style="display:block;min-height:100vh;"/>
+                      </body>
+                    </html>
+                """.trimIndent()
+                webView?.loadData(html, "text/html", "UTF-8")
             }
 
             latch.await(timeoutSec, TimeUnit.SECONDS)
