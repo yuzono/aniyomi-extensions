@@ -30,9 +30,10 @@ class UniversalExtractor(
 
     @SuppressLint("SetJavaScriptEnabled")
     fun videosFromUrl(origRequestUrl: String, origRequestHeader: Headers, name: String?, withSub: Boolean = true): List<Video> {
-        val host = extractMainDomain(origRequestUrl.toHttpUrl().host).proper()
+        val host = extractHoster(origRequestUrl.toHttpUrl().host).proper()
         val prefix = name ?: host
         Log.d(tag, "Fetching videos for $prefix from: $origRequestUrl")
+        val referer = origRequestHeader["Referer"] ?: origRequestUrl.toHttpUrl().toString()
 
         val latch = CountDownLatch(1)
         var webView: WebView? = null
@@ -88,7 +89,7 @@ class UniversalExtractor(
                       </body>
                     </html>
                 """.trimIndent()
-                webView?.loadData(html, "text/html", "UTF-8")
+                webView?.loadDataWithBaseURL(referer, html, "text/html", "UTF-8", null)
             }
 
             latch.await(timeoutSec, TimeUnit.SECONDS)
@@ -143,9 +144,9 @@ class UniversalExtractor(
 
     /**
      * Extracts the main domain segment from a host string.
-     * For example, "www.animekai.to" -> "animekai"
+     * For example, "www.megaup.live" -> "megaup"
      */
-    private fun extractMainDomain(host: String): String {
+    private fun extractHoster(host: String): String {
         val parts = host.split(".")
         return when {
             parts.size >= 2 -> parts[parts.size - 2]
