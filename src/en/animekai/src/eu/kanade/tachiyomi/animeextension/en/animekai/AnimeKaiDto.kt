@@ -11,7 +11,6 @@ data class VideoCode(
 )
 
 data class VideoData(
-    val type: String,
     val iframe: String,
     val serverName: String,
 )

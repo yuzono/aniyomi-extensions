@@ -24,10 +24,10 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.LazyMutable
-import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.delegate
@@ -57,7 +57,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun headersBuilder(): Headers.Builder {
         return super.headersBuilder()
-            .add("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36")
+            .set("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36")
             .add("Referer", "$baseUrl/")
     }
 
@@ -323,7 +323,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 Log.e("AnimeKai", "Failed to extract iframe from server: $server", e)
                 null
             }
-        }.flatMap { server ->
+        }.parallelFlatMap { server ->
             try {
                 extractVideo(server)
             } catch (e: Exception) {
@@ -341,7 +341,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================= Utilities ==============================
 
-    private var universalExtractor by LazyMutable { UniversalExtractor(client, preferences.prefTimeout.toLong()) }
+    private var megaUpExtractor by LazyMutable { MegaUpExtractor(client, docHeaders) }
 
     private suspend fun extractIframe(server: VideoCode): VideoData {
         val (type, lid, serverName) = server
@@ -356,7 +356,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val iframe = decode(encodedLink, "d").let { json ->
             val url = json.parseAs<IframeResponse>().url
             url.toHttpUrl().newBuilder()
-                .addQueryParameter("autostart", "true")
                 .build().toString()
         }
 
@@ -368,30 +367,17 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
         val name = "$serverName | [$typeSuffix]"
 
-        return VideoData(type, iframe, name)
+        return VideoData(iframe, name)
     }
 
-    private fun extractVideo(server: VideoData): List<Video> {
-        val (type, iframe, serverName) = server
-
+    private suspend fun extractVideo(server: VideoData): List<Video> {
         return try {
-            /*
-             * Server 2:
-             *  - Playlist like: `list.m3u8` with .ts file;
-             *  - The Dub will load separated sub .vtt file;
-             *  - The S-Sub seems using embedded subs;
-             * Server 1:
-             *  - Playlist like: `list,Z3r-aM6peKE-ic4lJkPfnljqs9Q0UQ.m3u8`, all the segments are
-             *    using random file extension but can be replaced to .ts;
-             *  - Dub & S-Sub are similar to Server 2;
-             */
-            if (type == "sub") {
-                universalExtractor.videosFromUrl(iframe, docHeaders, serverName, withSub = false)
-            } else {
-                universalExtractor.videosFromUrl(iframe, docHeaders, serverName)
-            }
+            megaUpExtractor.videosFromUrl(
+                server.iframe,
+                server.serverName,
+            )
         } catch (e: Exception) {
-            Log.e("AnimeKai", "Failed to extract video from iframe: $iframe", e)
+            Log.e("AnimeKai", "Error extracting videos for ${server.serverName}", e)
             emptyList()
         }
     }
@@ -469,9 +455,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_TYPE_KEY = "preferred_type"
         private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
 
-        private const val PREF_TIMEOUT_KEY = "parsing_timeout"
-        private const val PREF_TIMEOUT_DEFAULT = "10"
-
         private const val RATE_LIMIT = 5
     }
 
@@ -497,9 +480,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val SharedPreferences.typeToggle: Set<String>
         by preferences.delegate(PREF_TYPE_TOGGLE_KEY, DEFAULT_TYPES)
 
-    private val SharedPreferences.prefTimeout
-        by preferences.delegate(PREF_TIMEOUT_KEY, PREF_TIMEOUT_DEFAULT)
-
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
             key = PREF_DOMAIN_KEY,
@@ -514,6 +494,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             client = network.client.newBuilder()
                 .rateLimitHost(baseUrl.toHttpUrl(), permits = RATE_LIMIT, period = 1, unit = TimeUnit.SECONDS)
                 .build()
+            megaUpExtractor = MegaUpExtractor(client, docHeaders)
         }
 
         screen.addListPreference(
@@ -571,20 +552,5 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entryValues = TYPES_VALUES,
             default = DEFAULT_TYPES,
         )
-
-        screen.addEditTextPreference(
-            key = PREF_TIMEOUT_KEY,
-            default = PREF_TIMEOUT_DEFAULT,
-            title = "Timeout for slow network",
-            summary = timeoutSummary(preferences.prefTimeout),
-            getSummary = timeoutSummary,
-            dialogMessage = "Set timeout to wait for parsing video in seconds",
-            validate = { it.isNotBlank() && (it.toIntOrNull() ?: 0) > 0 },
-            validationMessage = { "The value is invalid. It must be a natural number." },
-        ) {
-            universalExtractor = UniversalExtractor(client, it.toLongOrNull() ?: PREF_TIMEOUT_DEFAULT.toLong())
-        }
     }
-
-    val timeoutSummary: (String) -> String = { "Current: $it seconds" }
 }
