@@ -11,9 +11,9 @@ import eu.kanade.tachiyomi.lib.streamtapeextractor.StreamTapeExtractor
 import eu.kanade.tachiyomi.multisrc.zorotheme.ZoroTheme
 import eu.kanade.tachiyomi.network.GET
 import extensions.utils.LazyMutable
-import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.delegate
+import extensions.utils.getEditTextPreference
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import org.jsoup.nodes.Element
@@ -78,20 +78,7 @@ class HiAnime :
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         super.setupPreferenceScreen(screen)
 
-        screen.addListPreference(
-            key = PREF_DOMAIN_KEY,
-            title = "Preferred domain",
-            entries = DOMAIN_ENTRIES,
-            entryValues = DOMAIN_VALUES,
-            default = PREF_DOMAIN_DEFAULT,
-            summary = "%s",
-        ) {
-            preferences.customDomain = ""
-            baseUrl = it
-            docHeaders = newHeaders()
-        }
-
-        screen.addEditTextPreference(
+        val customDomainPref = screen.getEditTextPreference(
             key = PREF_DOMAIN_CUSTOM_KEY,
             default = "",
             title = "Custom domain",
@@ -107,6 +94,22 @@ class HiAnime :
                 docHeaders = newHeaders()
             }
         }
+
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = "Preferred domain",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        ) {
+            preferences.customDomain = ""
+            customDomainPref.summary = ""
+            baseUrl = it
+            docHeaders = newHeaders()
+        }
+
+        screen.addPreference(customDomainPref)
     }
 
     companion object {
