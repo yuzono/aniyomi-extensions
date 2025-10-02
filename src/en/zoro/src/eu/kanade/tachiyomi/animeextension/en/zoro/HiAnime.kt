@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.en.zoro
 
+import android.content.SharedPreferences
+import android.text.InputType
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -11,9 +13,10 @@ import eu.kanade.tachiyomi.network.GET
 import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.delegate
+import extensions.utils.getEditTextPreference
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import org.jsoup.nodes.Element
-import kotlin.getValue
 
 class HiAnime :
     ZoroTheme(
@@ -28,14 +31,13 @@ class HiAnime :
         ),
     ) {
     override val id = 6706411382606718900L
-
     override val ajaxRoute = "/v2"
 
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     private val megaCloudExtractor by LazyMutable { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
 
-    override var baseUrl: String
-        by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+    // Caching baseUrl using a backing field to avoid multiple SharedPreferences reads
+    override var baseUrl by LazyMutable { initBaseUrl() }
 
     override fun latestUpdatesRequest(page: Int): Request = GET(
         "$baseUrl/recently-updated?page=$page",
@@ -67,9 +69,32 @@ class HiAnime :
         }
     }
 
-    // Added the setupPreferenceScreen method here
+    private val SharedPreferences.preferredDomain by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+    private var SharedPreferences.customDomain by preferences.delegate(PREF_DOMAIN_CUSTOM_KEY, "")
+
+    private fun initBaseUrl() = preferences.customDomain.domainFallback()
+    private fun String.domainFallback() = this.trim().ifBlank { preferences.preferredDomain }
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         super.setupPreferenceScreen(screen)
+
+        val customDomainPref = screen.getEditTextPreference(
+            key = PREF_DOMAIN_CUSTOM_KEY,
+            default = "",
+            title = "Custom domain",
+            dialogMessage = "Enter custom domain (e.g., https://example.com)",
+            summary = preferences.customDomain,
+            getSummary = { it },
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
+            validate = { it.isBlank() || (it.toHttpUrlOrNull() != null && !it.endsWith("/")) },
+            validationMessage = { "The URL is invalid, malformed, or ends with a slash" },
+        ) { newValue ->
+            newValue.domainFallback().let {
+                baseUrl = it
+                docHeaders = newHeaders()
+            }
+        }
+
         screen.addListPreference(
             key = PREF_DOMAIN_KEY,
             title = "Preferred domain",
@@ -78,13 +103,19 @@ class HiAnime :
             default = PREF_DOMAIN_DEFAULT,
             summary = "%s",
         ) {
+            preferences.customDomain = ""
+            customDomainPref.summary = ""
             baseUrl = it
             docHeaders = newHeaders()
         }
+
+        screen.addPreference(customDomainPref)
     }
 
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
+        private const val PREF_DOMAIN_CUSTOM_KEY = "custom_domain"
+
         private val DOMAIN_ENTRIES = listOf(
             "hianime.to",
             "hianime.nz",
@@ -95,7 +126,6 @@ class HiAnime :
             "hianime.cx",
             "hianime.do",
             "hianimez.is",
-            "hianimez.to",
         )
         private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
         private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES[0]
