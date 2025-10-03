@@ -64,8 +64,8 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
     private fun newCredential(): Credential {
         isLoggedIn.set(false)
         return Credential(
-            username = preferences.username,
-            password = preferences.password,
+            username = preferences.username.trim(),
+            password = preferences.password.trim(),
         )
     }
 
@@ -267,7 +267,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
         return animeDetailsParse(response.asJsoup(), needCover).apply { initialized = true }
     }
 
-    private fun animeDetailsParse(document: Document, needCover: Boolean = true): SAnime {
+    private suspend fun animeDetailsParse(document: Document, needCover: Boolean = true): SAnime {
         return SAnime.create().apply {
             title = cleanTitle(document.select("h1").text())
             author = document.select(".entry-terms a[href*=artist]").firstOrNull()?.text()
@@ -291,7 +291,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
 
             if (needCover) {
                 client.newCall(GET("$baseUrl/search/?search=${document.location()}", headers))
-                    .execute()
+                    .awaitSuccess()
                     .use { response ->
                         response.asJsoup().selectFirst("div.wdm_results div.p_content img")
                             ?.getImage()?.getThumbnail()
