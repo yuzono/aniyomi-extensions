@@ -110,11 +110,13 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
                     isLoggedIn.set(true)
                     return chain.proceed(request)
                 } else {
-                    Toast.makeText(
-                        Injekt.get<Application>(),
-                        "MyReadingManga login failed. Please check your credentials.",
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        Toast.makeText(
+                            Injekt.get<Application>(),
+                            "MyReadingManga login failed. Please check your credentials.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
                 }
             }
             return chain.proceed(request)
