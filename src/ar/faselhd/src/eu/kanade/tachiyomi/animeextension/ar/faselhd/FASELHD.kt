@@ -9,8 +9,10 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
+import eu.kanade.tachiyomi.lib.synchrony.Deobfuscator
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import extensions.utils.addListPreference
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
@@ -104,23 +106,20 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================ Video Links =============================
 
-    override fun videoListSelector() = throw UnsupportedOperationException()
+    override fun videoListSelector(): String = "li:contains(سيرفر)"
 
-    private val videoRegex = Regex("""(https?:)?//[^"]+\.m3u8""")
-    private val masterRegex = Regex("""(https?:)?//[^"]+master\.m3u8""")
+    private val videoRegex by lazy { Regex("""(https?:)?//[^"]+\.m3u8""") }
+    private val onClickRegex by lazy { Regex("""['"](https?://[^'"]+)['"]""") }
 
     override fun videoListParse(response: Response): List<Video> {
-        val document = response.asJsoup()
-        val iframe = document.selectFirst("iframe")!!.attr("src").substringBefore("&img")
-        client.newCall(GET(iframe, headers)).execute().use {
-            val body = it.asJsoup().html()
-            val playlist = masterRegex.find(body)?.value
-                ?: videoRegex.find(body)?.value
-            playlist?.let {
-                return playlistUtils.extractFromHls(it)
-            }
+        return response.asJsoup().select(videoListSelector()).parallelCatchingFlatMapBlocking { element ->
+            val url = onClickRegex.find(element.attr("onclick"))?.groupValues?.get(1) ?: ""
+            val doc = client.newCall(GET(url, headers)).execute().asJsoup()
+            val script = doc.selectFirst("script:containsData(video), script:containsData(mainPlayer)")?.data()
+                ?.let(Deobfuscator::deobfuscateScript) ?: ""
+            val playlist = videoRegex.find(script)?.value
+            playlist?.let { playlistUtils.extractFromHls(it) } ?: emptyList()
         }
-        return emptyList()
     }
 
     override fun List<Video>.sort(): List<Video> {
