@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.animeextension.all.myreadingmanga
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.content.SharedPreferences
 import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.URLUtil
@@ -22,6 +21,8 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.LazyMutable
+import extensions.utils.getPreferencesLazy
 import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.Interceptor
@@ -35,7 +36,6 @@ import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.text.replace
 
 open class MyReadingManga(override val lang: String, private val siteLang: String, private val latestLang: String) : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
 
@@ -44,18 +44,25 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
      */
     override val name = "MyReadingManga"
     final override val baseUrl = "https://myreadingmanga.info"
+
     override fun headersBuilder(): Headers.Builder =
         super.headersBuilder()
             .set("User-Agent", "Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.159 Mobile Safari/537.36")
             .add("X-Requested-With", randomString((1..20).random()))
 
-    private val preferences: SharedPreferences = Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    private val credentials: Credential get() = Credential(
-        username = preferences.getString(USERNAME_PREF, "") ?: "",
-        password = preferences.getString(PASSWORD_PREF, "") ?: "",
-    )
-    private data class Credential(val username: String, val password: String)
+    private val preferences by getPreferencesLazy()
+
+    private var credentials: Credential by LazyMutable { newCredential() }
     private var isLoggedIn = AtomicBoolean(false)
+
+    private data class Credential(val username: String, val password: String)
+    private fun newCredential(): Credential {
+        isLoggedIn.set(false)
+        return Credential(
+            username = preferences.getString(USERNAME_PREF, "") ?: "",
+            password = preferences.getString(PASSWORD_PREF, "") ?: "",
+        )
+    }
 
     override val client = network.client.newBuilder()
         .addInterceptor { chain ->
@@ -113,13 +120,12 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
 
     // Preference Screen
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val application = Injekt.get<Application>()
         val usernamePref = EditTextPreference(screen.context).apply {
             key = USERNAME_PREF
             title = "Username"
             summary = "Enter your username"
             setOnPreferenceChangeListener { _, _ ->
-                Toast.makeText(application, "Restart the app to apply changes", Toast.LENGTH_LONG).show()
+                credentials = newCredential()
                 true
             }
         }
@@ -128,7 +134,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             title = "Password"
             summary = "Enter your password"
             setOnPreferenceChangeListener { _, _ ->
-                Toast.makeText(application, "Restart the app to apply changes", Toast.LENGTH_LONG).show()
+                credentials = newCredential()
                 true
             }
         }
