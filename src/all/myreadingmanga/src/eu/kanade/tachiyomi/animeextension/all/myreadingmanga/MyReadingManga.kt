@@ -34,6 +34,7 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.text.replace
 
 open class MyReadingManga(override val lang: String, private val siteLang: String, private val latestLang: String) : ParsedAnimeHttpSource(), ConfigurableAnimeSource {
@@ -54,7 +55,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
         password = preferences.getString(PASSWORD_PREF, "") ?: "",
     )
     private data class Credential(val username: String, val password: String)
-    private var isLoggedIn: Boolean = false
+    private var isLoggedIn = AtomicBoolean(false)
 
     override val client = network.client.newBuilder()
         .addInterceptor { chain ->
@@ -78,7 +79,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             return chain.proceed(request)
         }
 
-        if (isLoggedIn) {
+        if (isLoggedIn.get()) {
             return chain.proceed(request)
         }
 
@@ -94,7 +95,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             val loginRequest = POST("$baseUrl/wp-login.php", headers, loginForm)
             network.client.newCall(loginRequest).execute().use { loginResponse ->
                 if (loginResponse.isSuccessful) {
-                    isLoggedIn = true
+                    isLoggedIn.set(true)
                     return chain.proceed(request)
                 } else {
                     Toast.makeText(
