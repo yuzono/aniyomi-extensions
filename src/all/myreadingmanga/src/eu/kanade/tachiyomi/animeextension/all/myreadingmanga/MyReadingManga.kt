@@ -191,7 +191,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             .appendQueryParameter("s", query)
         filterList.forEach { filter ->
             // If enforce language is checked, then apply language filter automatically
-            if (filter is EnforceLanguageFilter && filter.state) {
+            if (filter is EnforceLanguageFilter) {
                 filter.addToUri(uri)
             } else if (filter is UriFilter) {
                 filter.addToUri(uri)
