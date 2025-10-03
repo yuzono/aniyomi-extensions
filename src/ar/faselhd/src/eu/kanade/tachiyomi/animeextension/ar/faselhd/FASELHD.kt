@@ -108,13 +108,15 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun videoListSelector(): String = "li:contains(سيرفر)"
 
-    private val videoRegex = Regex("""(https?:)?//[^"]+\.m3u8""")
+    private val videoRegex by lazy { Regex("""(https?:)?//[^"]+\.m3u8""") }
+    private val onClickRegex by lazy { Regex("""['"](https?://[^'"]+)['"]""") }
 
     override fun videoListParse(response: Response): List<Video> {
         return response.asJsoup().select(videoListSelector()).parallelCatchingFlatMapBlocking { element ->
-            val url = element.attr("onclick").substringAfter("'").substringBefore("'")
+            val url = onClickRegex.find(element.attr("onclick"))?.groupValues?.get(1) ?: ""
             val doc = client.newCall(GET(url, headers)).execute().asJsoup()
-            val script = doc.selectFirst("script:containsData(video), script:containsData(mainPlayer)")?.data()?.let(Deobfuscator::deobfuscateScript) ?: ""
+            val script = doc.selectFirst("script:containsData(video), script:containsData(mainPlayer)")?.data()
+                ?.let(Deobfuscator::deobfuscateScript) ?: ""
             val playlist = videoRegex.find(script)?.value
             playlist?.let { playlistUtils.extractFromHls(playlist) } ?: emptyList()
         }
