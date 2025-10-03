@@ -403,7 +403,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
     }
 
     // Parses main page for filters
-    private fun getFiltersFromMainPage(filterTitle: String): List<MrmFilter> {
+    private fun getFiltersFromMainPage(@Suppress("SameParameterValue") filterTitle: String): List<MrmFilter> {
         val document = if (mainPage == "") {
             filtersCached = false
             null
@@ -457,13 +457,13 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
         }
     }
 
-    private class SearchSortTypeList(SORT: List<MrmFilter>) : UriSelectOneFilter("Sort by", "ep_sort", SORT)
-    private class GenreFilter(GENRES: List<MrmFilter>) : UriSelectFilter("Genre", "ep_filter_genre", GENRES)
-    private class CatFilter(CATID: List<MrmFilter>) : UriSelectFilter("Popular Categories", "ep_filter_category", CATID)
-    private class TagFilter(POPTAG: List<MrmFilter>) : UriSelectFilter("Popular Tags", "ep_filter_post_tag", POPTAG)
-    private class ArtistFilter(POPART: List<MrmFilter>) : UriSelectFilter("Popular Artists", "ep_filter_artist", POPART)
-    private class PairingFilter(PAIR: List<MrmFilter>) : UriSelectFilter("Popular Pairings", "ep_filter_pairing", PAIR)
-    private class StatusFilter(STATUS: List<MrmFilter>) : UriSelectFilter("Status", "ep_filter_status", STATUS)
+    private class SearchSortTypeList(sorts: List<MrmFilter>) : UriSelectOneFilter("Sort by", "ep_sort", sorts)
+    private class GenreFilter(genres: List<MrmFilter>) : UriSelectFilter("Genre", "ep_filter_genre", genres)
+    private class CatFilter(catIds: List<MrmFilter>) : UriSelectFilter("Popular Categories", "ep_filter_category", catIds)
+    private class TagFilter(popularTags: List<MrmFilter>) : UriSelectFilter("Popular Tags", "ep_filter_post_tag", popularTags)
+    private class ArtistFilter(popularArtists: List<MrmFilter>) : UriSelectFilter("Popular Artists", "ep_filter_artist", popularArtists)
+    private class PairingFilter(pairs: List<MrmFilter>) : UriSelectFilter("Popular Pairings", "ep_filter_pairing", pairs)
+    private class StatusFilter(status: List<MrmFilter>) : UriSelectFilter("Status", "ep_filter_status", status)
 
     private class MrmFilter(name: String, val value: String) : AnimeFilter.CheckBox(name)
     private open class UriSelectFilter(
