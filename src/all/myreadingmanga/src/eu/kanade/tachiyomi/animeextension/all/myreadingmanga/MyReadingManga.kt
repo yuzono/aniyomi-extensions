@@ -183,10 +183,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
     override fun latestUpdatesNextPageSelector(): String? = "li.pagination-next"
     override fun latestUpdatesSelector() = "article.category-video"
     override fun latestUpdatesFromElement(element: Element) = buildAnime(element.select("a.entry-title-link").first()!!, element.select("a.entry-image-link img").first())
-    override fun latestUpdatesParse(response: Response): AnimesPage {
-        cacheAssistant()
-        return super.searchAnimeParse(response)
-    }
+    override fun latestUpdatesParse(response: Response) = searchAnimeParse(response)
 
     /*
      * ========== Search ==========
@@ -197,13 +194,8 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
         val uri = Uri.parse("$baseUrl/page/$page/").buildUpon()
             .appendQueryParameter("ep_filter_category", "video")
             .appendQueryParameter("s", query)
-        filterList.forEach { filter ->
-            // If enforce language is checked, then apply language filter automatically
-            if (filter is EnforceLanguageFilter) {
-                filter.addToUri(uri)
-            } else if (filter is UriFilter) {
-                filter.addToUri(uri)
-            }
+        filterList.filterIsInstance<UriFilter>().forEach { filter ->
+            filter.addToUri(uri)
         }
         return GET(uri.toString(), headers)
     }
