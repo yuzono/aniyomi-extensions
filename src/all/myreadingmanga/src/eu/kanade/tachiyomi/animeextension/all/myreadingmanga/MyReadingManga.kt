@@ -19,6 +19,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.FormBody
@@ -91,13 +92,17 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
                 .build()
 
             val loginRequest = POST("$baseUrl/wp-login.php", headers, loginForm)
-            val loginResponse = network.client.newCall(loginRequest).execute()
-
-            if (loginResponse.isSuccessful) {
-                isLoggedIn = true
-                return chain.proceed(request)
-            } else {
-                Toast.makeText(Injekt.get<Application>(), "MyReadingManga login failed. Please check your credentials.", Toast.LENGTH_LONG).show()
+            network.client.newCall(loginRequest).execute().use { loginResponse ->
+                if (loginResponse.isSuccessful) {
+                    isLoggedIn = true
+                    return chain.proceed(request)
+                } else {
+                    Toast.makeText(
+                        Injekt.get<Application>(),
+                        "MyReadingManga login failed. Please check your credentials.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
             return chain.proceed(request)
         } catch (_: Exception) {
@@ -203,28 +208,27 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
         val anime = SAnime.create().apply {
             setUrlWithoutDomain(titleElement.attr("href"))
             title = cleanTitle(titleElement.text())
+            thumbnailElement?.getImage()?.getThumbnail()?.let { thumbnail_url = it }
         }
-        if (thumbnailElement != null) anime.thumbnail_url = getThumbnail(getImage(thumbnailElement))
         return anime
     }
 
     private val extensionRegex = Regex("""\.(jpg|png|jpeg|webp)""")
 
-    private fun getImage(element: Element): String? {
+    private fun Element.getImage(): String? {
         val url = when {
-            element.attr("data-src").contains(extensionRegex) -> element.attr("abs:data-src")
-            element.attr("data-cfsrc").contains(extensionRegex) -> element.attr("abs:data-cfsrc")
-            element.attr("src").contains(extensionRegex) -> element.attr("abs:src")
-            else -> element.attr("abs:data-lazy-src")
+            attr("data-src").contains(extensionRegex) -> attr("abs:data-src")
+            attr("data-cfsrc").contains(extensionRegex) -> attr("abs:data-cfsrc")
+            attr("src").contains(extensionRegex) -> attr("abs:src")
+            else -> attr("abs:data-lazy-src")
         }
 
         return if (URLUtil.isValidUrl(url)) url else null
     }
 
     // removes resizing
-    private fun getThumbnail(thumbnailUrl: String?): String? {
-        thumbnailUrl ?: return null
-        val url = thumbnailUrl.substringBeforeLast("-") + "." + thumbnailUrl.substringAfterLast(".")
+    private fun String.getThumbnail(): String? {
+        val url = substringBeforeLast("-") + "." + substringAfterLast(".")
         return if (URLUtil.isValidUrl(url)) url else null
     }
     private val titleRegex = Regex("""\s*\[[^]]*]\s*|\s*\(\d{4}\)\s*""")
@@ -240,7 +244,9 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
 
     // Anime Details
     override suspend fun getAnimeDetails(anime: SAnime): SAnime {
-        val needCover = anime.thumbnail_url?.let { !client.newCall(GET(it, headers)).execute().isSuccessful } ?: true
+        val needCover = anime.thumbnail_url?.let { url ->
+            client.newCall(GET(url, headers)).await().use { !it.isSuccessful }
+        } ?: true
 
         val response = client.newCall(animeDetailsRequest(anime)).awaitSuccess()
         return animeDetailsParse(response.asJsoup(), needCover).apply { initialized = true }
@@ -269,12 +275,13 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             }
 
             if (needCover) {
-                thumbnail_url = getThumbnail(
-                    getImage(
-                        client.newCall(GET("$baseUrl/search/?search=${document.location()}", headers))
-                            .execute().asJsoup().select("div.wdm_results div.p_content img").first()!!,
-                    ),
-                )
+                client.newCall(GET("$baseUrl/search/?search=${document.location()}", headers))
+                    .execute()
+                    .use { response ->
+                        response.asJsoup().selectFirst("div.wdm_results div.p_content img")
+                            ?.getImage()?.getThumbnail()
+                            ?.let { thumbnail_url = it }
+                    }
             }
         }
     }
@@ -295,12 +302,12 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
         // create first episode since its on main anime page
         episodes.add(createEpisode("1", document.baseUri(), date, "Ep. 1"))
         // see if there are multiple episodes or not
-        val lastEpisodeNumber = document.select(episodeListSelector()).last()?.text()
+        val lastEpisodeNumber = document.select(episodeListSelector()).last()?.text()?.toIntOrNull()
         if (lastEpisodeNumber != null) {
             // There are entries with more episodes but those never show up,
             // so we take the last one and loop it to get all hidden ones.
             // Example: 1 2 3 4 .. 7 8 9 Next
-            for (i in 2..lastEpisodeNumber.toInt()) {
+            for (i in 2..lastEpisodeNumber) {
                 episodes.add(createEpisode(i.toString(), document.baseUri(), date, "Ep. $i"))
             }
         }
@@ -374,8 +381,10 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
 
     // Grabs page containing filters and puts it into cache
     private fun filterAssist(url: String): String {
-        val response = client.newCall(GET(url, headers)).execute()
-        return response.body.string()
+        return client.newCall(GET(url, headers)).execute().use {
+            if (!it.isSuccessful) return ""
+            it.body.string()
+        }
     }
 
     private fun cacheAssistant() {
@@ -395,7 +404,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             filtersCached = true
             Jsoup.parse(mainPage)
         }
-        val parent = document?.select(".widget-title")?.first { it.text() == filterTitle }?.parent()
+        val parent = document?.select(".widget-title")?.firstOrNull { it.text() == filterTitle }?.parent()
         return parent?.select(".tag-cloud-link")
             ?.map { MrmFilter(it.text(), it.attr("href").split("/").reversed()[1]) }
             ?: listOf(MrmFilter("Press 'Reset' to load filters", ""))
@@ -410,7 +419,7 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
             filtersCached = true
             Jsoup.parse(searchPage)
         }
-        val parent = document?.select(".ep-filter-title")?.first { it.text() == filterTitle }?.parent()
+        val parent = document?.select(".ep-filter-title")?.firstOrNull { it.text() == filterTitle }?.parent()
 
         val filters: List<MrmFilter>? = if (isSelectDropdown) {
             parent?.select("option")?.map { MrmFilter(it.text(), it.attr("value")) }
