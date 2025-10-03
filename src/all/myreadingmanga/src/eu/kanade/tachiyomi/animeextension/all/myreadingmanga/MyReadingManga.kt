@@ -2,11 +2,11 @@ package eu.kanade.tachiyomi.animeextension.all.myreadingmanga
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.SharedPreferences
 import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.URLUtil
 import android.widget.Toast
-import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
@@ -22,6 +22,8 @@ import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.LazyMutable
+import extensions.utils.addEditTextPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.FormBody
 import okhttp3.Headers
@@ -52,6 +54,9 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
 
     private val preferences by getPreferencesLazy()
 
+    private val SharedPreferences.username by preferences.delegate(USERNAME_PREF, "")
+    private val SharedPreferences.password by preferences.delegate(PASSWORD_PREF, "")
+
     private var credentials: Credential by LazyMutable { newCredential() }
     private var isLoggedIn = AtomicBoolean(false)
 
@@ -59,8 +64,8 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
     private fun newCredential(): Credential {
         isLoggedIn.set(false)
         return Credential(
-            username = preferences.getString(USERNAME_PREF, "") ?: "",
-            password = preferences.getString(PASSWORD_PREF, "") ?: "",
+            username = preferences.username,
+            password = preferences.password,
         )
     }
 
@@ -120,26 +125,29 @@ open class MyReadingManga(override val lang: String, private val siteLang: Strin
 
     // Preference Screen
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val usernamePref = EditTextPreference(screen.context).apply {
-            key = USERNAME_PREF
-            title = "Username"
-            summary = "Enter your username"
-            setOnPreferenceChangeListener { _, _ ->
-                credentials = newCredential()
-                true
-            }
+        fun String.usernameSummary() = ifBlank { "Enter your username" }
+        fun String.passwordSummary() = if (this.isBlank()) "Enter your password" else "*".repeat(this.length)
+
+        screen.addEditTextPreference(
+            key = USERNAME_PREF,
+            title = "Username",
+            dialogMessage = "Enter your username",
+            summary = preferences.username.usernameSummary(),
+            getSummary = { it.usernameSummary() },
+            default = "",
+        ) {
+            credentials = newCredential()
         }
-        val passwordPref = EditTextPreference(screen.context).apply {
-            key = PASSWORD_PREF
-            title = "Password"
-            summary = "Enter your password"
-            setOnPreferenceChangeListener { _, _ ->
-                credentials = newCredential()
-                true
-            }
+        screen.addEditTextPreference(
+            key = PASSWORD_PREF,
+            title = "Password",
+            dialogMessage = "Enter your password",
+            summary = preferences.password.passwordSummary(),
+            getSummary = { it.passwordSummary() },
+            default = "",
+        ) {
+            credentials = newCredential()
         }
-        screen.addPreference(usernamePref)
-        screen.addPreference(passwordPref)
     }
 
     /*
