@@ -25,11 +25,11 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override val baseUrl by lazy {
         preferences.getString(
             "preferred_domain",
-            "https://anisaturn.com",
+            "https://anisaturn.cx",
         )!!
     }
 
-    private fun isNewDomain(): Boolean = baseUrl == "https://anisaturn.com"
+    private fun isNewDomain(): Boolean = baseUrl == "https://anisaturn.cx"
 
     override val lang = "it"
 
