@@ -122,7 +122,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                 tvDetailsParse(responseBody)
             }
         } catch (e: Exception) {
-            throw Exception("Failed to parse details. The API might have returned an error page. Original error: ${e.message}")
+            throw Exception("Failed to parse details. The API might have returned an error page.", e)
         }
     }
 
@@ -169,18 +169,20 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             tv.seasons.sortedByDescending { it.seasonNumber }
                 .filter { it.seasonNumber > 0 }
                 .flatMap { season ->
-                    val seasonResponse = client.newCall(
-                        GET("$apiUrl/tv/${tv.id}/season/${season.seasonNumber}", headers),
-                    ).execute()
-                    val episodes = seasonResponse.parseAs<TvSeasonDetailDto>().episodes.sortedByDescending { it.episodeNumber }
-                    episodes.map { episode ->
-                        SEpisode.create().apply {
-                            name = "S${season.seasonNumber} E${episode.episodeNumber} - ${episode.name}"
-                            episode_number = episode.episodeNumber.toFloat()
-                            date_upload = parseDate(episode.airDate)
-                            url = "/tv/${tv.id}/${season.seasonNumber}/${episode.episodeNumber}"
+                    runCatching {
+                        val seasonResponse = client.newCall(
+                            GET("$apiUrl/tv/${tv.id}/season/${season.seasonNumber}", headers),
+                        ).execute()
+                        val episodes = seasonResponse.parseAs<TvSeasonDetailDto>().episodes.sortedByDescending { it.episodeNumber }
+                        episodes.map { episode ->
+                            SEpisode.create().apply {
+                                name = "S${season.seasonNumber} E${episode.episodeNumber} - ${episode.name}"
+                                episode_number = episode.episodeNumber.toFloat()
+                                date_upload = parseDate(episode.airDate)
+                                url = "/tv/${tv.id}/${season.seasonNumber}/${episode.episodeNumber}"
+                            }
                         }
-                    }
+                    }.getOrElse { emptyList() }
                 }
         } else {
             val movie = json.decodeFromString<MovieDetailDto>(responseBody)
@@ -197,7 +199,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================ Video Links =============================
     override fun videoListRequest(episode: SEpisode): Request {
-        val key = ByteArray(32).apply { SecureRandom().nextBytes(this) }
+        val key = ByteArray(32).apply { SECURE_RANDOM.nextBytes(this) }
             .joinToString("") { "%02x".format(it) }
 
         val videoHeaders = headers.newBuilder()
@@ -225,7 +227,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         ).execute()
 
         if (!decryptionResponse.isSuccessful) {
-            throw Exception("Decryption failed. HTTP ${decryptionResponse.code}")
+            throw Exception("Decryption failed. HTTP ${decryptionResponse.code}: ${decryptionResponse.body.string()}")
         }
 
         val extractorData = decryptionResponse.parseAs<ExtractorResponseDto>()
@@ -252,7 +254,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun getSubtitles(requestUrl: String): List<Track> {
-        val match = "/(movie|tv)/(\\d+)(?:/season/(\\d+)/episode/(\\d+))?".toRegex().find(requestUrl)
+        val match = GET_SUBTITLES_REGEX.find(requestUrl)
             ?: return emptyList()
 
         val (mediaType, mediaId, season, episode) = match.destructured
@@ -333,12 +335,19 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
+
+        private val SECURE_RANDOM by lazy { SecureRandom() }
+
+        private val GET_SUBTITLES_REGEX by lazy { "/(movie|tv)/(\\d+)(?:/season/(\\d+)/episode/(\\d+))?".toRegex() }
+
         private const val PREF_QUALITY_KEY = "pref_quality"
+
         private const val PREF_LATEST_KEY = "pref_latest"
-        private const val PREF_SUB_KEY = "pref_sub"
 
         private const val PREF_SUB_LIMIT_KEY = "pref_sub_limit"
         private const val PREF_SUB_LIMIT_DEFAULT = "25"
+
+        private const val PREF_SUB_KEY = "pref_sub"
 
         private val SUB_LANGS = arrayOf(
             Pair("ar", "Arabic"),
