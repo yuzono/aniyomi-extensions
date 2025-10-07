@@ -13,6 +13,8 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.awaitSuccess
+import eu.kanade.tachiyomi.util.parallelFlatMap
 import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.delegate
@@ -155,21 +157,30 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================== Episodes ==============================
+    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
+        return client.newCall(episodeListRequest(anime))
+            .awaitSuccess()
+            .use { response ->
+                episodeListParseAsync(response)
+            }
+    }
+
     override fun episodeListRequest(anime: SAnime): Request {
         return animeDetailsRequest(anime)
     }
 
-    override fun episodeListParse(response: Response): List<SEpisode> {
+    override fun episodeListParse(response: Response): List<SEpisode> = throw UnsupportedOperationException()
+    private suspend fun episodeListParseAsync(response: Response): List<SEpisode> {
         val responseBody = response.body.string()
         return if ("/tv/" in response.request.url.toString()) {
             val tv = json.decodeFromString<TvDetailDto>(responseBody)
             tv.seasons.sortedByDescending { it.seasonNumber }
                 .filter { it.seasonNumber > 0 }
-                .flatMap { season ->
+                .parallelFlatMap { season ->
                     runCatching {
                         val tvSeasonDetail = client.newCall(
                             GET("$apiUrl/tv/${tv.id}/season/${season.seasonNumber}", headers),
-                        ).execute().use { it.parseAs<TvSeasonDetailDto>() }
+                        ).awaitSuccess().use { it.parseAs<TvSeasonDetailDto>() }
                         val episodes = tvSeasonDetail.episodes.sortedByDescending { it.episodeNumber }
                         episodes.map { episode ->
                             SEpisode.create().apply {
@@ -197,6 +208,14 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================ Video Links =============================
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
+        return client.newCall(videoListRequest(episode))
+            .awaitSuccess()
+            .use { response ->
+                videoListParseAsync(response)
+            }
+    }
+
     override fun videoListRequest(episode: SEpisode): Request {
         val key = ByteArray(32).apply { SECURE_RANDOM.nextBytes(this) }
             .joinToString("") { "%02x".format(it) }
@@ -214,7 +233,8 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         return GET(requestUrl, videoHeaders)
     }
 
-    override fun videoListParse(response: Response): List<Video> {
+    override fun videoListParse(response: Response): List<Video> = throw UnsupportedOperationException()
+    private suspend fun videoListParseAsync(response: Response): List<Video> {
         val encryptedText = response.body.string()
         val key = response.request.header("X-Api-Key") ?: throw Exception("API Key was not sent in the request")
 
@@ -223,24 +243,20 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
         val extractorData = client.newCall(
             Request.Builder().url(decryptionApiUrl).post(requestBody).build(),
-        ).execute().use { decryptionResponse ->
-            if (!decryptionResponse.isSuccessful) {
-                throw Exception("Decryption failed. HTTP ${decryptionResponse.code}: ${decryptionResponse.body.string()}")
-            } else {
-                decryptionResponse.parseAs<ExtractorResponseDto>()
-            }
+        ).awaitSuccess().use { decryptionResponse ->
+            decryptionResponse.parseAs<ExtractorResponseDto>()
         }
 
         val subtitles = getSubtitles(response.request.url.toString())
 
-        val videos = extractorData.result.sources.flatMap { source ->
-            try {
+        val videos = extractorData.result.sources.parallelFlatMap { source ->
+            runCatching {
                 playlistUtils.extractFromHls(
                     playlistUrl = source.url,
                     videoNameGen = { quality -> "Server: ${source.server} - $quality" },
                     subtitleList = subtitles,
                 )
-            } catch (_: Exception) {
+            }.getOrElse {
                 emptyList()
             }
         }
@@ -253,7 +269,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         return videos.sortedByDescending { preferredQuality.let(it.quality::contains) }
     }
 
-    private fun getSubtitles(requestUrl: String): List<Track> {
+    private suspend fun getSubtitles(requestUrl: String): List<Track> {
         val match = GET_SUBTITLES_REGEX.find(requestUrl)
             ?: return emptyList()
 
@@ -270,7 +286,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
             val subLimit = preferences.subLimitPref.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
             val subtitles = client.newCall(GET(subtitleRequestUrl, headers))
-                .execute().use { it.parseAs<List<SubtitleDto>>() }
+                .awaitSuccess().use { it.parseAs<List<SubtitleDto>>() }
             subtitles
                 .take(subLimit)
                 .map { sub ->
