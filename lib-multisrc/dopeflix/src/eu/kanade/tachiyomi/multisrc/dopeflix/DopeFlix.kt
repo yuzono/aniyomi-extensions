@@ -41,7 +41,7 @@ abstract class DopeFlix(
     override val lang: String,
     private val megaCloudApi: String,
     private val domainList: List<String>,
-    private val defaultDomain: String = domainList.first(),
+    private val defaultDomain: String = "https://${domainList.first()}",
     private val hosterNames: List<String> = listOf(
         "UpCloud",
         "MegaCloud",
@@ -446,7 +446,7 @@ abstract class DopeFlix(
     // ============================== Settings ==============================
 
     protected open var SharedPreferences.domainUrl
-        by LazyMutable { preferences.getString(PREF_DOMAIN_KEY, "https://$defaultDomain")!! }
+        by LazyMutable { preferences.getString(PREF_DOMAIN_KEY, defaultDomain)!! }
 
     protected open var SharedPreferences.prefPopularType
         by LazyMutable { preferences.getString(PREF_POPULAR_TYPE_KEY, PREF_POPULAR_TYPE_DEFAULT.value)!! }
@@ -467,17 +467,19 @@ abstract class DopeFlix(
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
 
     protected open fun SharedPreferences.clearOldHosts(): SharedPreferences {
-        val hostToggle = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet()) ?: return this
-        if (hostToggle.all { hosterNames.contains(it) }) {
-            return this
+        val domain = getString(PREF_DOMAIN_KEY, defaultDomain) ?: return this
+        if (domain !in domainList) {
+            edit()
+                .putString(PREF_DOMAIN_KEY, defaultDomain)
+                .apply()
         }
-
-        edit()
-            .remove(PREF_HOSTER_KEY)
-            .putStringSet(PREF_HOSTER_KEY, hosterNames.toSet())
-            .remove(PREF_SERVER_KEY)
-            .putString(PREF_SERVER_KEY, preferredHoster)
-            .apply()
+        val hostToggle = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet()) ?: return this
+        if (hostToggle.any { it !in hosterNames }) {
+            edit()
+                .putStringSet(PREF_HOSTER_KEY, hosterNames.toSet())
+                .putString(PREF_SERVER_KEY, preferredHoster)
+                .apply()
+        }
         return this
     }
 
@@ -487,7 +489,7 @@ abstract class DopeFlix(
             title = PREF_DOMAIN_TITLE,
             entries = domainList,
             entryValues = domainList.map { "https://$it" },
-            default = "https://$defaultDomain",
+            default = defaultDomain,
             summary = "%s",
         ) {
             baseUrl = it
