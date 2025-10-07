@@ -41,7 +41,7 @@ class RapidShareExtractor(
                 .awaitSuccess()
                 .parseAs<EncryptedRapidResponse>()
                 .result
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return emptyList()
         }
 
@@ -55,7 +55,7 @@ class RapidShareExtractor(
                 .awaitSuccess()
                 .parseAs<RapidDecryptResponse>()
                 .result
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return emptyList()
         }
 
@@ -64,17 +64,10 @@ class RapidShareExtractor(
                 getSubtitles(subtitleUrl)
             } else {
                 rapidResult.tracks
-                    .filter { it.kind == "captions" }
-                    .mapNotNull {
-                        // Ensure track file and label are not null or blank
-                        if (it.file.isNotBlank() && it.label != null) {
-                            Track(it.file, it.label)
-                        } else {
-                            null
-                        }
-                    }
+                    .filter { it.kind == "captions" && it.file.isNotBlank() && it.label != null }
+                    .map { Track(it.file, it.label!!) }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
 
@@ -107,7 +100,7 @@ class RapidShareExtractor(
                 .parseAs<List<RapidShareTrack>>()
                 .filter { it.kind == "captions" && it.file.isNotBlank() && it.label != null }
                 .map { Track(it.file, it.label!!) }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
