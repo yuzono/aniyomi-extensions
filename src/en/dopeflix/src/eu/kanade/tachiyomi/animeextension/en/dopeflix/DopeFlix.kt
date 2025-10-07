@@ -1,10 +1,10 @@
-package eu.kanade.tachiyomi.animeextension.en.citysonic
+package eu.kanade.tachiyomi.animeextension.en.dopeflix
 
 import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.multisrc.dopeflix.DopeFlix
 
-class CitySonic : DopeFlix(
-    "CitySonic",
+class DopeFlix : DopeFlix(
+    "DopeFlix",
     "en",
     BuildConfig.MEGACLOUD_API,
     listOf(

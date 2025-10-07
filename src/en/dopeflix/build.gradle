@@ -1,8 +1,8 @@
 ext {
-    extName = 'CitySonic'
-    extClass = '.CitySonic'
+    extName = 'DopeFlix'
+    extClass = '.DopeFlix'
     themePkg = 'dopeflix'
-    baseUrl = 'https://sflix2.to'
+    baseUrl = 'https://citysonic.tv'
     overrideVersionCode = 0
 }
 

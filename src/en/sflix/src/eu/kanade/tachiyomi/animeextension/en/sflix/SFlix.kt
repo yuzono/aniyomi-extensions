@@ -7,7 +7,7 @@ class SFlix : DopeFlix(
     "SFlix",
     "en",
     BuildConfig.MEGACLOUD_API,
-    listOf("sflix2.to"), // Domain list
+    listOf("sflix.ps", "sflix2.to"), // Domain list
 ) {
     override val id: Long = 8615824918772726940
 }
