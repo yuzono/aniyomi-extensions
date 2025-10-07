@@ -16,7 +16,11 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelMapNotNull
-import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.addListPreference
+import extensions.utils.addSetPreference
+import extensions.utils.delegate
+import extensions.utils.getPreferences
+import extensions.utils.parseAs
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -171,7 +175,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
         val resultDoc = client.newCall(GET(ajaxUrl, apiHeaders(animeUrl)))
             .awaitSuccess()
-            .parseAs<ResultResponse>()
+            .parseAs<ResultResponse>(json = json)
             .toDocument()
 
         return resultDoc.select("ul.episodes[data-season]").flatMap { seasonElement ->
@@ -214,7 +218,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
         val serversDoc = client.newCall(GET(serversUrl, apiHeaders(referer)))
             .awaitSuccess()
-            .parseAs<ResultResponse>()
+            .parseAs<ResultResponse>(json = json)
             .toDocument()
 
         val enabledHosts = preferences.getStringSet(PREF_HOSTER_KEY, SERVERS.toSet())!!
@@ -230,7 +234,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
                 val encryptedIframeResult = client.newCall(GET(viewUrl, apiHeaders(referer)))
                     .awaitSuccess()
-                    .parseAs<ResultResponse>()
+                    .parseAs<ResultResponse>(json = json)
                     .result
 
                 val iframeUrl = decrypt(encryptedIframeResult)
@@ -249,12 +253,12 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
     private suspend fun encrypt(text: String): String {
         val response = apiClient.newCall(GET("https://enc-dec.app/api/enc-movies-flix?text=$text")).awaitSuccess()
-        return response.parseAs<ResultResponse>().result
+        return response.parseAs<ResultResponse>(json = json).result
     }
 
     private suspend fun decrypt(text: String): String {
         val response = apiClient.newCall(GET("https://enc-dec.app/api/dec-movies-flix?text=$text")).awaitSuccess()
-        return response.parseAs<DecryptedIframeResponse>().result.url
+        return response.parseAs<DecryptedIframeResponse>(json = json).result.url
     }
 
     private fun parseDate(dateStr: String): Long {
