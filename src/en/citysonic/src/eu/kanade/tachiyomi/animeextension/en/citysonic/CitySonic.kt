@@ -8,11 +8,12 @@ class CitySonic : DopeFlix(
     "en",
     BuildConfig.MEGACLOUD_API,
     listOf(
-        "citysonic.tv",
         "gomovies.gg",
         "himovies.sx",
         "fmovieszz.lol",
         "movies4kto.lol",
+        "series2watch.net",
+        // "citysonic.tv",
     ),
 ) {
     override val detailInfoSelector by lazy { "div.detail_page-infor, div.m_i-detail" }
