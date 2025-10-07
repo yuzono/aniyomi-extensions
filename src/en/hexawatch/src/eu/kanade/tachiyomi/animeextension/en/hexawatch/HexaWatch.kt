@@ -95,6 +95,18 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                 if (genres.isNotBlank()) {
                     append("&with_genres=$genres")
                 }
+
+                // ====== Watch Provider Filter ======
+                val providers = filters.filterIsInstance<HexaWatchFilters.WatchProviderFilter>()
+                    .firstOrNull()
+                    ?.state
+                    ?.filter { it.state }
+                    ?.joinToString(",") { it.id }
+                    .orEmpty()
+
+                if (providers.isNotBlank()) {
+                    append("&with_watch_providers=$providers&watch_region=US")
+                }
             }
             GET(url, headers)
         }

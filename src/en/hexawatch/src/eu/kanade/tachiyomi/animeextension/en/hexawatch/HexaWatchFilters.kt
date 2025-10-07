@@ -42,11 +42,25 @@ object HexaWatchFilters {
         "War & Politics" to "10768", "Western" to "37",
     )
 
+    // ========================== Watch Providers ==========================
+    class WatchProviderCheckBox(name: String, val id: String) : AnimeFilter.CheckBox(name)
+    class WatchProviderFilter : AnimeFilter.Group<WatchProviderCheckBox>(
+        "Streaming Platforms",
+        listOf(
+            WatchProviderCheckBox("Netflix", "8"),
+            WatchProviderCheckBox("Amazon Prime Video", "9"),
+            WatchProviderCheckBox("Disney+", "337"),
+            WatchProviderCheckBox("HBO Max", "384"),
+            WatchProviderCheckBox("Apple TV+", "350"),
+        ),
+    )
+
     fun getFilterList() = AnimeFilterList(
         AnimeFilter.Header("Use text search for global search"),
         AnimeFilter.Header("Filters only apply when text search is empty"),
         TypeFilter(),
         SortFilter(),
         GenreFilter("Genres", ALL_GENRES),
+        WatchProviderFilter(),
     )
 }
