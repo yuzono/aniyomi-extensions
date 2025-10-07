@@ -167,10 +167,10 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                 .filter { it.seasonNumber > 0 }
                 .flatMap { season ->
                     runCatching {
-                        val seasonResponse = client.newCall(
+                        val tvSeasonDetail = client.newCall(
                             GET("$apiUrl/tv/${tv.id}/season/${season.seasonNumber}", headers),
-                        ).execute()
-                        val episodes = seasonResponse.parseAs<TvSeasonDetailDto>().episodes.sortedByDescending { it.episodeNumber }
+                        ).execute().use { it.parseAs<TvSeasonDetailDto>() }
+                        val episodes = tvSeasonDetail.episodes.sortedByDescending { it.episodeNumber }
                         episodes.map { episode ->
                             SEpisode.create().apply {
                                 name = "S${season.seasonNumber} E${episode.episodeNumber} - ${episode.name}"
@@ -221,15 +221,16 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         val decryptionPayload = json.encodeToString(mapOf("text" to encryptedText, "key" to key))
         val requestBody = decryptionPayload.toRequestBody("application/json".toMediaType())
 
-        val decryptionResponse = client.newCall(
+        val extractorData = client.newCall(
             Request.Builder().url(decryptionApiUrl).post(requestBody).build(),
-        ).execute()
-
-        if (!decryptionResponse.isSuccessful) {
-            throw Exception("Decryption failed. HTTP ${decryptionResponse.code}: ${decryptionResponse.body.string()}")
+        ).execute().use { decryptionResponse ->
+            if (!decryptionResponse.isSuccessful) {
+                throw Exception("Decryption failed. HTTP ${decryptionResponse.code}: ${decryptionResponse.body.string()}")
+            } else {
+                decryptionResponse.parseAs<ExtractorResponseDto>()
+            }
         }
 
-        val extractorData = decryptionResponse.parseAs<ExtractorResponseDto>()
         val subtitles = getSubtitles(response.request.url.toString())
 
         val videos = extractorData.result.sources.flatMap { source ->
@@ -268,8 +269,9 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             val preferredSubLang = preferences.subLangPref
 
             val subLimit = preferences.subLimitPref.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
-            val subtitleResponse = client.newCall(GET(subtitleRequestUrl, headers)).execute()
-            subtitleResponse.parseAs<List<SubtitleDto>>()
+            val subtitles = client.newCall(GET(subtitleRequestUrl, headers))
+                .execute().use { it.parseAs<List<SubtitleDto>>() }
+            subtitles
                 .take(subLimit)
                 .map { sub ->
                     val langLabel = if (sub.isHearingImpaired) "${sub.language} (CC)" else sub.language
