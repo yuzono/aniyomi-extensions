@@ -1,9 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.yflix
 
-import android.app.Application
 import android.content.SharedPreferences
-import androidx.preference.ListPreference
-import androidx.preference.MultiSelectListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -28,8 +25,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -46,12 +41,11 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
         coerceInputValues = true
     }
 
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
+    private val preferences = getPreferences {
+        clearOldPrefs()
     }
 
-    override var baseUrl: String = preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)!!
-        private set
+    override val baseUrl by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
     override val client: OkHttpClient = network.client
 
@@ -70,7 +64,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     private val rapidShareExtractor by lazy {
-        RapidShareExtractor(client, headers, preferences)
+        RapidShareExtractor(client, headers)
     }
 
     override fun headersBuilder(): Headers.Builder = super.headersBuilder()
@@ -221,11 +215,9 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
             .parseAs<ResultResponse>(json = json)
             .toDocument()
 
-        val enabledHosts = preferences.getStringSet(PREF_HOSTER_KEY, SERVERS.toSet())!!
-
         return serversDoc.select("li.server").parallelMapNotNull { serverElement ->
             val serverName = serverElement.selectFirst("span")?.text() ?: return@parallelMapNotNull null
-            if (serverName !in enabledHosts) return@parallelMapNotNull null
+            if (serverName !in preferences.hosterPref) return@parallelMapNotNull null
 
             runCatching {
                 val serverId = serverElement.attr("data-lid")
@@ -238,7 +230,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                     .result
 
                 val iframeUrl = decrypt(encryptedIframeResult)
-                rapidShareExtractor.videosFromUrl(iframeUrl, serverName)
+                rapidShareExtractor.videosFromUrl(iframeUrl, serverName, preferences.subLangPref)
             }.getOrNull()
         }.flatten()
     }
@@ -266,8 +258,8 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
-        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
+        val quality = preferences.qualityPref
+        val server = preferences.serverPref
         val qualities = QUALITIES.reversed()
 
         return sortedWith(
@@ -286,71 +278,88 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // ============================== Preferences ==============================
 
+    private val SharedPreferences.qualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+    private val SharedPreferences.subLangPref by preferences.delegate(PREF_SUB_LANG_KEY, PREF_SUB_LANG_DEFAULT)
+    private val SharedPreferences.serverPref by preferences.delegate(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+    private val SharedPreferences.hosterPref by preferences.delegate(PREF_HOSTER_KEY, SERVERS.toSet())
+
+    private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
+        val domain = getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+            ?: return this
+        if (domain !in DOMAIN_VALUES) {
+            edit()
+                .putString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+                .apply()
+        }
+        val hostToggle = getStringSet(PREF_HOSTER_KEY, SERVERS.toSet()) ?: return this
+        if (hostToggle.any { it !in SERVERS }) {
+            edit()
+                .putStringSet(PREF_HOSTER_KEY, SERVERS.toSet())
+                .putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+                .apply()
+        }
+        return this
+    }
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val domainPref = ListPreference(screen.context).apply {
-            key = PREF_DOMAIN_KEY
-            title = "Preferred domain (requires restart)"
-            entries = DOMAIN_ENTRIES
-            entryValues = DOMAIN_VALUES
-            setDefaultValue(PREF_DOMAIN_DEFAULT)
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_DOMAIN_KEY,
+            title = "Preferred domain",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = PREF_DOMAIN_DEFAULT,
+            summary = "%s",
+        )
 
-        val qualityPref = ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = "Preferred quality"
-            entries = QUALITIES
-            entryValues = QUALITIES
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred quality",
+            entries = QUALITIES,
+            entryValues = QUALITIES,
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
-        val subLangPref = ListPreference(screen.context).apply {
-            key = PREF_SUB_LANG_KEY
-            title = "Preferred sub language"
-            entries = SUB_LANGS
-            entryValues = SUB_LANGS
-            setDefaultValue(PREF_SUB_LANG_DEFAULT)
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_SUB_LANG_KEY,
+            title = "Preferred sub language",
+            entries = SUB_LANGS,
+            entryValues = SUB_LANGS,
+            default = PREF_SUB_LANG_DEFAULT,
+            summary = "%s",
+        )
 
-        val serverPref = ListPreference(screen.context).apply {
-            key = PREF_SERVER_KEY
-            title = "Preferred server"
-            entries = SERVERS
-            entryValues = SERVERS
-            setDefaultValue(PREF_SERVER_DEFAULT)
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_SERVER_KEY,
+            title = "Preferred server",
+            entries = SERVERS,
+            entryValues = SERVERS,
+            default = PREF_SERVER_DEFAULT,
+            summary = "%s",
+        )
 
-        val hosterPref = MultiSelectListPreference(screen.context).apply {
-            key = PREF_HOSTER_KEY
-            title = "Enable/disable servers"
-            entries = SERVERS
-            entryValues = SERVERS
-            setDefaultValue(SERVERS.toSet())
-            summary = "Select which video server to show in the episode list"
-        }
-
-        screen.addPreference(domainPref)
-        screen.addPreference(qualityPref)
-        screen.addPreference(subLangPref)
-        screen.addPreference(serverPref)
-        screen.addPreference(hosterPref)
+        screen.addSetPreference(
+            key = PREF_HOSTER_KEY,
+            title = "Enable/disable servers",
+            entries = SERVERS,
+            entryValues = SERVERS,
+            default = SERVERS.toSet(),
+            summary = "Select which video server to show in the episode list",
+        )
     }
 
     companion object {
         private const val PREF_DOMAIN_KEY = "pref_domain_key"
-        private val DOMAIN_ENTRIES = arrayOf("yflix.to")
-        private val DOMAIN_VALUES = arrayOf("https://yflix.to")
+        private val DOMAIN_ENTRIES = listOf("yflix.to")
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
         private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES.first()
 
         const val PREF_QUALITY_KEY = "pref_quality_key"
-        private val QUALITIES = arrayOf("1080p", "720p", "480p", "360p")
+        private val QUALITIES = listOf("1080p", "720p", "480p", "360p")
         private val PREF_QUALITY_DEFAULT = QUALITIES.first()
 
         const val PREF_SUB_LANG_KEY = "pref_sub_lang_key"
-        private val SUB_LANGS = arrayOf(
+        private val SUB_LANGS = listOf(
             "English", "Arabic", "Chinese", "French", "German", "Indonesian",
             "Italian", "Japanese", "Korean", "Portuguese", "Russian",
             "Spanish", "Turkish", "Vietnamese",
@@ -358,7 +367,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
         internal val PREF_SUB_LANG_DEFAULT = SUB_LANGS.first()
 
         const val PREF_SERVER_KEY = "pref_server_key"
-        private val SERVERS = arrayOf("Server 1", "Server 2")
+        private val SERVERS = listOf("Server 1", "Server 2")
         private val PREF_SERVER_DEFAULT = SERVERS.first()
 
         const val PREF_HOSTER_KEY = "pref_hoster_key"

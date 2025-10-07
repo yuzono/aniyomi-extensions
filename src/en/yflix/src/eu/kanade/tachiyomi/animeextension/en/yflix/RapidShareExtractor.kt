@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.yflix
 
-import android.content.SharedPreferences
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
@@ -19,18 +18,13 @@ import okhttp3.RequestBody.Companion.toRequestBody
 class RapidShareExtractor(
     private val client: OkHttpClient,
     private val headers: Headers,
-    private val preferences: SharedPreferences,
 ) {
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
     private val jsonMimeType = "application/json".toMediaType()
 
-    private fun getPrefSubLang(): String {
-        return preferences.getString(YFlix.PREF_SUB_LANG_KEY, YFlix.PREF_SUB_LANG_DEFAULT)!!
-    }
-
-    suspend fun videosFromUrl(url: String, prefix: String): List<Video> {
+    suspend fun videosFromUrl(url: String, prefix: String, preferredLang: String): List<Video> {
         val rapidUrl = url.toHttpUrl()
         val token = rapidUrl.pathSegments.last()
         val subtitleUrl = rapidUrl.queryParameter("sub.list")
@@ -80,7 +74,7 @@ class RapidShareExtractor(
                         playlistUrl = videoUrl,
                         referer = "${rapidUrl.scheme}://${rapidUrl.host}/",
                         videoNameGen = { quality -> "$prefix - $quality" },
-                        subtitleList = subLangSelect(subtitleList),
+                        subtitleList = subLangSelect(subtitleList, preferredLang),
                     )
                 }
                 else -> emptyList()
@@ -109,8 +103,7 @@ class RapidShareExtractor(
      * Puts the preferred language subtitle first in the list.
      * The player will likely default to the first subtitle.
      */
-    private fun subLangSelect(tracks: List<Track>): List<Track> {
-        val language = getPrefSubLang()
+    private fun subLangSelect(tracks: List<Track>, language: String): List<Track> {
         return tracks.sortedByDescending { it.lang.contains(language, true) }
     }
 }
