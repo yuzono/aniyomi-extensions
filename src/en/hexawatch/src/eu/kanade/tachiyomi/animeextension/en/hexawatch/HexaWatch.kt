@@ -1,10 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.en.hexawatch
 
-import android.app.Application
 import android.content.SharedPreferences
 import android.text.InputType
-import androidx.preference.EditTextPreference
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -16,14 +13,16 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
+import extensions.utils.addEditTextPreference
+import extensions.utils.addListPreference
+import extensions.utils.delegate
+import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
@@ -44,9 +43,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val json: Json by injectLazy()
 
-    private val preferences: SharedPreferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val preferences by getPreferencesLazy()
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
@@ -61,7 +58,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int): Request {
-        val preferredLatest = preferences.getString(PREF_LATEST_KEY, "movie")
+        val preferredLatest = preferences.latestPref
         return GET("$apiUrl/$preferredLatest/popular?language=en-US&page=$page", headers)
     }
 
@@ -251,8 +248,8 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             throw Exception("No videos found after extraction. Check extractor API response.")
         }
 
-        val preferredQuality = preferences.getString(PREF_QUALITY_KEY, "1080")
-        return videos.sortedByDescending { preferredQuality?.let(it.quality::contains) ?: false }
+        val preferredQuality = preferences.videoQualityPref
+        return videos.sortedByDescending { preferredQuality.let(it.quality::contains) }
     }
 
     private fun getSubtitles(requestUrl: String): List<Track> {
@@ -268,9 +265,9 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         return try {
-            val preferredSubLang = preferences.getString(PREF_SUB_KEY, "en")
+            val preferredSubLang = preferences.subLangPref
 
-            val subLimit = preferences.getString(PREF_SUB_LIMIT_KEY, PREF_SUB_LIMIT_DEFAULT)?.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
+            val subLimit = preferences.subLimitPref.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
             val subtitleResponse = client.newCall(GET(subtitleRequestUrl, headers)).execute()
             subtitleResponse.parseAs<List<SubtitleDto>>()
                 .take(subLimit)
@@ -278,62 +275,61 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     val langLabel = if (sub.isHearingImpaired) "${sub.language} (CC)" else sub.language
                     Track(sub.url, langLabel)
                 }
-                .sortedByDescending { preferredSubLang?.let(it.lang::startsWith) ?: false }
+                .sortedByDescending { preferredSubLang.let(it.lang::startsWith) }
         } catch (_: Exception) {
             emptyList()
         }
     }
 
     // ============================== Settings ==============================
+
+    private val SharedPreferences.videoQualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+    private val SharedPreferences.latestPref by preferences.delegate(PREF_LATEST_KEY, PREF_LATEST_DEFAULT)
+    private val SharedPreferences.subLangPref by preferences.delegate(PREF_SUB_KEY, PREF_SUB_DEFAULT)
+    private val SharedPreferences.subLimitPref by preferences.delegate(PREF_SUB_LIMIT_KEY, PREF_SUB_LIMIT_DEFAULT)
+
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val videoQualityPref = ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = "Preferred Quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p")
-            entryValues = arrayOf("1080", "720", "480", "360")
-            setDefaultValue("1080")
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred Quality",
+            entries = listOf("1080p", "720p", "480p", "360p"),
+            entryValues = listOf("1080", "720", "480", "360"),
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
-        val latestPref = ListPreference(screen.context).apply {
-            key = PREF_LATEST_KEY
-            title = "Preferred 'Latest' Page"
-            entries = arrayOf("Movies", "TV Shows")
-            entryValues = arrayOf("movie", "tv")
-            setDefaultValue("movie")
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_LATEST_KEY,
+            title = "Preferred 'Latest' Page",
+            entries = listOf("Movies", "TV Shows"),
+            entryValues = listOf("movie", "tv"),
+            default = PREF_LATEST_DEFAULT,
+            summary = "%s",
+        )
 
-        val subLangPref = ListPreference(screen.context).apply {
-            key = PREF_SUB_KEY
-            title = "Preferred Subtitle Language"
-            entries = SUB_LANGS.map { it.second }.toTypedArray()
-            entryValues = SUB_LANGS.map { it.first }.toTypedArray()
-            setDefaultValue("en")
-            summary = "%s"
-        }
+        screen.addListPreference(
+            key = PREF_SUB_KEY,
+            title = "Preferred Subtitle Language",
+            entries = SUB_LANGS.map { it.second },
+            entryValues = SUB_LANGS.map { it.first },
+            default = PREF_SUB_DEFAULT,
+            summary = "%s",
+        )
 
-        val subLimitPref = EditTextPreference(screen.context).apply {
-            key = PREF_SUB_LIMIT_KEY
-            title = "Subtitle Search Limit"
-            summary = "Limit the number of subtitles fetched. Default: $PREF_SUB_LIMIT_DEFAULT"
-            setDefaultValue(PREF_SUB_LIMIT_DEFAULT)
-            dialogTitle = "Set subtitle limit"
+        fun String.subLimitSummary() = "Limit the number of subtitles fetched.\nCurrent: $this"
 
-            setOnBindEditTextListener { editText ->
-                editText.inputType = InputType.TYPE_CLASS_NUMBER
-            }
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val newAmount = (newValue as String).toIntOrNull()
+        screen.addEditTextPreference(
+            key = PREF_SUB_LIMIT_KEY,
+            title = "Subtitle Search Limit",
+            summary = preferences.subLimitPref.subLimitSummary(),
+            getSummary = { it.subLimitSummary() },
+            default = PREF_SUB_LIMIT_DEFAULT,
+            inputType = InputType.TYPE_CLASS_NUMBER,
+            onChange = { _, newValue ->
+                val newAmount = newValue.toIntOrNull()
                 (newAmount != null && newAmount >= 0)
-            }
-        }
-
-        screen.addPreference(videoQualityPref)
-        screen.addPreference(latestPref)
-        screen.addPreference(subLangPref)
-        screen.addPreference(subLimitPref)
+            },
+        )
     }
 
     companion object {
@@ -343,15 +339,18 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         private val GET_SUBTITLES_REGEX by lazy { "/(movie|tv)/(\\d+)(?:/season/(\\d+)/episode/(\\d+))?".toRegex() }
 
         private const val PREF_QUALITY_KEY = "pref_quality"
+        private const val PREF_QUALITY_DEFAULT = "1080"
 
         private const val PREF_LATEST_KEY = "pref_latest"
+        private const val PREF_LATEST_DEFAULT = "movie"
 
         private const val PREF_SUB_LIMIT_KEY = "pref_sub_limit"
         private const val PREF_SUB_LIMIT_DEFAULT = "25"
 
         private const val PREF_SUB_KEY = "pref_sub"
+        private const val PREF_SUB_DEFAULT = "en"
 
-        private val SUB_LANGS = arrayOf(
+        private val SUB_LANGS = listOf(
             Pair("ar", "Arabic"),
             Pair("bn", "Bengali"),
             Pair("zh", "Chinese"),
