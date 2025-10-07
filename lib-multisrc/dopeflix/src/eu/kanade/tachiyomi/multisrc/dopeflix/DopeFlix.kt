@@ -53,7 +53,7 @@ abstract class DopeFlix(
 ) : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     protected open val preferences by getPreferencesLazy {
-        clearOldHosts()
+        clearOldPrefs()
     }
 
     override var baseUrl by LazyMutable { preferences.domainUrl }
@@ -466,8 +466,10 @@ abstract class DopeFlix(
     protected open var SharedPreferences.hostToggle: MutableSet<String>
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
 
-    protected open fun SharedPreferences.clearOldHosts(): SharedPreferences {
-        val domain = getString(PREF_DOMAIN_KEY, defaultDomain) ?: return this
+    protected open fun SharedPreferences.clearOldPrefs(): SharedPreferences {
+        val domain = getString(PREF_DOMAIN_KEY, defaultDomain)
+            ?.removePrefix("https://")
+            ?: return this
         if (domain !in domainList) {
             edit()
                 .putString(PREF_DOMAIN_KEY, defaultDomain)
