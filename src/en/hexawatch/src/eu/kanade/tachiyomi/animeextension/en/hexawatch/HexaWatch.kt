@@ -425,12 +425,18 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun parseMediaPage(response: Response): AnimesPage {
         val isMultiSearch = "/search/multi" in response.request.url.toString()
         val pageDto = response.parseAs<PageDto<MediaItemDto>>()
-        val hasNextPage = pageDto.page < pageDto.totalPages
 
         val animeList = pageDto.results
             .filter { !isMultiSearch || (it.mediaType == "movie" || it.mediaType == "tv") }
+            .filter { it.posterPath != null } // prevent Coil "No cover" crash
             .map(::mediaItemToSAnime)
 
+        // Prevent empty-page "no results" misfire
+        if (animeList.isEmpty()) {
+            return AnimesPage(emptyList(), false)
+        }
+
+        val hasNextPage = pageDto.results.isNotEmpty() && pageDto.page < pageDto.totalPages
         return AnimesPage(animeList, hasNextPage)
     }
 
