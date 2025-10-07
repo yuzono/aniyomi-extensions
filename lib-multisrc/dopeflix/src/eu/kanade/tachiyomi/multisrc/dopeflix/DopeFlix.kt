@@ -31,6 +31,7 @@ import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
+import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import kotlin.time.Duration.Companion.hours
@@ -85,10 +86,20 @@ abstract class DopeFlix(
 
     protected open val filmSelector by lazy { "div.flw-item" }
 
-    protected open fun entrySelector(type: String) =
+    protected open fun sectionSelector(type: String) =
         "section.block_area:has(h2.cat-heading:contains($type)) $filmSelector"
 
-    override fun popularAnimeSelector() = entrySelector("Movies")
+    override fun popularAnimeSelector() = if (preferences.prefPopularType == Types.Movies.value) {
+        sectionSelector("Movies")
+    } else {
+        sectionSelector("TV Shows")
+    }
+
+    protected fun trendingSelector() = if (preferences.prefPopularType == Types.Movies.value) {
+        "#trending-movies $filmSelector"
+    } else {
+        "#trending-tv $filmSelector"
+    }
 
     override suspend fun getPopularAnime(page: Int): AnimesPage {
         return client.newCall(popularAnimeRequest(page))
@@ -106,10 +117,30 @@ abstract class DopeFlix(
             }
     }
 
+    override fun popularAnimeParse(response: Response): AnimesPage {
+        val url = response.request.url.toString()
+        val selector = if (url.removeSuffix("/").endsWith("/home")) {
+            trendingSelector()
+        } else {
+            popularAnimeSelector()
+        }
+
+        val document = response.asJsoup()
+        val animes = document.select(selector).map { popularAnimeFromElement(it) }
+
+        return AnimesPage(animes, hasNextPage = document.selectFirst(popularAnimeNextPageSelector()) != null)
+    }
+
     override fun popularAnimeRequest(page: Int): Request {
         return when (page) {
-            1 -> GET("$baseUrl/home/", docHeaders, cacheControl)
-            else -> GET("$baseUrl/movie?page=${page - 1}", docHeaders, cacheControl)
+            // Trending
+            1 -> GET("$baseUrl/home", docHeaders, cacheControl)
+            // Popular
+            else -> if (preferences.prefPopularType == Types.Movies.value) {
+                GET("$baseUrl/movie?page=${page - 1}", docHeaders, cacheControl)
+            } else {
+                GET("$baseUrl/tv-show?page=${page - 1}", docHeaders, cacheControl)
+            }
         }
     }
 
@@ -135,29 +166,39 @@ abstract class DopeFlix(
     override suspend fun getLatestUpdates(page: Int): AnimesPage {
         return client.newCall(latestUpdatesRequest(page))
             .awaitSuccess().use { response ->
-                latestUpdatesParse(response).let { animePage ->
-                    if (page == 1) {
-                        AnimesPage(
-                            animes = animePage.animes,
-                            hasNextPage = true,
-                        )
-                    } else {
-                        animePage
-                    }
-                }
+                latestUpdatesParse(response, page)
             }
     }
 
-    override fun latestUpdatesRequest(page: Int): Request {
-        return when (page) {
-            1 -> GET("$baseUrl/home/", docHeaders, cacheControl)
-            else -> GET("$baseUrl/tv-show?page=${page - 1}", docHeaders, cacheControl)
+    protected fun latestUpdatesParse(response: Response, page: Int): AnimesPage {
+        val selector = if (page == 1) {
+            if (preferences.prefLatestPriority == Types.TvShows.value) {
+                sectionSelector("TV Shows")
+            } else {
+                sectionSelector("Movies")
+            }
+        } else {
+            if (preferences.prefLatestPriority == Types.TvShows.value) {
+                sectionSelector("Movies")
+            } else {
+                sectionSelector("TV Shows")
+            }
         }
+
+        val document = response.asJsoup()
+        val animes = document.select(selector).map { popularAnimeFromElement(it) }
+
+        return AnimesPage(animes, hasNextPage = page == 1)
     }
 
-    override fun latestUpdatesSelector() = entrySelector("TV Shows")
+    /* Both latest Movies & TV Shows are on same home page */
+    override fun latestUpdatesRequest(page: Int): Request {
+        return GET("$baseUrl/home/", docHeaders, cacheControl)
+    }
 
-    override fun latestUpdatesNextPageSelector() = popularAnimeNextPageSelector()
+    override fun latestUpdatesParse(response: Response) = throw UnsupportedOperationException()
+    override fun latestUpdatesSelector() = throw UnsupportedOperationException()
+    override fun latestUpdatesNextPageSelector() = throw UnsupportedOperationException()
 
     // =============================== Search ===============================
 
@@ -341,10 +382,10 @@ abstract class DopeFlix(
 
             val serversDoc = response.asJsoup()
 
-            val embedLinks = serversDoc.select(videoListSelector()).parallelMapNotNull {
-                val id = it.attr("data-linkid")
-                    .ifEmpty { it.attr("data-id") }
-                val name = it.select("span").text()
+            val embedLinks = serversDoc.select(videoListSelector()).parallelMapNotNull { elm ->
+                val id = elm.attr("data-linkid")
+                    .ifEmpty { elm.attr("data-id") }
+                val name = elm.select("span").text()
 
                 if (hosterSelection.none { it.equals(name, true) }) return@parallelMapNotNull null
 
@@ -407,6 +448,12 @@ abstract class DopeFlix(
     protected open var SharedPreferences.domainUrl
         by LazyMutable { preferences.getString(PREF_DOMAIN_KEY, "https://$defaultDomain")!! }
 
+    protected open var SharedPreferences.prefPopularType
+        by LazyMutable { preferences.getString(PREF_POPULAR_TYPE_KEY, PREF_POPULAR_TYPE_DEFAULT.value)!! }
+
+    protected open var SharedPreferences.prefLatestPriority
+        by LazyMutable { preferences.getString(PREF_LATEST_PRIORITY_KEY, PREF_LATEST_PRIORITY_DEFAULT.value)!! }
+
     protected open var SharedPreferences.prefQuality
         by LazyMutable { preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!! }
 
@@ -446,6 +493,28 @@ abstract class DopeFlix(
             baseUrl = it
             preferences.domainUrl = it
             docHeaders = newHeaders()
+        }
+
+        screen.addListPreference(
+            key = PREF_POPULAR_TYPE_KEY,
+            title = PREF_POPULAR_TYPE_TITLE,
+            entries = PREF_TYPE_ENTRIES,
+            entryValues = PREF_TYPE_ENTRIES,
+            default = PREF_POPULAR_TYPE_DEFAULT.value,
+            summary = "%s",
+        ) {
+            preferences.prefPopularType = it
+        }
+
+        screen.addListPreference(
+            key = PREF_LATEST_PRIORITY_KEY,
+            title = PREF_LATEST_PRIORITY_TITLE,
+            entries = PREF_TYPE_ENTRIES,
+            entryValues = PREF_TYPE_ENTRIES,
+            default = PREF_LATEST_PRIORITY_DEFAULT.value,
+            summary = "%s",
+        ) {
+            preferences.prefLatestPriority = it
         }
 
         screen.addListPreference(
@@ -501,9 +570,22 @@ abstract class DopeFlix(
         return this
     }
 
+    enum class Types(val value: String) {
+        Movies("Movies"),
+        TvShows("Tv Shows"),
+    }
+
     companion object {
         protected const val PREF_DOMAIN_KEY = "preferred_domain"
         protected const val PREF_DOMAIN_TITLE = "Preferred domain"
+
+        protected const val PREF_POPULAR_TYPE_KEY = "preferred_popular_type"
+        protected const val PREF_POPULAR_TYPE_TITLE = "Popular type"
+        protected const val PREF_LATEST_PRIORITY_KEY = "preferred_latest_priority"
+        protected const val PREF_LATEST_PRIORITY_TITLE = "Latest priority"
+        protected val PREF_TYPE_ENTRIES = Types.entries.map { it.value }
+        protected val PREF_POPULAR_TYPE_DEFAULT = Types.Movies
+        protected val PREF_LATEST_PRIORITY_DEFAULT = Types.TvShows
 
         protected const val PREF_QUALITY_KEY = "preferred_quality"
         protected const val PREF_QUALITY_TITLE = "Preferred quality"
