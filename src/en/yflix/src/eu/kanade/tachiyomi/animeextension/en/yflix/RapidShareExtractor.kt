@@ -32,9 +32,9 @@ class RapidShareExtractor(
 
         val encryptedResult = try {
             client.newCall(GET(mediaUrl, headers))
-                .awaitSuccess()
-                .parseAs<EncryptedRapidResponse>()
-                .result
+                .awaitSuccess().use {
+                    it.parseAs<EncryptedRapidResponse>().result
+                }
         } catch (_: Exception) {
             return emptyList()
         }
@@ -46,9 +46,9 @@ class RapidShareExtractor(
 
         val rapidResult = try {
             client.newCall(POST("https://enc-dec.app/api/dec-rapid", body = decryptionBody))
-                .awaitSuccess()
-                .parseAs<RapidDecryptResponse>()
-                .result
+                .awaitSuccess().use {
+                    it.parseAs<RapidDecryptResponse>().result
+                }
         } catch (_: Exception) {
             return emptyList()
         }
@@ -90,8 +90,9 @@ class RapidShareExtractor(
             .build()
         return try {
             client.newCall(GET(url, subHeaders))
-                .awaitSuccess()
-                .parseAs<List<RapidShareTrack>>()
+                .awaitSuccess().use {
+                    it.parseAs<List<RapidShareTrack>>()
+                }
                 .filter { it.kind == "captions" && it.file.isNotBlank() && it.label != null }
                 .map { Track(it.file, it.label!!) }
         } catch (_: Exception) {

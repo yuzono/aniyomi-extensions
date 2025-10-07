@@ -162,7 +162,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         val animeUrl = baseUrl + anime.url
-        val document = client.newCall(GET(animeUrl, docHeaders)).awaitSuccess().asJsoup()
+        val document = client.newCall(GET(animeUrl, docHeaders)).awaitSuccess().use { it.asJsoup() }
         val contentId = document.selectFirst("div.rating[data-id]")?.attr("data-id")
             ?: return emptyList()
 
@@ -170,9 +170,9 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
         val ajaxUrl = "$baseUrl/ajax/episodes/list?id=$contentId&_=$encryptedId"
 
         val resultDoc = client.newCall(GET(ajaxUrl, apiHeaders(animeUrl)))
-            .awaitSuccess()
-            .parseAs<ResultResponse>(json = json)
-            .toDocument()
+            .awaitSuccess().use {
+                it.parseAs<ResultResponse>(json = json).toDocument()
+            }
 
         return resultDoc.select("ul.episodes[data-season]").flatMap { seasonElement ->
             val seasonNum = seasonElement.attr("data-season")
@@ -216,9 +216,9 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
         val serversUrl = "$baseUrl/ajax/links/list?eid=$episodeId&_=$encryptedId"
 
         val serversDoc = client.newCall(GET(serversUrl, apiHeaders(referer)))
-            .awaitSuccess()
-            .parseAs<ResultResponse>(json = json)
-            .toDocument()
+            .awaitSuccess().use {
+                it.parseAs<ResultResponse>(json = json).toDocument()
+            }
 
         return serversDoc.select("li.server").parallelMapNotNull { serverElement ->
             val serverName = serverElement.selectFirst("span")?.text() ?: return@parallelMapNotNull null
@@ -230,9 +230,9 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                 val viewUrl = "$baseUrl/ajax/links/view?id=$serverId&_=$encryptedServerId"
 
                 val encryptedIframeResult = client.newCall(GET(viewUrl, apiHeaders(referer)))
-                    .awaitSuccess()
-                    .parseAs<ResultResponse>(json = json)
-                    .result
+                    .awaitSuccess().use {
+                        it.parseAs<ResultResponse>(json = json).result
+                    }
 
                 val iframeUrl = decrypt(encryptedIframeResult)
                 rapidShareExtractor.videosFromUrl(iframeUrl, serverName, preferences.subLangPref)
@@ -249,13 +249,17 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
         .build()
 
     private suspend fun encrypt(text: String): String {
-        val response = apiClient.newCall(GET("https://enc-dec.app/api/enc-movies-flix?text=$text")).awaitSuccess()
-        return response.parseAs<ResultResponse>(json = json).result
+        return apiClient.newCall(GET("https://enc-dec.app/api/enc-movies-flix?text=$text"))
+            .awaitSuccess().use {
+                it.parseAs<ResultResponse>(json = json).result
+            }
     }
 
     private suspend fun decrypt(text: String): String {
-        val response = apiClient.newCall(GET("https://enc-dec.app/api/dec-movies-flix?text=$text")).awaitSuccess()
-        return response.parseAs<DecryptedIframeResponse>(json = json).result.url
+        return apiClient.newCall(GET("https://enc-dec.app/api/dec-movies-flix?text=$text"))
+            .awaitSuccess().use {
+                it.parseAs<DecryptedIframeResponse>(json = json).result.url
+            }
     }
 
     private fun parseDate(dateStr: String): Long {
