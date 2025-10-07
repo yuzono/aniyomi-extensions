@@ -2,10 +2,8 @@ plugins {
     id("lib-multisrc")
 }
 
-baseVersionCode = 20
+baseVersionCode = 21
 
 dependencies {
-    api(project(":lib:dood-extractor"))
-    api(project(":lib:cryptoaes"))
-    api(project(":lib:playlist-utils"))
+    api(project(":lib:dopeflix-extractor"))
 }
