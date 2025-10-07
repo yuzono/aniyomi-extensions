@@ -13,6 +13,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelMapNotNull
+import extensions.utils.LazyMutable
 import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.delegate
@@ -21,7 +22,6 @@ import extensions.utils.parseAs
 import kotlinx.serialization.json.Json
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Element
@@ -47,8 +47,6 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val baseUrl by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
 
-    override val client: OkHttpClient = network.client
-
     private val apiClient by lazy {
         client.newBuilder()
             .addInterceptor { chain ->
@@ -63,12 +61,16 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
             .build()
     }
 
-    private val rapidShareExtractor by lazy {
-        RapidShareExtractor(client, headers)
+    private fun headersBuilder(baseUrl: String = this.baseUrl): Headers.Builder = headers.newBuilder()
+        .set("Referer", "$baseUrl/")
+
+    private var docHeaders by LazyMutable {
+        headersBuilder().build()
     }
 
-    override fun headersBuilder(): Headers.Builder = super.headersBuilder()
-        .set("Referer", "$baseUrl/")
+    private var rapidShareExtractor by LazyMutable {
+        RapidShareExtractor(client, docHeaders)
+    }
 
     // ============================== Popular ===============================
 
@@ -93,7 +95,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                     it.addQueryParameters(builder)
                 }
             }.build()
-        return GET(url.toString(), headers)
+        return GET(url.toString(), docHeaders)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage = parseAnimesPage(response)
@@ -160,7 +162,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         val animeUrl = baseUrl + anime.url
-        val document = client.newCall(GET(animeUrl, headers)).awaitSuccess().asJsoup()
+        val document = client.newCall(GET(animeUrl, docHeaders)).awaitSuccess().asJsoup()
         val contentId = document.selectFirst("div.rating[data-id]")?.attr("data-id")
             ?: return emptyList()
 
@@ -182,6 +184,9 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                 }
             }
         }.reversed()
+            .ifEmpty {
+                throw Exception("No episodes/movie found.")
+            }
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> =
@@ -237,7 +242,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // ============================= Utilities ==============================
 
-    private fun apiHeaders(referer: String) = headers.newBuilder()
+    private fun apiHeaders(referer: String) = docHeaders.newBuilder()
         .set("Referer", referer)
         .add("Accept", "application/json, text/javascript, */*; q=0.01")
         .add("X-Requested-With", "XMLHttpRequest")
@@ -309,7 +314,10 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
             entryValues = DOMAIN_VALUES,
             default = PREF_DOMAIN_DEFAULT,
             summary = "%s",
-        )
+        ) {
+            docHeaders = headersBuilder(it).build()
+            rapidShareExtractor = RapidShareExtractor(client, docHeaders)
+        }
 
         screen.addListPreference(
             key = PREF_QUALITY_KEY,
