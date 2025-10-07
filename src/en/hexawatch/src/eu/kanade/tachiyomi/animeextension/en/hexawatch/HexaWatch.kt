@@ -35,6 +35,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     override val name = "HexaWatch"
 
     override val baseUrl = "https://hexa.watch"
+    private val animeUrl = "$baseUrl/details"
     private val apiUrl = "https://themoviedb.hexa.watch/api/tmdb"
     private val subtitleUrl = "https://sub.wyzie.ru"
     private val decryptionApiUrl = "https://enc-dec.app/api/dec-hexa"
@@ -108,6 +109,10 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun getFilterList(): AnimeFilterList = HexaWatchFilters.getFilterList()
 
     // ============================== Details ===============================
+    override fun getAnimeUrl(anime: SAnime): String {
+        return animeUrl + anime.url
+    }
+
     override fun animeDetailsRequest(anime: SAnime): Request {
         return GET(apiUrl + anime.url, headers)
     }
