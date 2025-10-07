@@ -2,7 +2,7 @@ plugins {
     id("lib-multisrc")
 }
 
-baseVersionCode = 20
+baseVersionCode = 21
 
 dependencies {
     api(project(":lib:dopeflix-extractor"))
