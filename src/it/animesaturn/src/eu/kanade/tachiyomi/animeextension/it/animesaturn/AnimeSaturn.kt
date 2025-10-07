@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.it.animesaturn
 
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
@@ -11,6 +10,8 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.Request
@@ -22,20 +23,22 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "AnimeSaturn"
 
-    override val baseUrl by lazy {
-        preferences.getString(
-            "preferred_domain",
-            "https://anisaturn.com",
-        )!!
-    }
-
-    private fun isNewDomain(): Boolean = baseUrl == "https://anisaturn.com"
+    private fun isNewDomain(): Boolean = baseUrl == DOMAIN_DEFAULT
 
     override val lang = "it"
 
     override val supportsLatest = true
 
-    private val preferences by getPreferencesLazy()
+    private val preferences by getPreferencesLazy {
+        val currentDomain = getString(PREF_DOMAIN, DOMAIN_DEFAULT)!!
+        if (currentDomain !in DOMAIN_VALUES) {
+            edit()
+                .putString(PREF_DOMAIN, DOMAIN_DEFAULT)
+                .apply()
+        }
+    }
+
+    override val baseUrl by preferences.delegate(PREF_DOMAIN, DOMAIN_DEFAULT)
 
     override fun popularAnimeSelector(): String = "div.sebox"
 
@@ -411,36 +414,36 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         filters.forEach { filter ->
             when (filter) {
                 is GenreList -> { // ---Genre
-                    filter.state.forEach { Genre ->
-                        if (Genre.state) {
-                            totalstring = totalstring + "&categories%5B" + variantgenre.toString() + "%5D=" + Genre.id
+                    filter.state.forEach { genre ->
+                        if (genre.state) {
+                            totalstring = totalstring + "&categories%5B" + variantgenre.toString() + "%5D=" + genre.id
                             variantgenre++
                         }
                     }
                 }
 
                 is YearList -> { // ---Year
-                    filter.state.forEach { Year ->
-                        if (Year.state) {
-                            totalstring = totalstring + "&years%5B" + variantyear.toString() + "%5D=" + Year.id
+                    filter.state.forEach { year ->
+                        if (year.state) {
+                            totalstring = totalstring + "&years%5B" + variantyear.toString() + "%5D=" + year.id
                             variantyear++
                         }
                     }
                 }
 
                 is StateList -> { // ---State
-                    filter.state.forEach { State ->
-                        if (State.state) {
-                            totalstring = totalstring + "&states%5B" + variantstate.toString() + "%5D=" + State.id
+                    filter.state.forEach { state ->
+                        if (state.state) {
+                            totalstring = totalstring + "&states%5B" + variantstate.toString() + "%5D=" + state.id
                             variantstate++
                         }
                     }
                 }
 
                 is LangList -> { // ---Lang
-                    filter.state.forEach { Lang ->
-                        if (Lang.state) {
-                            totalstring = totalstring + "&language%5B0%5D=" + Lang.id
+                    filter.state.forEach { lang ->
+                        if (lang.state) {
+                            totalstring = totalstring + "&language%5B0%5D=" + lang.id
                         }
                     }
                 }
@@ -451,37 +454,34 @@ class AnimeSaturn : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val videoQualityPref = ListPreference(screen.context).apply {
-            key = "preferred_quality"
-            title = "Qualità preferita"
-            entries = arrayOf("1080p", "720p", "480p", "360p", "240p", "144p")
-            entryValues = arrayOf("1080", "720", "480", "360", "240", "144")
-            setDefaultValue("1080")
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_QUALITY,
+            title = "Qualità preferita",
+            entries = QUALITY_ENTRIES,
+            entryValues = QUALITY_VALUES,
+            default = QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }
-        val domainPref = ListPreference(screen.context).apply {
-            key = "preferred_domain"
-            title = "Domain in uso (riavvio dell'app richiesto)"
-            entries = arrayOf("anisaturn.com", "animesaturn.cx")
-            entryValues = arrayOf("https://anisaturn.com", "https://animesaturn.cx")
-            setDefaultValue("https://anisaturn.com")
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_DOMAIN,
+            title = "Domain in uso (riavvio dell'app richiesto)",
+            entries = DOMAIN_ENTRIES,
+            entryValues = DOMAIN_VALUES,
+            default = DOMAIN_DEFAULT,
+            summary = "%s",
+        )
+    }
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }
-        screen.addPreference(videoQualityPref)
-        screen.addPreference(domainPref)
+    companion object {
+        private const val PREF_QUALITY = "preferred_quality"
+        private val QUALITY_VALUES = listOf("1080", "720", "480", "360", "240", "144")
+        private val QUALITY_ENTRIES = QUALITY_VALUES.map { "${it}p" }
+        private val QUALITY_DEFAULT = QUALITY_VALUES.first()
+
+        private const val PREF_DOMAIN = "preferred_domain"
+        private val DOMAIN_ENTRIES = listOf("www.anisaturn.net", "animesaturn.cx")
+        private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
+        private val DOMAIN_DEFAULT = DOMAIN_VALUES.first()
     }
 }
