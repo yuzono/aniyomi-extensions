@@ -183,6 +183,8 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                             }
                         }
                     }.getOrElse { emptyList() }
+                }.ifEmpty {
+                    throw Exception("No episodes found.")
                 }
         } else {
             val movie = json.decodeFromString<MovieDetailDto>(responseBody)
@@ -240,8 +242,8 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     videoNameGen = { quality -> "Server: ${source.server} - $quality" },
                     subtitleList = subtitles,
                 )
-            } catch (e: Exception) {
-                emptyList<Video>()
+            } catch (_: Exception) {
+                emptyList()
             }
         }
 
@@ -277,7 +279,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     Track(sub.url, langLabel)
                 }
                 .sortedByDescending { preferredSubLang?.let(it.lang::startsWith) ?: false }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
