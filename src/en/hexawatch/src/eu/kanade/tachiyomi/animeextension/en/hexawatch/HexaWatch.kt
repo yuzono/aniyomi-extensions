@@ -237,61 +237,30 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             description = buildString {
                 movie.overview?.run(::append)
 
-                if (isNotEmpty()) append("\n\n")
-                append("**Type:** Movie")
-
-                if (movie.voteAverage > 0f) {
-                    val score = String.format(Locale.US, "%.1f", movie.voteAverage)
-                    if (isNotEmpty()) append("\n")
-                    append("**Score:** $score")
-                }
-                movie.tagline?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Tag Line**: *$it*")
-                    }
-                }
-                movie.releaseDate?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Release Date:** $it")
-                    }
-                }
-                movie.countries?.let {
-                    if (it.isNotEmpty()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Country:** ${it.joinToString()}")
-                    }
-                }
-                movie.originalTitle?.let {
-                    if (it.isNotBlank() && it.trim() != movie.title.trim()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Original Title:** $it")
-                    }
-                }
-                movie.runtime?.let {
-                    if (it > 0) {
-                        if (isNotEmpty()) append("\n")
+                val details = listOfNotNull(
+                    "**Type:** Movie",
+                    movie.voteAverage.takeIf { it > 0f }?.let { "**Score:** ${String.format(Locale.US, "%.1f", it)}" },
+                    movie.tagline?.takeIf(String::isNotBlank)?.let { "**Tag Line**: *$it*" },
+                    movie.releaseDate?.takeIf(String::isNotBlank)?.let { "**Release Date:** $it" },
+                    movie.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
+                    movie.originalTitle?.takeIf { it.isNotBlank() && it.trim() != movie.title.trim() }?.let { "**Original Title:** $it" },
+                    movie.runtime?.takeIf { it > 0 }?.let {
                         val hours = it / 60
                         val minutes = it % 60
-                        append("**Runtime:** ${if (hours > 0) "$hours hr " else ""}$minutes min")
-                    }
+                        "**Runtime:** ${if (hours > 0) "$hours hr " else ""}$minutes min"
+                    },
+                    movie.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
+                    movie.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
+                )
+
+                if (details.isNotEmpty()) {
+                    if (isNotEmpty()) append("\n\n")
+                    append(details.joinToString("\n"))
                 }
-                movie.homepage?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**[Official Site]($it)**")
-                    }
-                }
-                movie.imdbId?.let {
-                    if (isNotEmpty()) append("\n")
-                    append("**[IMDB](https://www.imdb.com/title/$it)**")
-                }
-                movie.backdropPath?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n\n")
-                        append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
-                    }
+
+                movie.backdropPath?.takeIf(String::isNotBlank)?.let {
+                    if (isNotEmpty()) append("\n\n")
+                    append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
                 }
             }
         }
@@ -312,55 +281,25 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             description = buildString {
                 tv.overview?.run(::append)
 
-                if (isNotEmpty()) append("\n\n")
-                append("**Type:** TV Show")
+                val details = listOfNotNull(
+                    "**Type:** TV Show",
+                    tv.voteAverage.takeIf { it > 0f }?.let { "**Score:** ${String.format(Locale.US, "%.1f", it)}" },
+                    tv.tagline?.takeIf(String::isNotBlank)?.let { "**Tag Line**: *$it*" },
+                    tv.firstAirDate?.takeIf(String::isNotBlank)?.let { "**First Air Date:** $it" },
+                    tv.lastAirDate?.takeIf(String::isNotBlank)?.let { "**Last Air Date:** $it" },
+                    tv.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
+                    tv.originalName?.takeIf { it.isNotBlank() && it.trim() != tv.name.trim() }?.let { "**Original Title:** $it" },
+                    tv.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
+                )
 
-                if (tv.voteAverage > 0f) {
-                    val score = String.format(Locale.US, "%.1f", tv.voteAverage)
-                    if (isNotEmpty()) append("\n")
-                    append("**Score:** $score")
+                if (details.isNotEmpty()) {
+                    if (isNotEmpty()) append("\n\n")
+                    append(details.joinToString("\n"))
                 }
-                tv.tagline?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Tag Line**: *$it*")
-                    }
-                }
-                tv.firstAirDate?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**First Air Date:** $it")
-                    }
-                }
-                tv.lastAirDate?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Last Air Date:** $it")
-                    }
-                }
-                tv.countries?.let {
-                    if (it.isNotEmpty()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Country:** ${it.joinToString()}")
-                    }
-                }
-                tv.originalName?.let {
-                    if (it.isNotBlank() && it.trim() != tv.name.trim()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**Original Name:** $it")
-                    }
-                }
-                tv.homepage?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n")
-                        append("**[Official Site]($it)**")
-                    }
-                }
-                tv.backdropPath?.let {
-                    if (it.isNotBlank()) {
-                        if (isNotEmpty()) append("\n\n")
-                        append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
-                    }
+
+                tv.backdropPath?.takeIf(String::isNotBlank)?.let {
+                    if (isNotEmpty()) append("\n\n")
+                    append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
                 }
             }
         }
