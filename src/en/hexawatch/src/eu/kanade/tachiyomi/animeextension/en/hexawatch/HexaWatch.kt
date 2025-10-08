@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.parallelFlatMap
+import eu.kanade.tachiyomi.util.parallelMapNotNull
 import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.delegate
@@ -28,6 +29,7 @@ import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
@@ -60,9 +62,30 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int): Request {
+    override suspend fun getLatestUpdates(page: Int): AnimesPage {
         val preferredLatest = preferences.latestPref
-        return GET("$apiUrl/$preferredLatest/popular?language=en-US&page=$page", headers)
+        val types = if (preferredLatest == "movie") listOf("movie", "tv") else listOf("tv", "movie")
+        return types.parallelMapNotNull { mediaType ->
+            runCatching {
+                client.newCall(latestUpdatesRequest(page, mediaType))
+                    .awaitSuccess()
+                    .use { response ->
+                        latestUpdatesParse(response)
+                    }
+            }.getOrNull()
+        }.let { animePages ->
+            val animes = animePages.flatMap { it.animes }
+            val hasNextPage = animePages.any { it.hasNextPage }
+            AnimesPage(animes, hasNextPage)
+        }
+    }
+
+    private val dateFormat by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
+
+    override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
+    private fun latestUpdatesRequest(page: Int, mediaType: String): Request {
+        val date = dateFormat.format(Date())
+        return GET("$apiUrl/discover/$mediaType?language=en-US&sort_by=primary_release_date.desc&page=$page&vote_count.gte=50&primary_release_date.lte=$date", headers)
     }
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
@@ -70,46 +93,68 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // =============================== Search ===============================
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        return if (query.isNotBlank()) {
-            GET("$apiUrl/search/multi?query=$query&language=en-US&page=$page", headers)
+    override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
+        if (query.isNotBlank()) {
+            val preferredLatest = preferences.latestPref
+            val types = if (preferredLatest == "movie") listOf("movie", "tv") else listOf("tv", "movie")
+            return types.parallelMapNotNull { mediaType ->
+                runCatching {
+                    client.newCall(searchAnimeRequest(page, query, mediaType))
+                        .awaitSuccess()
+                        .use { response ->
+                            searchAnimeParse(response)
+                        }
+                }.getOrNull()
+            }.let { animePages ->
+                val animes = animePages.flatMap { it.animes }
+                val hasNextPage = animePages.any { it.hasNextPage }
+                AnimesPage(animes, hasNextPage)
+            }
         } else {
-            val type = filters.filterIsInstance<HexaWatchFilters.TypeFilter>().first().state.let {
-                if (it == 0) "movie" else "tv"
-            }
-            val sortFilter = filters.filterIsInstance<HexaWatchFilters.SortFilter>().first()
-            val sortBy = sortFilter.state?.run {
-                when (index) {
-                    0 -> "popularity"
-                    1 -> "vote_average"
-                    else -> if (type == "movie") "primary_release_date" else "first_air_date"
-                } + if (ascending) ".asc" else ".desc"
-            } ?: "popularity.desc"
-
-            val genreMap = if (type == "movie") HexaWatchFilters.MOVIE_GENRE_MAP else HexaWatchFilters.TV_GENRE_MAP
-            val genres = filters.filterIsInstance<HexaWatchFilters.GenreFilter>().first()
-                .state.filter { it.state }.mapNotNull { genreMap[it.name] }.joinToString(",")
-
-            val url = buildString {
-                append("$apiUrl/discover/$type?sort_by=$sortBy&language=en-US&page=$page")
-                if (genres.isNotBlank()) {
-                    append("&with_genres=$genres")
-                }
-
-                // ====== Watch Provider Filter ======
-                val providers = filters.filterIsInstance<HexaWatchFilters.WatchProviderFilter>()
-                    .firstOrNull()
-                    ?.state
-                    ?.filter { it.state }
-                    ?.joinToString(",") { it.id }
-                    .orEmpty()
-
-                if (providers.isNotBlank()) {
-                    append("&with_watch_providers=$providers&watch_region=US")
-                }
-            }
-            GET(url, headers)
+            return super.getSearchAnime(page, query, filters)
         }
+    }
+
+    private fun searchAnimeRequest(page: Int, query: String, mediaType: String): Request {
+        return GET("$apiUrl/search/$mediaType?query=$query&language=en-US&page=$page", headers)
+    }
+
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val type = filters.filterIsInstance<HexaWatchFilters.TypeFilter>().first().state.let {
+            if (it == 0) "movie" else "tv"
+        }
+        val sortFilter = filters.filterIsInstance<HexaWatchFilters.SortFilter>().first()
+        val sortBy = sortFilter.state?.run {
+            when (index) {
+                0 -> "popularity"
+                1 -> "vote_average"
+                else -> if (type == "movie") "primary_release_date" else "first_air_date"
+            } + if (ascending) ".asc" else ".desc"
+        } ?: "popularity.desc"
+
+        val genreMap = if (type == "movie") HexaWatchFilters.MOVIE_GENRE_MAP else HexaWatchFilters.TV_GENRE_MAP
+        val genres = filters.filterIsInstance<HexaWatchFilters.GenreFilter>().first()
+            .state.filter { it.state }.mapNotNull { genreMap[it.name] }.joinToString(",")
+
+        val url = buildString {
+            append("$apiUrl/discover/$type?sort_by=$sortBy&language=en-US&page=$page")
+            if (genres.isNotBlank()) {
+                append("&with_genres=$genres")
+            }
+
+            // ====== Watch Provider Filter ======
+            val providers = filters.filterIsInstance<HexaWatchFilters.WatchProviderFilter>()
+                .firstOrNull()
+                ?.state
+                ?.filter { it.state }
+                ?.joinToString(",") { it.id }
+                .orEmpty()
+
+            if (providers.isNotBlank()) {
+                append("&with_watch_providers=$providers&watch_region=US")
+            }
+        }
+        return GET(url, headers)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
@@ -425,10 +470,8 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun parseMediaPage(response: Response): AnimesPage {
         val pageDto = response.parseAs<PageDto<MediaItemDto>>()
         val hasNextPage = pageDto.page < pageDto.totalPages
-        val mediaTypes = setOf("movie", "tv")
 
         val animeList = pageDto.results
-            .filter { it.mediaType in mediaTypes }
             .map(::mediaItemToSAnime)
 
         return AnimesPage(animeList, hasNextPage)
