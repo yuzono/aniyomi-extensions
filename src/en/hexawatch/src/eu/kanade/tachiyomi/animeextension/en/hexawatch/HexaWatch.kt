@@ -467,6 +467,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     playlistUrl = source.url,
                     videoNameGen = { quality -> "Server: ${source.server} - $quality" },
                     subtitleList = subtitles,
+                    referer = "$baseUrl/",
                 )
             }.getOrElse {
                 emptyList()
