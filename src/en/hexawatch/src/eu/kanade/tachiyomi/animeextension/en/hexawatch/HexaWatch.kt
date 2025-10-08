@@ -20,6 +20,7 @@ import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
+import extensions.utils.parseAs
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -225,7 +226,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun movieDetailsParse(responseBody: String): SAnime {
-        val movie = json.decodeFromString<MovieDetailDto>(responseBody)
+        val movie = responseBody.parseAs<MovieDetailDto>()
         return SAnime.create().apply {
             title = movie.title
             url = "/movie/${movie.id}"
@@ -299,7 +300,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun tvDetailsParse(responseBody: String): SAnime {
-        val tv = json.decodeFromString<TvDetailDto>(responseBody)
+        val tv = responseBody.parseAs<TvDetailDto>()
         return SAnime.create().apply {
             title = tv.name
             url = "/tv/${tv.id}"
@@ -384,7 +385,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     private suspend fun episodeListParseAsync(response: Response): List<SEpisode> {
         val responseBody = response.body.string()
         return if ("/tv/" in response.request.url.toString()) {
-            val tv = json.decodeFromString<TvDetailDto>(responseBody)
+            val tv = responseBody.parseAs<TvDetailDto>()
             tv.seasons.sortedByDescending { it.seasonNumber }
                 .filter { it.seasonNumber > 0 }
                 .parallelFlatMap { season ->
@@ -406,7 +407,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     throw Exception("No episodes found.")
                 }
         } else {
-            val movie = json.decodeFromString<MovieDetailDto>(responseBody)
+            val movie = responseBody.parseAs<MovieDetailDto>()
             listOf(
                 SEpisode.create().apply {
                     name = "Movie"
@@ -633,9 +634,5 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             url = "/$type/${media.id}"
             thumbnail_url = media.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
         }
-    }
-
-    private inline fun <reified T> Response.parseAs(): T {
-        return json.decodeFromString(this.body.string())
     }
 }
