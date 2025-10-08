@@ -52,7 +52,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
-        return GET("$apiUrl/trending/all/day?language=en-US&page=$page", headers)
+        return GET("$apiUrl/trending/all/week?language=en-US&page=$page", headers)
     }
 
     override fun popularAnimeParse(response: Response): AnimesPage {
