@@ -423,12 +423,12 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================= Utilities ==============================
     private fun parseMediaPage(response: Response): AnimesPage {
-        val isMultiSearch = "/search/multi" in response.request.url.toString()
         val pageDto = response.parseAs<PageDto<MediaItemDto>>()
         val hasNextPage = pageDto.page < pageDto.totalPages
+        val mediaTypes = setOf("movie", "tv")
 
         val animeList = pageDto.results
-            .filter { !isMultiSearch || (it.mediaType == "movie" || it.mediaType == "tv") }
+            .filter { it.mediaType in mediaTypes }
             .map(::mediaItemToSAnime)
 
         return AnimesPage(animeList, hasNextPage)
