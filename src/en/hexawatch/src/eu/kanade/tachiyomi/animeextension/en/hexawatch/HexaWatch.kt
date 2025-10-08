@@ -55,7 +55,14 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
-        return GET("$apiUrl/trending/all/week?language=en-US&page=$page", headers)
+        val url = apiUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("trending")
+            addPathSegment("all")
+            addPathSegment("week")
+            addQueryParameter("language", "en-US")
+            addQueryParameter("page", page.toString())
+        }.build()
+        return GET(url, headers)
     }
 
     override fun popularAnimeParse(response: Response): AnimesPage {
@@ -86,7 +93,16 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
     private fun latestUpdatesRequest(page: Int, mediaType: String): Request {
         val date = dateFormat.format(Date())
-        return GET("$apiUrl/discover/$mediaType?language=en-US&sort_by=primary_release_date.desc&page=$page&vote_count.gte=50&primary_release_date.lte=$date", headers)
+        val url = apiUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("discover")
+            addPathSegment(mediaType)
+            addQueryParameter("language", "en-US")
+            addQueryParameter("sort_by", "primary_release_date.desc")
+            addQueryParameter("page", page.toString())
+            addQueryParameter("vote_count.gte", "50") // Minimum votes to avoid low-rated content
+            addQueryParameter("primary_release_date.lte", date) // Only released content
+        }.build()
+        return GET(url, headers)
     }
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
@@ -117,7 +133,14 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun searchAnimeRequest(page: Int, query: String, mediaType: String): Request {
-        return GET("$apiUrl/search/$mediaType?query=$query&language=en-US&page=$page", headers)
+        val url = apiUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("search")
+            addPathSegment(mediaType)
+            addQueryParameter("language", "en-US")
+            addQueryParameter("page", page.toString())
+            addQueryParameter("query", query)
+        }.build()
+        return GET(url, headers)
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -137,10 +160,14 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
         val genres = filters.filterIsInstance<HexaWatchFilters.GenreFilter>().first()
             .state.filter { it.state }.mapNotNull { genreMap[it.name] }.joinToString(",")
 
-        val url = buildString {
-            append("$apiUrl/discover/$type?sort_by=$sortBy&language=en-US&page=$page")
+        val url = apiUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment("discover")
+            addPathSegment(type)
+            addQueryParameter("sort_by", sortBy)
+            addQueryParameter("language", "en-US")
+            addQueryParameter("page", page.toString())
             if (genres.isNotBlank()) {
-                append("&with_genres=$genres")
+                addQueryParameter("with_genres", genres)
             }
 
             // ====== Watch Provider Filter ======
@@ -152,9 +179,10 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                 .orEmpty()
 
             if (providers.isNotBlank()) {
-                append("&with_watch_providers=$providers&watch_region=US")
+                addQueryParameter("with_watch_providers", providers)
+                addQueryParameter("watch_region", "US")
             }
-        }
+        }.build()
         return GET(url, headers)
     }
 
