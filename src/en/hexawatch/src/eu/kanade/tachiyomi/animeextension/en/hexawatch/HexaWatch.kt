@@ -91,7 +91,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
     private fun latestUpdatesRequest(page: Int, mediaType: String): Request {
-        val date = dateFormat.format(Date())
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         val url = apiUrl.toHttpUrl().newBuilder().apply {
             addPathSegment("discover")
             addPathSegment(mediaType)
@@ -547,11 +547,9 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
             }
         }
 
-        private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
         fun parseDate(dateStr: String?): Long {
             return runCatching {
-                dateFormat.parse(dateStr ?: "")?.time ?: 0L
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr ?: "")?.time ?: 0L
             }.getOrDefault(0L)
         }
     }
