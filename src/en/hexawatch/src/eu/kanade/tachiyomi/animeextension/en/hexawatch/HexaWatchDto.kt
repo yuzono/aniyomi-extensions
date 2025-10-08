@@ -50,10 +50,10 @@ data class MovieDetailDto(
     @SerialName("production_companies") val productionCompanies: List<CompanyDto> = emptyList(),
     @SerialName("origin_country") val countries: List<String>? = null,
     @SerialName("original_title") val originalTitle: String? = null,
-    @SerialName("imdb_id") val imdbId: String? = null, // "tt2306299"
+    @SerialName("imdb_id") val imdbId: String? = null,
     val tagline: String? = null,
-    val homepage: String? = null, // "https://www.amazon.com/gp/video/detail/B0FKTC2KF7"
-    val runtime: Int? = null, // In minutes
+    val homepage: String? = null,
+    val runtime: Int? = null,
 )
 
 // ============================== TV Detail ===============================
@@ -76,7 +76,7 @@ data class TvDetailDto(
     @SerialName("origin_country") val countries: List<String>? = null,
     @SerialName("original_name") val originalName: String? = null,
     val tagline: String? = null,
-    val homepage: String? = null, // "https://www.amazon.com/gp/video/detail/B0FKTC2KF7"
+    val homepage: String? = null,
 )
 
 @Serializable

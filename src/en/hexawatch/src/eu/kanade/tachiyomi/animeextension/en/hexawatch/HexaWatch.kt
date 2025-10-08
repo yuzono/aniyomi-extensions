@@ -253,12 +253,14 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                 }
                 movie.releaseDate?.let {
-                    if (isNotEmpty()) append("\n")
-                    append("**Release Date:** $it")
+                    if (it.isNotBlank()) {
+                        if (isNotEmpty()) append("\n")
+                        append("**Release Date:** $it")
+                    }
                 }
                 movie.countries?.let {
-                    if (isNotEmpty()) append("\n")
                     if (it.isNotEmpty()) {
+                        if (isNotEmpty()) append("\n")
                         append("**Country:** ${it.joinToString()}")
                     }
                 }
@@ -269,10 +271,12 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                 }
                 movie.runtime?.let {
-                    if (isNotEmpty()) append("\n")
-                    val hours = it / 60
-                    val minutes = it % 60
-                    append("**Runtime:** ${if (hours > 0) "$hours hr " else ""}$minutes min")
+                    if (it > 0) {
+                        if (isNotEmpty()) append("\n")
+                        val hours = it / 60
+                        val minutes = it % 60
+                        append("**Runtime:** ${if (hours > 0) "$hours hr " else ""}$minutes min")
+                    }
                 }
                 movie.homepage?.let {
                     if (it.isNotBlank()) {
@@ -285,8 +289,10 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     append("**[IMDB](https://www.imdb.com/title/$it)**")
                 }
                 movie.backdropPath?.let {
-                    if (isNotEmpty()) append("\n\n")
-                    append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
+                    if (it.isNotBlank()) {
+                        if (isNotEmpty()) append("\n\n")
+                        append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
+                    }
                 }
             }
         }
@@ -322,16 +328,20 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                 }
                 tv.firstAirDate?.let {
-                    if (isNotEmpty()) append("\n")
-                    append("**First Air Date:** $it")
+                    if (it.isNotBlank()) {
+                        if (isNotEmpty()) append("\n")
+                        append("**First Air Date:** $it")
+                    }
                 }
                 tv.lastAirDate?.let {
-                    if (isNotEmpty()) append("\n")
-                    append("**Last Air Date:** $it")
+                    if (it.isNotBlank()) {
+                        if (isNotEmpty()) append("\n")
+                        append("**Last Air Date:** $it")
+                    }
                 }
                 tv.countries?.let {
-                    if (isNotEmpty()) append("\n")
                     if (it.isNotEmpty()) {
+                        if (isNotEmpty()) append("\n")
                         append("**Country:** ${it.joinToString()}")
                     }
                 }
@@ -348,8 +358,10 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     }
                 }
                 tv.backdropPath?.let {
-                    if (isNotEmpty()) append("\n\n")
-                    append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
+                    if (it.isNotBlank()) {
+                        if (isNotEmpty()) append("\n\n")
+                        append("![Backdrop](https://image.tmdb.org/t/p/w1920_and_h800_multi_faces$it)")
+                    }
                 }
             }
         }
