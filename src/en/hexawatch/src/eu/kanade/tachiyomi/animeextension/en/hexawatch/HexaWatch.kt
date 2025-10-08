@@ -288,7 +288,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     tv.firstAirDate?.takeIf(String::isNotBlank)?.let { "**First Air Date:** $it" },
                     tv.lastAirDate?.takeIf(String::isNotBlank)?.let { "**Last Air Date:** $it" },
                     tv.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
-                    tv.originalName?.takeIf { it.isNotBlank() && it.trim() != tv.name.trim() }?.let { "**Original Title:** $it" },
+                    tv.originalName?.takeIf { it.isNotBlank() && it.trim() != tv.name.trim() }?.let { "**Original Name:** $it" },
                     tv.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
                 )
 
