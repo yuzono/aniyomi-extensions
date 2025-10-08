@@ -22,6 +22,7 @@ import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -172,6 +173,14 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun animeDetailsRequest(anime: SAnime): Request {
         return GET(apiUrl + anime.url, headers)
+    }
+
+    override fun relatedAnimeListRequest(anime: SAnime): Request {
+        val url = (apiUrl + anime.url).toHttpUrl().newBuilder().apply {
+            addPathSegment("recommendations")
+            addQueryParameter("page", "1")
+        }.build()
+        return GET(url, headers)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
