@@ -43,10 +43,17 @@ data class MovieDetailDto(
     val genres: List<GenreDto> = emptyList(),
     val overview: String? = null,
     @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
     val status: String? = null,
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("vote_average") val voteAverage: Float = 0f,
     @SerialName("production_companies") val productionCompanies: List<CompanyDto> = emptyList(),
+    @SerialName("origin_country") val countries: List<String>? = null,
+    @SerialName("original_title") val originalTitle: String? = null,
+    @SerialName("imdb_id") val imdbId: String? = null, // "tt2306299"
+    val tagline: String? = null,
+    val homepage: String? = null, // "https://www.amazon.com/gp/video/detail/B0FKTC2KF7"
+    val runtime: Int? = null, // In minutes
 )
 
 // ============================== TV Detail ===============================
@@ -58,12 +65,18 @@ data class TvDetailDto(
     val genres: List<GenreDto> = emptyList(),
     val overview: String? = null,
     @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
     val status: String? = null,
     @SerialName("first_air_date") val firstAirDate: String? = null,
+    @SerialName("last_air_date") val lastAirDate: String? = null,
     val seasons: List<SeasonDto> = emptyList(),
     val networks: List<NetworkDto> = emptyList(),
     @SerialName("production_companies") val productionCompanies: List<CompanyDto> = emptyList(),
     @SerialName("vote_average") val voteAverage: Float = 0f,
+    @SerialName("origin_country") val countries: List<String>? = null,
+    @SerialName("original_name") val originalName: String? = null,
+    val tagline: String? = null,
+    val homepage: String? = null, // "https://www.amazon.com/gp/video/detail/B0FKTC2KF7"
 )
 
 @Serializable
