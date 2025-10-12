@@ -133,6 +133,7 @@ jobs:
           KISSKH_API: ${{ secrets.KISSKH_API }}
           KISSKH_SUB_API: ${{ secrets.KISSKH_SUB_API }}
           KAISVA: ${{ secrets.KAISVA }}
+          TMDB_API: ${{ secrets.TMDB_API }}
         run: |
           ./gradlew $(echo '${{ toJson(matrix.chunk.modules) }}' | jq -r 'join(" ")')
 

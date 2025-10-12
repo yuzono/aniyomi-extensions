@@ -93,6 +93,7 @@ android {
             buildConfigField "String", "KISSKH_API", "\"${System.getenv("KISSKH_API") ?: localProperties.getProperty("KISSKH_API", "")}\""
             buildConfigField "String", "KISSKH_SUB_API", "\"${System.getenv("KISSKH_SUB_API") ?: localProperties.getProperty("KISSKH_SUB_API", "")}\""
             buildConfigField "String", "KAISVA", "\"${System.getenv("KAISVA") ?: localProperties.getProperty("KAISVA", "")}\""
+            buildConfigField "String", "TMDB_API", "\"${System.getenv("TMDB_API") ?: localProperties.getProperty("TMDB_API", "")}\""
         }
     }
 
