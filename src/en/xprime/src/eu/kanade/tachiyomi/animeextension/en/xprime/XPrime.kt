@@ -500,7 +500,6 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
-        
         private val TMDB_API_KEY = BuildConfig.TMDB_API
 
         private const val PREF_DOMAIN_KEY = "pref_domain"
