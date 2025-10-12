@@ -235,7 +235,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
                         "**Runtime:** ${if (hours > 0) "${hours}h " else ""}${minutes}m"
                     },
                     movie.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
-                    movie.externalIds?.imdbId?.let { "**IMDB:** $it" },
+                    movie.externalIds?.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
                 )
                 if (details.isNotEmpty()) {
                     append(details.joinToString("\n"))
@@ -267,7 +267,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
                     tv.firstAirDate?.takeIf(String::isNotBlank)?.let { "**First Air Date:** $it" },
                     tv.lastAirDate?.takeIf(String::isNotBlank)?.let { "**Last Air Date:** $it" },
                     tv.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
-                    tv.externalIds?.imdbId?.let { "**IMDB:** $it" },
+                    tv.externalIds?.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
                 )
                 if (details.isNotEmpty()) {
                     append(details.joinToString("\n"))
