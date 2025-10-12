@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.animeextension.en.xprime
 import android.content.SharedPreferences
 import android.text.InputType
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -301,34 +302,32 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================== Episodes ==============================
-    override fun episodeListRequest(anime: SAnime): Request {
-        return animeDetailsRequest(anime)
-    }
-
-    override fun episodeListParse(response: Response): List<SEpisode> {
+    override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
+        val response = client.newCall(animeDetailsRequest(anime)).awaitSuccess()
         return if ("/tv/" in response.request.url.toString()) {
             val tv = response.parseAs<TvDetailDto>()
             val extraData = Triple(tv.name, tv.firstAirDate?.take(4) ?: "", tv.externalIds?.imdbId ?: "")
             val extraDataEncoded = json.encodeToString(extraData)
             tv.seasons
                 .filter { it.seasonNumber > 0 }
-                .sortedByDescending { it.seasonNumber } // Sort seasons descending
-                .flatMap { season ->
+                .parallelCatchingFlatMap { season ->
                     val seasonDetail = client.newCall(
                         GET("$apiUrl/tv/${tv.id}/season/${season.seasonNumber}?api_key=$TMDB_API_KEY"),
-                    ).execute().parseAs<TvSeasonDetailDto>()
-                    seasonDetail.episodes
-                        .sortedByDescending { it.episodeNumber } // Sort episodes descending
-                        .map { episode ->
-                            SEpisode.create().apply {
-                                name = "S${season.seasonNumber} E${episode.episodeNumber} - ${episode.name}"
-                                episode_number = episode.episodeNumber.toFloat()
-                                scanlator = "Season ${season.seasonNumber}"
-                                date_upload = parseDate(episode.airDate)
-                                url = "tv/${tv.id}/${season.seasonNumber}/${episode.episodeNumber}#$extraDataEncoded"
-                            }
+                    ).awaitSuccess().parseAs<TvSeasonDetailDto>()
+                    seasonDetail.episodes.map { episode ->
+                        SEpisode.create().apply {
+                            name = "S${season.seasonNumber} E${episode.episodeNumber} - ${episode.name}"
+                            episode_number = episode.episodeNumber.toFloat()
+                            scanlator = "Season ${season.seasonNumber}"
+                            date_upload = parseDate(episode.airDate)
+                            url = "tv/${tv.id}/${season.seasonNumber}/${episode.episodeNumber}#$extraDataEncoded"
                         }
+                    }
                 }
+                .sortedWith(
+                    compareByDescending<SEpisode> { it.scanlator?.substringAfter(" ")?.toIntOrNull() }
+                        .thenByDescending { it.episode_number },
+                )
         } else {
             val movie = response.parseAs<MovieDetailDto>()
             val extraData = Triple(movie.title, movie.releaseDate?.take(4) ?: "", movie.externalIds?.imdbId ?: "")
@@ -344,6 +343,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
+    override fun episodeListParse(response: Response): List<SEpisode> = throw UnsupportedOperationException("Not used")
+
     // ============================ Video Links =============================
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val (path, extraDataEncoded) = episode.url.split("#")
@@ -352,8 +353,12 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         val pathParts = path.split("/")
         val isMovie = pathParts.first() == "movie"
 
-        val servers = client.newCall(GET("$backendUrl/servers")).awaitSuccess()
-            .parseAs<ServerListDto>().servers
+        val servers = try {
+            client.newCall(GET("$backendUrl/servers")).awaitSuccess()
+                .parseAs<ServerListDto>().servers
+        } catch (_: Exception) {
+            emptyList()
+        }
 
         val videoList = servers.parallelCatchingFlatMap { server ->
             val serverUrl = backendUrl.toHttpUrl().newBuilder().apply {
@@ -458,12 +463,11 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             summary = "Limit the number of subtitles fetched. Current: $subLimitPref",
             default = PREF_SUB_LIMIT_DEFAULT,
             inputType = InputType.TYPE_CLASS_NUMBER,
-        ) {
-            it.toIntOrNull()?.let { value ->
-                preferences.edit().putString(PREF_SUB_LIMIT_KEY, value.toString()).apply()
-            }
-            true
-        }
+            onChange = { _, newValue ->
+                val newAmount = newValue.toIntOrNull()
+                (newAmount != null && newAmount >= 0)
+            },
+        )
     }
 
     // ============================= Utilities ==============================
@@ -500,7 +504,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
-        private val TMDB_API_KEY = BuildConfig.TMDB_API
+        private const val TMDB_API_KEY = BuildConfig.TMDB_API
 
         private const val PREF_DOMAIN_KEY = "pref_domain"
         private const val PREF_DOMAIN_DEFAULT = "https://xprime.tv"
