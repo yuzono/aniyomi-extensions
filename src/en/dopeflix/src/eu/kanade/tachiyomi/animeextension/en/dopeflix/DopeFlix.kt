@@ -10,6 +10,11 @@ class DopeFlix : DopeFlix(
     listOf(
         "gomovies.gg",
         "himovies.sx",
+        "myflixtor.tv",
+        "watch32.sx",
+        "1flix.to",
+        "hdtoday.cc",
+        "flixhq.to",
         "fmovieszz.lol",
         "movies4kto.lol",
         "series2watch.net",
