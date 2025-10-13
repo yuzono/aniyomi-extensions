@@ -8,16 +8,16 @@ class DopeFlix : DopeFlix(
     "en",
     BuildConfig.MEGACLOUD_API,
     listOf(
-        "gomovies.gg",
-        "himovies.sx",
-        "myflixtor.tv",
-        "watch32.sx",
         "1flix.to",
-        "hdtoday.cc",
         "flixhq.to",
         "fmovieszz.lol",
+        "gomovies.gg",
+        "hdtoday.cc",
+        "himovies.sx",
         "movies4kto.lol",
+        "myflixtor.tv",
         "series2watch.net",
+        "watch32.sx"
         // "citysonic.tv",
     ),
 ) {
