@@ -50,7 +50,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val supportsLatest = true
 
-    private val preferences by getPreferencesLazy()
+    private val preferences by getPreferencesLazy {
+        clearOldPrefs()
+    }
 
     override var baseUrl: String
         by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
@@ -423,9 +425,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
         private val DOMAIN_ENTRIES = listOf(
             "animekai.to",
-            "animekai.bz",
             "animekai.cc",
             "animekai.ac",
+            "anikai.to",
         )
         private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }
         private val PREF_DOMAIN_DEFAULT = DOMAIN_VALUES.first()
@@ -459,6 +461,25 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     // ============================== Settings ==============================
+
+    private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
+        val domain = getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+            ?.removePrefix("https://")
+            ?: return this
+        if (domain !in DOMAIN_ENTRIES) {
+            edit()
+                .putString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+                .apply()
+        }
+        val hostToggle = getStringSet(PREF_HOSTER_KEY, HOSTERS.toSet()) ?: return this
+        if (hostToggle.any { it !in HOSTERS }) {
+            edit()
+                .putStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())
+                .putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+                .apply()
+        }
+        return this
+    }
 
     private var useEnglish by LazyMutable { preferences.getTitleLang == "English" }
 
