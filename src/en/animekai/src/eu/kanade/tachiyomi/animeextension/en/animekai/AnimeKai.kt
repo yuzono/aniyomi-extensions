@@ -463,20 +463,22 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================== Settings ==============================
 
     private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
-        val domain = getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
-            ?.removePrefix("https://")
-            ?: return this
-        if (domain !in DOMAIN_ENTRIES) {
-            edit()
-                .putString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
-                .apply()
-        }
-        val hostToggle = getStringSet(PREF_HOSTER_KEY, HOSTERS.toSet()) ?: return this
-        if (hostToggle.any { it !in HOSTERS }) {
-            edit()
-                .putStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())
-                .putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
-                .apply()
+        val domain = getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)!!.removePrefix("https://")
+        val hostToggle = getStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())!!
+
+        val invalidDomain = domain !in DOMAIN_ENTRIES
+        val invalidHosters = hostToggle.any { it !in HOSTERS }
+
+        if (invalidDomain || invalidHosters) {
+            edit().also { editor ->
+                if (invalidDomain) {
+                    editor.putString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+                }
+                if (invalidHosters) {
+                    editor.putStringSet(PREF_HOSTER_KEY, HOSTERS.toSet())
+                    editor.putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+                }
+            }.apply()
         }
         return this
     }
