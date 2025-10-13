@@ -17,7 +17,7 @@ class DopeFlix : DopeFlix(
         "movies4kto.lol",
         "myflixtor.tv",
         "series2watch.net",
-        "watch32.sx"
+        "watch32.sx",
         // "citysonic.tv",
     ),
 ) {
