@@ -21,7 +21,10 @@ open class UriPartSelectFilter(
     val includeZero: Boolean = false,
 ) : UriPartFilterInterface, SelectFilter(displayName, vals) {
 
-    override fun toUriPart() = if (includeZero || state != 0) "$keyName=${toValue()}" else ""
+    override fun toUriPart(): String {
+        val value = toValue()
+        return if ((includeZero || state != 0) && value.isNotBlank()) "$keyName=$value" else ""
+    }
 }
 
 open class UriPartTextFilter(
@@ -36,7 +39,7 @@ class GenreFilter : UriPartSelectFilter(
     "Géneros",
     "genero",
     arrayOf(
-        Pair("<Selecionar>", "none"),
+        Pair("<Seleccionar>", "none"),
         Pair("Español Latino", "espaol-latino"),
         Pair("Accion", "accion"),
         Pair("Aventura", "aventura"),
@@ -88,7 +91,7 @@ class GenreFilter : UriPartSelectFilter(
 class DayFilter : SelectFilter(
     "Dia de emisión",
     arrayOf(
-        Pair("<Selecionar>", ""),
+        Pair("<Seleccionar>", ""),
         Pair("Lunes", "Lunes"),
         Pair("Martes", "Martes"),
         Pair("Miércoles", "Miércoles"),

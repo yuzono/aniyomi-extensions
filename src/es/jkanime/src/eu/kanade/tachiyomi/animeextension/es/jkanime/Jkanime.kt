@@ -286,7 +286,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val episodes = mutableListOf<SEpisode>()
         val animeUrl = response.request.url.toString().trim('/')
         val pageBody = response.asJsoup()
-        val token = pageBody.selectFirst("meta[name=csrf-token]")!!.attr("content")
+        val token = pageBody.selectFirst("meta[name=csrf-token]")?.attr("content") ?: return episodes
         val formData = FormBody.Builder().add("_token", token).build()
         val animeId = pageBody.select("div.anime__details__content div.pc div#guardar-anime")
             .attr("data-anime")
@@ -295,7 +295,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             .execute().body.string()
             .let { jsonStr -> json.decodeFromString<EpisodesPageDto>(jsonStr) }
 
-        val firstEp = episodesPage.data[0].number
+        val firstEp = episodesPage.data.firstOrNull()?.number ?: 1
         val lastEp = if (firstEp == 0) (episodesPage.total - 1) else episodesPage.total
 
         for (i in firstEp..lastEp) {
