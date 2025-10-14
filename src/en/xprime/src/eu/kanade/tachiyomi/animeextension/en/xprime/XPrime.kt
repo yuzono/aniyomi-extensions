@@ -20,7 +20,6 @@ import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import eu.kanade.tachiyomi.util.parallelMapNotNull
 import extensions.utils.addEditTextPreference
 import extensions.utils.addListPreference
-import extensions.utils.addSwitchPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import extensions.utils.parseAs
@@ -97,6 +96,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             addQueryParameter("language", "en-US")
             addQueryParameter("sort_by", "primary_release_date.desc")
             addQueryParameter("page", page.toString())
+            addQueryParameter("vote_count.gte", "50") // Minimum votes to avoid low-rated content
             addQueryParameter("primary_release_date.lte", date)
         }.build()
         return GET(url)
@@ -113,7 +113,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
             return types.parallelMapNotNull { mediaType ->
                 runCatching {
-                    searchAnimeParse(client.newCall(searchAnimeRequest(page, query, mediaType, adultPref)).awaitSuccess())
+                    searchAnimeParse(client.newCall(searchAnimeRequest(page, query, mediaType)).awaitSuccess())
                 }.getOrNull()
             }.let { animePages ->
                 val animes = animePages.flatMap { it.animes }
@@ -125,7 +125,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    private fun searchAnimeRequest(page: Int, query: String, mediaType: String, includeAdult: Boolean): Request {
+    private fun searchAnimeRequest(page: Int, query: String, mediaType: String): Request {
         val url = apiUrl.toHttpUrl().newBuilder().apply {
             addPathSegment("search")
             addPathSegment(mediaType)
@@ -133,7 +133,6 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             addQueryParameter("language", "en-US")
             addQueryParameter("page", page.toString())
             addQueryParameter("query", query)
-            addQueryParameter("include_adult", includeAdult.toString())
         }.build()
         return GET(url)
     }
@@ -419,7 +418,6 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================== Settings ==============================
     private val domainPref by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
-    private val adultPref by preferences.delegate(PREF_ADULT_KEY, PREF_ADULT_DEFAULT)
     private val qualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
     private val latestPref by preferences.delegate(PREF_LATEST_KEY, PREF_LATEST_DEFAULT)
     private val subLimitPref by preferences.delegate(PREF_SUB_LIMIT_KEY, PREF_SUB_LIMIT_DEFAULT)
@@ -427,19 +425,12 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
             key = PREF_DOMAIN_KEY,
-            title = "Preferred Domain (requires restart)",
+            title = "Preferred Domain",
             entries = DOMAIN_ENTRIES.toList(),
             entryValues = DOMAIN_VALUES.toList(),
             default = PREF_DOMAIN_DEFAULT,
             summary = "%s",
             restartRequired = true,
-        )
-
-        screen.addSwitchPreference(
-            key = PREF_ADULT_KEY,
-            title = "Show Adult Content (18+)",
-            summary = "Show adult content in search and browse results",
-            default = PREF_ADULT_DEFAULT,
         )
 
         screen.addListPreference(
@@ -513,9 +504,6 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         private const val PREF_DOMAIN_DEFAULT = "https://xprime.tv"
         private val DOMAIN_ENTRIES = arrayOf("xprime.tv", "xprime.today")
         private val DOMAIN_VALUES = DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
-
-        private const val PREF_ADULT_KEY = "pref_adult"
-        private const val PREF_ADULT_DEFAULT = false
 
         private const val PREF_LATEST_KEY = "pref_latest"
         private const val PREF_LATEST_DEFAULT = "movie"
