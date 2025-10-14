@@ -206,10 +206,14 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
-        return if ("/movie/" in response.request.url.toString()) {
-            movieDetailsParse(response)
-        } else {
-            tvDetailsParse(response)
+        return try {
+            if ("/movie/" in response.request.url.toString()) {
+                movieDetailsParse(response)
+            } else {
+                tvDetailsParse(response)
+            }
+        } catch (e: Exception) {
+            throw Exception("Failed to parse details. The API might have returned an error page.", e)
         }
     }
 
@@ -229,6 +233,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
                     movie.voteAverage.takeIf { it > 0f }?.let { "**Score:** ★ ${String.format(Locale.US, "%.1f", it)}" },
                     movie.tagline?.takeIf(String::isNotBlank)?.let { "**Tagline:** *$it*" },
                     movie.releaseDate?.takeIf(String::isNotBlank)?.let { "**Release Date:** $it" },
+                    movie.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
+                    movie.originalTitle?.takeIf { it.isNotBlank() && it.trim() != movie.title.trim() }?.let { "**Original Title:** $it" },
                     movie.runtime?.takeIf { it > 0 }?.let {
                         val hours = it / 60
                         val minutes = it % 60
@@ -266,6 +272,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
                     tv.tagline?.takeIf(String::isNotBlank)?.let { "**Tagline:** *$it*" },
                     tv.firstAirDate?.takeIf(String::isNotBlank)?.let { "**First Air Date:** $it" },
                     tv.lastAirDate?.takeIf(String::isNotBlank)?.let { "**Last Air Date:** $it" },
+                    tv.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
+                    tv.originalName?.takeIf { it.isNotBlank() && it.trim() != tv.name.trim() }?.let { "**Original Name:** $it" },
                     tv.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
                     tv.externalIds?.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
                 )
@@ -281,8 +289,6 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ========================== Related Titles ============================
-    override val supportsRelatedAnimes: Boolean = true
-
     override fun relatedAnimeListRequest(anime: SAnime): Request {
         val (type, id) = anime.url.substring(1).split("/").let {
             val rawId = it[1]
@@ -293,12 +299,9 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             addPathSegment(id)
             addPathSegment("recommendations")
             addQueryParameter("api_key", TMDB_API_KEY)
+            addQueryParameter("page", "1")
         }.build()
-        return GET(url)
-    }
-
-    override fun relatedAnimeListParse(response: Response): List<SAnime> {
-        return response.parseAs<PageDto<MediaItemDto>>().results.map(::mediaItemToSAnime)
+        return GET(url, headers)
     }
 
     // ============================== Episodes ==============================
@@ -387,7 +390,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             }
 
             val videoHeaders = headers.newBuilder()
-                .add("Origin", baseUrl.removeSuffix("/")) // Required for loading streams
+                .add("Origin", baseUrl) // Required for loading streams
                 .build()
 
             when {
