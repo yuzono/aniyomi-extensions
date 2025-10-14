@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget as KotlinJvmTarget
+
 allprojects {
     repositories {
         mavenCentral()
@@ -5,9 +8,9 @@ allprojects {
         maven(url = "https://jitpack.io")
     }
 
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-        kotlinOptions {
-            jvmTarget = JavaVersion.VERSION_1_8.toString()
+    tasks.withType<KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(KotlinJvmTarget.JVM_1_8)
         }
     }
 }
