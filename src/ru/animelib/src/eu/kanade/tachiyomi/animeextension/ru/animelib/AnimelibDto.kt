@@ -10,7 +10,7 @@ data class AnimeStatus(
 
 @Serializable
 data class CoverInfo(
-    val thumbnail: String,
+    val default: String,
 )
 
 @Serializable

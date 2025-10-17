@@ -41,7 +41,9 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val domain = "v3.animelib.org"
     override val baseUrl = "https://$domain/ru"
-    private val apiUrl = "https://api.cdnlibs.org/api"
+    private val apiSite = "https://api.cdnlibs.org"
+    private val apiUrl = "$apiSite/api"
+    private val coverDomain = "cover.imglib.info"
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
     private val dateFormatter by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH) }
@@ -66,6 +68,22 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private val ATOB_REGEX = Regex("atob\\([^\"]")
     }
+
+    override val client = network.client.newBuilder()
+        .addInterceptor { chain ->
+            val request = chain.request()
+
+            if (request.url.host == coverDomain) {
+                chain.proceed(
+                    request.newBuilder()
+                        .header("Referer", domain)
+                        .build(),
+                )
+            } else {
+                chain.proceed(request)
+            }
+        }
+        .build()
 
     // =============================== Preference ===============================
     private val preferences by getPreferencesLazy()
@@ -225,7 +243,22 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
         } ?: emptyList()
     }
 
-    override fun videoListRequest(episode: SEpisode) = GET(episode.url)
+    override fun videoListRequest(episode: SEpisode): Request {
+        if (episode.url.contains("http")) {
+            /*
+            Old version stored full url to episode which led to outdated urls in database after
+            api domain was changed, so we migrate old url to new one by extracting path from old url
+             */
+            episode.setUrlWithoutDomain(episode.url)
+            episode.url = episode.url.drop(1)
+        }
+
+        return GET(
+            apiSite.toHttpUrl().newBuilder()
+                .addPathSegments(episode.url)
+                .build(),
+        )
+    }
 
     // =============================== Latest ===============================
     override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
@@ -475,7 +508,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun AnimeData.toSAnime() = SAnime.create().apply {
         url = href
         title = rusName
-        thumbnail_url = cover.thumbnail
+        thumbnail_url = cover.default
         description = summary
         status = convertStatus(animeStatus.id)
         author = publisher?.joinToString { it.name }
@@ -483,7 +516,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun EpisodeInfo.toSEpisode() = SEpisode.create().apply {
-        url = "$apiUrl/episodes/$id"
+        url = "api/episodes/$id"
         name = "Сезон $season Серия $number $episodeName"
         episode_number = number.toFloat()
         date_upload = dateFormatter.parse(date)?.time ?: 0L
