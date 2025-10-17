@@ -439,9 +439,11 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
             val base64Url = quickJs.use {
                 it.evaluate("t='$videoInfo'; $encodeScript")
             }.toString()
+
             val hlsUrl = Base64.decode(base64Url, Base64.DEFAULT).toString(Charsets.UTF_8)
+            val playlistUrl = if (hlsUrl.contains("http")) hlsUrl else "https:$hlsUrl"
             playlistUtils.extractFromHls(
-                "https:$hlsUrl",
+                playlistUrl,
                 videoNameGen = { "$teamName (${quality}p Kodik)" },
             )
         }
