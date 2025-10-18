@@ -316,8 +316,9 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ============================== Episodes ==============================
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
+        val (type, _) = animeUrlToId(anime)
         val response = client.newCall(animeDetailsRequest(anime)).awaitSuccess()
-        return if ("/tv/" in response.request.url.toString()) {
+        return if (type == "tv") {
             val tv = response.parseAs<TvDetailDto>()
             val extraData = Triple(tv.name, tv.firstAirDate?.take(4) ?: "", tv.externalIds?.imdbId ?: "")
             val extraDataEncoded = json.encodeToString(extraData)
