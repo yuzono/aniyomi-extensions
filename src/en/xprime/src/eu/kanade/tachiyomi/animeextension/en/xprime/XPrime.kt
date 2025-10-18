@@ -77,7 +77,9 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
         return types.parallelMapNotNull { mediaType ->
             runCatching {
-                latestUpdatesParse(client.newCall(latestUpdatesRequest(page, mediaType)).awaitSuccess())
+                client.newCall(latestUpdatesRequest(page, mediaType))
+                    .awaitSuccess()
+                    .use { latestUpdatesParse(it) }
             }.getOrNull()
         }.let { animePages ->
             val animes = animePages.flatMap { it.animes }
@@ -113,7 +115,9 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
             return types.parallelMapNotNull { mediaType ->
                 runCatching {
-                    searchAnimeParse(client.newCall(searchAnimeRequest(page, query, mediaType)).awaitSuccess())
+                    client.newCall(searchAnimeRequest(page, query, mediaType))
+                        .awaitSuccess()
+                        .use { searchAnimeParse(it) }
                 }.getOrNull()
             }.let { animePages ->
                 val animes = animePages.flatMap { it.animes }
@@ -379,7 +383,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             }.build()
 
             val backendHeaders = headers.newBuilder().add("Referer", baseUrl).build()
-            val encryptedText = client.newCall(GET(serverUrl.toString(), backendHeaders)).awaitSuccess().body.string()
+            val encryptedText = client.newCall(GET(serverUrl.toString(), backendHeaders))
+                .awaitSuccess().use { it.body.string() }
 
             val decryptionPayload = json.encodeToString(mapOf("text" to encryptedText))
             val requestBody = decryptionPayload.toRequestBody("application/json".toMediaType())
