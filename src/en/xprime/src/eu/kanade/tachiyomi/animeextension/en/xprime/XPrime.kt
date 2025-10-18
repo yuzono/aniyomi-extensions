@@ -39,9 +39,13 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "XPrime"
 
-    private val preferences: SharedPreferences by getPreferencesLazy()
+    private val preferences: SharedPreferences by getPreferencesLazy {
+        clearOldPrefs()
+    }
 
-    override val baseUrl by lazy { domainPref }
+    override val baseUrl
+        get() = preferences.domainPref
+
     private val apiUrl = "https://api.themoviedb.org/3"
     private val backendUrl = "https://backend.xprime.tv"
     private val decryptionApiUrl = "https://enc-dec.app/api/dec-xprime"
@@ -73,7 +77,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // =============================== Latest ===============================
     override suspend fun getLatestUpdates(page: Int): AnimesPage {
-        val types = if (latestPref == "movie") listOf("movie", "tv") else listOf("tv", "movie")
+        val types = if (preferences.latestPref == "movie") listOf("movie", "tv") else listOf("tv", "movie")
 
         return types.parallelMapNotNull { mediaType ->
             runCatching {
@@ -111,7 +115,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     // =============================== Search ===============================
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
         if (query.isNotBlank()) {
-            val types = if (latestPref == "movie") listOf("movie", "tv") else listOf("tv", "movie")
+            val types = if (preferences.latestPref == "movie") listOf("movie", "tv") else listOf("tv", "movie")
 
             return types.parallelMapNotNull { mediaType ->
                 runCatching {
@@ -391,7 +395,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             val decrypted = client.newCall(POST(decryptionApiUrl, body = requestBody)).awaitSuccess()
                 .parseAs<XprimeDecryptionDto>().result
 
-            val subLimit = subLimitPref.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
+            val subLimit = preferences.subLimitPref.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
             val subtitles = decrypted.subtitles.take(subLimit).map {
                 Track(it.url, it.language)
             }
@@ -422,7 +426,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         return videoList.sortedWith(
-            compareByDescending<Video> { it.quality.equals(qualityPref, ignoreCase = true) }
+            compareByDescending<Video> { it.quality.equals(preferences.qualityPref, ignoreCase = true) }
                 .thenByDescending {
                     qualityRegex.find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                 },
@@ -430,10 +434,22 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // ============================== Settings ==============================
-    private val domainPref by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
-    private val qualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
-    private val latestPref by preferences.delegate(PREF_LATEST_KEY, PREF_LATEST_DEFAULT)
-    private val subLimitPref by preferences.delegate(PREF_SUB_LIMIT_KEY, PREF_SUB_LIMIT_DEFAULT)
+    private val SharedPreferences.domainPref by preferences.delegate(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+    private val SharedPreferences.qualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+    private val SharedPreferences.latestPref by preferences.delegate(PREF_LATEST_KEY, PREF_LATEST_DEFAULT)
+    private val SharedPreferences.subLimitPref by preferences.delegate(PREF_SUB_LIMIT_KEY, PREF_SUB_LIMIT_DEFAULT)
+
+    private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
+        val domain = getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)!!.removePrefix("https://")
+        val invalidDomain = domain !in DOMAIN_ENTRIES
+
+        if (invalidDomain) {
+            edit().also { editor ->
+                editor.putString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)
+            }.apply()
+        }
+        return this
+    }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
@@ -443,7 +459,6 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = DOMAIN_VALUES.toList(),
             default = PREF_DOMAIN_DEFAULT,
             summary = "%s",
-            restartRequired = true,
         )
 
         screen.addListPreference(
@@ -467,7 +482,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         screen.addEditTextPreference(
             key = PREF_SUB_LIMIT_KEY,
             title = "Subtitle Search Limit",
-            summary = "Limit the number of subtitles fetched. Current: $subLimitPref",
+            summary = "Limit the number of subtitles fetched. Current: ${preferences.subLimitPref}",
+            getSummary = { "Limit the number of subtitles fetched. Current: $it" },
             default = PREF_SUB_LIMIT_DEFAULT,
             inputType = InputType.TYPE_CLASS_NUMBER,
             onChange = { _, newValue ->
