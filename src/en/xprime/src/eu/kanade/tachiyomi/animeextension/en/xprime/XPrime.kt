@@ -389,7 +389,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
             val backendHeaders = headers.newBuilder().add("Referer", baseUrl).build()
             val encryptedText = client.newCall(GET(serverUrl.toString(), backendHeaders))
-                .awaitSuccess().use { it.body.string() }
+                .awaitSuccess().body.string()
 
             val decryptionPayload = json.encodeToString(mapOf("text" to encryptedText))
             val requestBody = decryptionPayload.toRequestBody("application/json".toMediaType())
