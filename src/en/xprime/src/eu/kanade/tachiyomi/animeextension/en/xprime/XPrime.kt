@@ -426,7 +426,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         return videoList.sortedWith(
-            compareByDescending<Video> { it.quality.equals(preferences.qualityPref, ignoreCase = true) }
+            compareByDescending<Video> { it.quality.contains(preferences.qualityPref, ignoreCase = true) }
                 .thenByDescending {
                     qualityRegex.find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0
                 },
