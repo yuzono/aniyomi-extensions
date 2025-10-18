@@ -27,7 +27,8 @@ class AddonManager(
     private var cachedAuthKey: String? = null
     private var addons: List<AddonDto>? = null
 
-    suspend fun getAddons(source: Source): List<AddonDto> {
+    context(source: Source)
+    suspend fun getAddons(): List<AddonDto> {
         val useAddons = addonValue.isNotBlank()
         val hasChanged = when {
             useAddons -> addonValue != cachedAddons

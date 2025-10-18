@@ -11,6 +11,7 @@ allprojects {
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions {
             jvmTarget.set(KotlinJvmTarget.JVM_1_8)
+            freeCompilerArgs.add("-Xcontext-parameters")
         }
     }
 }
