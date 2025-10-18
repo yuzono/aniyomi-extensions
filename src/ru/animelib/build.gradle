@@ -1,7 +1,7 @@
 ext {
     extName = 'Animelib'
     extClass = '.Animelib'
-    extVersionCode = 9
+    extVersionCode = 10
     isNsfw = true
 }
 
