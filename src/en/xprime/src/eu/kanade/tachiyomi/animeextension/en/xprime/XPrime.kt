@@ -189,11 +189,16 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         return baseUrl + anime.url
     }
 
+    private fun animeUrlToId(anime: SAnime): Pair<String, String> {
+        return animeUrlRegex.find(anime.url)?.let { matchResult ->
+            val type = if (matchResult.groupValues[1].isNotEmpty()) "tv" else "movie"
+            val rawId = matchResult.groupValues[2]
+            type to rawId
+        } ?: throw IllegalArgumentException("Invalid anime URL: ${anime.url}")
+    }
+
     override fun animeDetailsRequest(anime: SAnime): Request {
-        val (type, id) = anime.url.substring(1).split("/").let {
-            val rawId = it[1]
-            if (rawId.startsWith("t")) "tv" to rawId.drop(1) else "movie" to rawId
-        }
+        val (type, id) = animeUrlToId(anime)
 
         val url = apiUrl.toHttpUrl().newBuilder().apply {
             addPathSegment(type)
@@ -289,10 +294,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     // ========================== Related Titles ============================
     override fun relatedAnimeListRequest(anime: SAnime): Request {
-        val (type, id) = anime.url.substring(1).split("/").let {
-            val rawId = it[1]
-            if (rawId.startsWith("t")) "tv" to rawId.drop(1) else "movie" to rawId
-        }
+        val (type, id) = animeUrlToId(anime)
+
         val url = apiUrl.toHttpUrl().newBuilder().apply {
             addPathSegment(type)
             addPathSegment(id)
@@ -498,6 +501,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
+        private val animeUrlRegex = Regex("""/title/(t)?(\d+)""")
+
         private const val TMDB_API_KEY = BuildConfig.TMDB_API
 
         private const val PREF_DOMAIN_KEY = "pref_domain"
