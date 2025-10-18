@@ -409,7 +409,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
                 // Multi-quality streams (e.g., primebox)
                 decrypted.streams != null -> {
                     decrypted.streams.map { (quality, url) ->
-                        Video(url = "", quality = "Server: ${server.name} - $quality", videoUrl = url, headers = videoHeaders, subtitleTracks = subtitles)
+                        Video(url = url, quality = "Server: ${server.name} - $quality", videoUrl = url, headers = videoHeaders, subtitleTracks = subtitles)
                     }
                 }
                 // Single HLS playlist (e.g., fox, primesrc)
