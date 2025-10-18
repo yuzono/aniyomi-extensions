@@ -416,7 +416,12 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             }
         }
 
-        return videoList.sortedByDescending { it.quality.contains(qualityPref, true) }
+        return videoList.sortedWith(
+            compareByDescending<Video> { it.quality.equals(qualityPref, ignoreCase = true) }
+                .thenByDescending {
+                    qualityRegex.find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                },
+        )
     }
 
     // ============================== Settings ==============================
@@ -502,6 +507,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     companion object {
         private val animeUrlRegex = Regex("""/title/(t)?(\d+)""")
+        private val qualityRegex = Regex("""(\d{3,4})p""")
 
         private const val TMDB_API_KEY = BuildConfig.TMDB_API
 
