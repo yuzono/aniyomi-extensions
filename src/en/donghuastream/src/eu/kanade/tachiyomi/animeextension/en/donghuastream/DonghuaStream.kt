@@ -1,9 +1,12 @@
 package eu.kanade.tachiyomi.animeextension.en.donghuastream
 
 import eu.kanade.tachiyomi.animeextension.en.donghuastream.extractors.StreamPlayExtractor
+import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.dailymotionextractor.DailymotionExtractor
 import eu.kanade.tachiyomi.multisrc.animestream.AnimeStream
+import eu.kanade.tachiyomi.network.GET
+import okhttp3.Request
 
 class DonghuaStream : AnimeStream(
     "en",
@@ -12,6 +15,14 @@ class DonghuaStream : AnimeStream(
 ) {
     override val fetchFilters: Boolean
         get() = false
+
+    // ============================ Manual Changes ==========================
+
+    override fun popularAnimeNextPageSelector(): String? = "div.mrgn a.r"
+
+    override fun latestUpdatesNextPageSelector(): String? = popularAnimeNextPageSelector()
+
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request = GET("$baseUrl/pagg/$page/?s=$query")
 
     // ============================ Video Links =============================
 
