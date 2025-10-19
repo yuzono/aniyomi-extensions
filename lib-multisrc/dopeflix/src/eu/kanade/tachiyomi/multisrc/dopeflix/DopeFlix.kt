@@ -467,20 +467,22 @@ abstract class DopeFlix(
         by LazyMutable { preferences.getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!! }
 
     protected open fun SharedPreferences.clearOldPrefs(): SharedPreferences {
-        val domain = getString(PREF_DOMAIN_KEY, defaultDomain)
-            ?.removePrefix("https://")
-            ?: return this
-        if (domain !in domainList) {
-            edit()
-                .putString(PREF_DOMAIN_KEY, defaultDomain)
-                .apply()
-        }
-        val hostToggle = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet()) ?: return this
-        if (hostToggle.any { it !in hosterNames }) {
-            edit()
-                .putStringSet(PREF_HOSTER_KEY, hosterNames.toSet())
-                .putString(PREF_SERVER_KEY, preferredHoster)
-                .apply()
+        val domain = getString(PREF_DOMAIN_KEY, defaultDomain)!!.removePrefix("https://")
+        val hostToggle = getStringSet(PREF_HOSTER_KEY, hosterNames.toSet())!!
+
+        val invalidDomain = domain !in domainList
+        val invalidHosters = hostToggle.any { it !in hosterNames }
+
+        if (invalidDomain || invalidHosters) {
+            edit().also { editor ->
+                if (invalidDomain) {
+                    editor.putString(PREF_DOMAIN_KEY, defaultDomain)
+                }
+                if (invalidHosters) {
+                    editor.putStringSet(PREF_HOSTER_KEY, hosterNames.toSet())
+                    editor.putString(PREF_SERVER_KEY, preferredHoster)
+                }
+            }.apply()
         }
         return this
     }
