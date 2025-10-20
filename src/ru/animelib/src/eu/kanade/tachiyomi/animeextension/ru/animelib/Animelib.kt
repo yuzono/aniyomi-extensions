@@ -72,18 +72,16 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     override val client = network.client.newBuilder()
         .addInterceptor { chain ->
             val request = chain.request()
-
-            if (request.url.host == coverDomain) {
-                chain.proceed(
-                    request.newBuilder()
-                        .header("Referer", domain)
-                        .build(),
-                )
+            val requestToProceed = if (request.url.host == coverDomain) {
+                request.newBuilder()
+                    .header("Referer", domain)
+                    .build()
             } else {
-                chain.proceed(request)
+                request
             }
-        }
-        .build()
+
+            chain.proceed(requestToProceed)
+        }.build()
 
     // =============================== Preference ===============================
     private val preferences by getPreferencesLazy()
@@ -244,18 +242,15 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun videoListRequest(episode: SEpisode): Request {
-        if (episode.url.contains("http")) {
-            /*
-            Old version stored full url to episode which led to outdated urls in database after
-            api domain was changed, so we migrate old url to new one by extracting path from old url
-             */
-            episode.setUrlWithoutDomain(episode.url)
-            episode.url = episode.url.drop(1)
+        val pathSegments = if (episode.url.contains("http")) {
+            episode.url.toHttpUrl().pathSegments.joinToString("/")
+        } else {
+            episode.url
         }
 
         return GET(
             apiSite.toHttpUrl().newBuilder()
-                .addPathSegments(episode.url)
+                .addPathSegments(pathSegments)
                 .build(),
         )
     }
