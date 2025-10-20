@@ -269,11 +269,23 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         private val VOICES = arrayOf(
             "Préférer VOSTFR",
             "Préférer VF",
+            "Préférer VF1",
+            "Préférer VF2",
+            "Préférer VCN",
+            "Préférer VJ",
+            "Préférer VKR",
+            "Préférer VQC",
         )
 
         private val VOICES_VALUES = arrayOf(
             "vostfr",
             "vf",
+            "vf1",
+            "vf2",
+            "vcn",
+            "vj",
+            "vkr",
+            "vqc",
         )
 
         private val PLAYERS = arrayOf(
