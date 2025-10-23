@@ -242,10 +242,10 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun videoListRequest(episode: SEpisode): Request {
-        val pathSegments = if (episode.url.contains("http")) {
+        val pathSegments = if (episode.url.startsWith("http")) {
             episode.url.toHttpUrl().pathSegments.joinToString("/")
         } else {
-            episode.url
+            episode.url.removePrefix("/")
         }
 
         return GET(
@@ -436,7 +436,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
             }.toString()
 
             val hlsUrl = Base64.decode(base64Url, Base64.DEFAULT).toString(Charsets.UTF_8)
-            val playlistUrl = if (hlsUrl.contains("http")) hlsUrl else "https:$hlsUrl"
+            val playlistUrl = if (hlsUrl.startsWith("http")) hlsUrl else "https:$hlsUrl"
             playlistUtils.extractFromHls(
                 playlistUrl,
                 videoNameGen = { "$teamName (${quality}p Kodik)" },
