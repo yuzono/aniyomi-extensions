@@ -77,7 +77,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
             val request = chain.request()
             val requestToProceed = if (request.url.host == coverDomain) {
                 request.newBuilder()
-                    .header("Referer", domain)
+                    .header("Referer", "https://$domain/")
                     .build()
             } else {
                 request
@@ -271,15 +271,14 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun videoListRequest(episode: SEpisode): Request {
-        val pathSegments = if (episode.url.startsWith("http")) {
-            episode.url.toHttpUrl().pathSegments.joinToString("/")
+        val path = if (episode.url.startsWith("http")) {
+            episode.url.toHttpUrl().encodedPath
         } else {
-            episode.url.removePrefix("/")
+            episode.url
         }
-
         return GET(
             apiSite.toHttpUrl().newBuilder()
-                .addPathSegments(pathSegments)
+                .addPathSegments(path.removePrefix("/"))
                 .build(),
         )
     }
