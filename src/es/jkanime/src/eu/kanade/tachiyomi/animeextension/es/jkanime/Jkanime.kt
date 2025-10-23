@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.es.jkanime
 
+import android.content.SharedPreferences
 import android.util.Base64
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
@@ -82,7 +83,9 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             chain.proceed(request)
         }.build()
 
-    private val preferences by getPreferencesLazy()
+    private val preferences by getPreferencesLazy {
+        clearOldPrefs()
+    }
 
     private val json = Json {
         isLenient = true
@@ -99,7 +102,6 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private val QUALITY_LIST = arrayOf("1080", "720", "480", "360")
 
         private const val PREF_SERVER_KEY = "preferred_server"
-        private const val PREF_SERVER_DEFAULT = "Voe"
         private val SERVER_LIST = arrayOf(
             "Okru",
             "Mixdrop",
@@ -111,6 +113,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "Nozomi",
             "Desu",
         )
+        private val PREF_SERVER_DEFAULT = SERVER_LIST.first()
     }
 
     private fun parseAnimeItem(element: Element): SAnime? {
@@ -440,6 +443,16 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         OrderByFilter(),
         SortModifiers(),
     )
+
+    private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
+        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
+        if (server !in SERVER_LIST) {
+            edit()
+                .putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+                .apply()
+        }
+        return this
+    }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         ListPreference(screen.context).apply {
