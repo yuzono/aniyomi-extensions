@@ -19,8 +19,11 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.UrlUtils
 import extensions.utils.getPreferencesLazy
 import okhttp3.FormBody
 import okhttp3.Headers
@@ -41,7 +44,9 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val domain = "v3.animelib.org"
     override val baseUrl = "https://$domain/ru"
-    private val apiUrl = "https://api.cdnlibs.org/api"
+    private val apiSite = "https://api.cdnlibs.org"
+    private val apiUrl = "$apiSite/api"
+    private val coverDomain = "cover.imglib.info"
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
     private val dateFormatter by lazy { SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH) }
@@ -66,6 +71,20 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private val ATOB_REGEX = Regex("atob\\([^\"]")
     }
+
+    override val client = network.client.newBuilder()
+        .addInterceptor { chain ->
+            val request = chain.request()
+            val requestToProceed = if (request.url.host == coverDomain) {
+                request.newBuilder()
+                    .header("Referer", domain)
+                    .build()
+            } else {
+                request
+            }
+
+            chain.proceed(requestToProceed)
+        }.build()
 
     // =============================== Preference ===============================
     private val preferences by getPreferencesLazy()
@@ -173,6 +192,22 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun animeDetailsParse(response: Response) = response.parseAs<AnimeInfo>().data.toSAnime()
 
+    // =============================== Related ===============================
+    override fun relatedAnimeListRequest(anime: SAnime): Request {
+        val url = apiUrl.toHttpUrl().newBuilder()
+        url.addPathSegment("anime")
+        url.addPathSegment(anime.url)
+        url.addPathSegment("similar")
+
+        return GET(url.build())
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val animeList = response.parseAs<AnimeSimilars>()
+
+        return animeList.data.map { it.media.toSAnime() }
+    }
+
     // =============================== Episodes ===============================
     override fun episodeListRequest(anime: SAnime): Request {
         val url = apiUrl.toHttpUrl().newBuilder()
@@ -189,7 +224,15 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     // =============================== Video List ===============================
-    override fun videoListParse(response: Response): List<Video> {
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
+        return client.newCall(videoListRequest(episode))
+            .awaitSuccess()
+            .use { response ->
+                videoListParseAsync(response)
+            }
+    }
+
+    private suspend fun videoListParseAsync(response: Response): List<Video> {
         val episodeData = response.parseAs<EpisodeVideoData>()
         val videoServer = fetchPreferredVideoServer()
         val teams = preferences.getString(PREF_DUB_TEAM_KEY, "")?.split(',')
@@ -212,20 +255,34 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
         } ?: preferredTeams
 
         val ignoreSubs = preferences.getBoolean(PREF_IGNORE_SUBS_KEY, PREF_IGNORE_SUBS_DEFAULT)
-        return videoInfoList?.flatMap { videoInfo ->
+        return videoInfoList?.parallelFlatMap { videoInfo ->
             if (ignoreSubs && videoInfo.translationInfo.id == 1) {
-                return@flatMap emptyList()
+                return@parallelFlatMap emptyList()
             }
             val playerName = videoInfo.player.lowercase()
-            when (playerName) {
-                "kodik" -> kodikVideoLinks(videoInfo.src, videoInfo.team.name)
-                "animelib" -> animelibVideoLinks(videoInfo, videoServer)
-                else -> emptyList()
-            }
+            runCatching {
+                when (playerName) {
+                    "kodik" -> kodikVideoLinks(videoInfo.src, videoInfo.team.name)
+                    "animelib" -> animelibVideoLinks(videoInfo, videoServer)
+                    else -> emptyList()
+                }
+            }.getOrElse { emptyList() }
         } ?: emptyList()
     }
 
-    override fun videoListRequest(episode: SEpisode) = GET(episode.url)
+    override fun videoListRequest(episode: SEpisode): Request {
+        val pathSegments = if (episode.url.startsWith("http")) {
+            episode.url.toHttpUrl().pathSegments.joinToString("/")
+        } else {
+            episode.url.removePrefix("/")
+        }
+
+        return GET(
+            apiSite.toHttpUrl().newBuilder()
+                .addPathSegments(pathSegments)
+                .build(),
+        )
+    }
 
     // =============================== Latest ===============================
     override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
@@ -291,12 +348,12 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun getFilterList() = AnimelibFilters.FILTER_LIST
 
     // =============================== Utils ===============================
-    private fun fetchPreferredVideoServer(): String {
+    private suspend fun fetchPreferredVideoServer(): String {
         val url = apiUrl.toHttpUrl().newBuilder()
         url.addPathSegment("constants")
         url.addQueryParameter("fields[]", "videoServers")
 
-        val videoServerResponse = client.newCall(GET(url.build())).execute()
+        val videoServerResponse = client.newCall(GET(url.build())).awaitSuccess()
         val videoServers = videoServerResponse.parseAs<VideoServerData>()
 
         val serverPreference = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_ENTRIES[0])
@@ -313,16 +370,16 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
         return videoServers.data.videoServers[0].url
     }
 
-    private fun kodikVideoLinks(playerUrl: String?, teamName: String): List<Video> {
+    private suspend fun kodikVideoLinks(playerUrl: String?, teamName: String): List<Video> {
         val useKodik = preferences.getBoolean(PREF_USE_KODIK_KEY, PREF_USE_KODIK_DEFAULT)
         if (playerUrl.isNullOrEmpty() || !useKodik) {
             return emptyList()
         }
 
-        val kodikPage = "https:$playerUrl"
+        val kodikPage = UrlUtils.fixUrl(playerUrl)
         val headers = Headers.Builder()
         headers.add("Referer", baseUrl)
-        val kodikPageResponse = client.newCall(GET(kodikPage, headers.build())).execute()
+        val kodikPageResponse = client.newCall(GET(kodikPage, headers.build())).awaitSuccess()
 
         // Parse form parameters for video link request
         val page = kodikPageResponse.asJsoup()
@@ -352,7 +409,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
         formBody.add("hash", urlParts[5])
 
         val videoInfoRequest = POST("https://$kodikDomain/ftor", body = formBody.build())
-        val videoInfoResponse = client.newCall(videoInfoRequest).execute()
+        val videoInfoResponse = client.newCall(videoInfoRequest).awaitSuccess()
         val kodikData = videoInfoResponse.parseAs<KodikData>()
 
         // Load js with encode algorithm and parse it
@@ -406,9 +463,11 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
             val base64Url = quickJs.use {
                 it.evaluate("t='$videoInfo'; $encodeScript")
             }.toString()
+
             val hlsUrl = Base64.decode(base64Url, Base64.DEFAULT).toString(Charsets.UTF_8)
+            val playlistUrl = UrlUtils.fixUrl(hlsUrl)
             playlistUtils.extractFromHls(
-                "https:$hlsUrl",
+                playlistUrl,
                 videoNameGen = { "$teamName (${quality}p Kodik)" },
             )
         }
@@ -475,7 +534,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun AnimeData.toSAnime() = SAnime.create().apply {
         url = href
         title = rusName
-        thumbnail_url = cover.thumbnail
+        thumbnail_url = cover.default
         description = summary
         status = convertStatus(animeStatus.id)
         author = publisher?.joinToString { it.name }
@@ -483,7 +542,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     private fun EpisodeInfo.toSEpisode() = SEpisode.create().apply {
-        url = "$apiUrl/episodes/$id"
+        url = "api/episodes/$id"
         name = "Сезон $season Серия $number $episodeName"
         episode_number = number.toFloat()
         date_upload = dateFormatter.parse(date)?.time ?: 0L
