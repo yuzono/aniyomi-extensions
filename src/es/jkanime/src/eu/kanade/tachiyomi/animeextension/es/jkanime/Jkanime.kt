@@ -186,6 +186,15 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     private fun parseJsonFromString(text: String): String? {
+        // Try to capture a JSON object assigned to `var animes = {...};` using a DOTALL regex.
+        // Use greedy matching so nested braces inside the JSON are included.
+        val pattern = Regex("""var\s+animes\s*=\s*(\{.*\})\s*;""", RegexOption.DOT_MATCHES_ALL)
+        val match = pattern.find(text)
+        if (match != null) {
+            return match.groups[1]?.value
+        }
+
+        // Fallback:
         val startChar = '{'
         val endChar = '}'
         val start = text.indexOf(startChar).takeIf { it != -1 } ?: return null
