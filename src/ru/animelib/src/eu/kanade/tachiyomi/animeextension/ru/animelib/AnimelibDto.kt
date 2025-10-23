@@ -63,6 +63,16 @@ data class AnimeInfo(
     val data: AnimeData,
 )
 
+@Serializable
+data class AnimeSimilars(
+    val data: List<AnimeSimilar>,
+)
+
+@Serializable
+data class AnimeSimilar(
+    val media: AnimeData,
+)
+
 // ============================== Episode ==============================
 @Serializable
 data class TeamInfo(

@@ -192,6 +192,22 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun animeDetailsParse(response: Response) = response.parseAs<AnimeInfo>().data.toSAnime()
 
+    // =============================== Related ===============================
+    override fun relatedAnimeListRequest(anime: SAnime): Request {
+        val url = apiUrl.toHttpUrl().newBuilder()
+        url.addPathSegment("anime")
+        url.addPathSegment(anime.url)
+        url.addPathSegment("similar")
+
+        return GET(url.build())
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val animeList = response.parseAs<AnimeSimilars>()
+
+        return animeList.data.map { it.media.toSAnime() }
+    }
+
     // =============================== Episodes ===============================
     override fun episodeListRequest(anime: SAnime): Request {
         val url = apiUrl.toHttpUrl().newBuilder()
