@@ -113,8 +113,8 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         )
     }
 
-    private fun parseAnimeItem(element: Element): SAnime {
-        val itemText = element.selectFirst("div.anime__item__text a")!!
+    private fun parseAnimeItem(element: Element): SAnime? {
+        val itemText = element.selectFirst("div.anime__item__text a") ?: return null
         return SAnime.create().apply {
             title = itemText.text()
             thumbnail_url = element.select("div.g-0").attr("abs:data-setbg")
@@ -126,7 +126,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/ranking/", headers)
 
-    override fun popularAnimeFromElement(element: Element): SAnime = parseAnimeItem(element)
+    override fun popularAnimeFromElement(element: Element): SAnime = parseAnimeItem(element)!!
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val document = super.popularAnimeParse(response)
@@ -206,8 +206,8 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private fun searchAnimeParseDirectory(document: Document): AnimesPage {
         val animePageJson = document.selectFirst("script:containsData(var animes = )")?.data()
-            ?.let { js -> parseJsonFromString(js) }
-            ?.takeIf { jsonStr -> jsonStr.isNotBlank() }
+            ?.let(::parseJsonFromString)
+            ?.takeIf { it.isNotBlank() }
             ?.let { jsonStr -> json.decodeFromString<AnimePageDto>(jsonStr) }
             ?: return AnimesPage(emptyList(), false)
 
@@ -225,9 +225,8 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     private fun searchAnimeParseSearch(document: Document): AnimesPage {
-        val animes = document.select("div.row div.row.page_directorio div.anime__item").map { animeItem ->
-            parseAnimeItem(animeItem)
-        }
+        val animes = document.select("div.row div.row.page_directorio div.anime__item")
+            .mapNotNull(::parseAnimeItem)
         return AnimesPage(animes, false)
     }
 
@@ -235,11 +234,12 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val day = document.location().substringAfterLast("#")
         val animeBox = document.selectFirst("h2:contains($day) ~ div.cajas")
 
-        val animeList = animeBox?.select("div.boxx")?.map {
+        val animeList = animeBox?.select("div.boxx")?.mapNotNull { elm ->
             SAnime.create().apply {
-                setUrlWithoutDomain(it.selectFirst("a")!!.attr("abs:href"))
-                title = it.selectFirst("img")!!.attr("title")
-                thumbnail_url = it.selectFirst("img")!!.attr("abs:src")
+                val url = elm.selectFirst("a")?.attr("abs:href")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                setUrlWithoutDomain(url)
+                title = elm.selectFirst("img")?.attr("title") ?: return@mapNotNull null
+                thumbnail_url = elm.selectFirst("img")?.attr("abs:src")
             }
         } ?: emptyList()
 
@@ -263,9 +263,9 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun animeDetailsParse(document: Document): SAnime {
         val anime = SAnime.create()
-        anime.thumbnail_url = document.selectFirst("div.anime__details__content div.anime_pic img")!!.attr("src")
-        anime.title = document.selectFirst("div.anime__details__content div.anime_info h3")!!.text()
-        anime.description = document.selectFirst("div.anime__details__content div.anime_info p")!!.text()
+        document.selectFirst("div.anime__details__content div.anime_pic img")?.attr("abs:src")?.let { anime.thumbnail_url = it }
+        document.selectFirst("div.anime__details__content div.anime_info h3")?.text()?.let { anime.title = it }
+        document.selectFirst("div.anime__details__content div.anime_info p")?.text()?.let { anime.description = it }
         document.select("div.anime__details__content div.anime_data.pc li").forEach { animeData ->
             val data = animeData.select("span").text()
             if (data.contains("Genero:")) {
@@ -283,10 +283,9 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val episodes = mutableListOf<SEpisode>()
         val animeUrl = response.request.url.toString().trim('/')
         val pageBody = response.asJsoup()
-        val token = pageBody.selectFirst("meta[name=csrf-token]")?.attr("content") ?: return episodes
+        val token = pageBody.selectFirst("meta[name=csrf-token]")?.attr("content") ?: return emptyList()
         val formData = FormBody.Builder().add("_token", token).build()
         val animeId = pageBody.select("div.anime__details__content div.pc div#guardar-anime")
             .attr("data-anime")
@@ -298,6 +297,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val firstEp = episodesPage.data.firstOrNull()?.number ?: 1
         val lastEp = if (firstEp == 0) (episodesPage.total - 1) else episodesPage.total
 
+        val episodes = mutableListOf<SEpisode>()
         for (i in firstEp..lastEp) {
             val episode = SEpisode.create().apply {
                 setUrlWithoutDomain("$animeUrl/$i")
