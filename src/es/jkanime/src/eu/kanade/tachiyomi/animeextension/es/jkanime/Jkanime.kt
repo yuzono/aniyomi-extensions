@@ -166,17 +166,23 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
         val dayFilter = filters.find { it is DayFilter } as DayFilter
-        var url = baseUrl
-
-        url += when {
-            dayFilter.state != 0 -> dayFilter.toValue().let { day -> "/horario/#$day" }
-            query.isNotBlank() -> query.replace(" ", "_").let { query -> "/buscar/$query" }
-            else -> filterList.filter { it is UriPartFilterInterface }
-                .joinToString("&") { filter -> (filter as UriPartFilterInterface).toUriPart() }
-                .let { params -> "/directorio?p=$page&$params" }
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            when {
+                dayFilter.state != 0 -> {
+                    addPathSegment("horario")
+                    addPathSegment("#${dayFilter.toValue()}")
+                }
+                query.isNotBlank() -> {
+                    addPathSegment("buscar")
+                    addPathSegment(query.replace(" ", "_"))
+                }
+                else -> filterList.filterIsInstance<UriPartFilterInterface>()
+                    .joinToString("&") { it.toUriPart() }
+                    .let { params -> "/directorio?p=$page&$params" }
+            }
         }
 
-        return GET(url, headers)
+        return GET(url.build(), headers)
     }
 
     private fun parseJsonFromString(text: String): String? {
@@ -248,11 +254,11 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun searchAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
-        val location = document.location()
+        val location = document.location().toHttpUrl().encodedPath
         when {
-            location.startsWith("$baseUrl/directorio") -> return searchAnimeParseDirectory(document)
-            location.startsWith("$baseUrl/buscar") -> return searchAnimeParseSearch(document)
-            location.startsWith("$baseUrl/horario") -> return searchAnimeParseSchedule(document)
+            location.startsWith("/directorio") -> return searchAnimeParseDirectory(document)
+            location.startsWith("/buscar") -> return searchAnimeParseSearch(document)
+            location.startsWith("/horario") -> return searchAnimeParseSchedule(document)
         }
         return AnimesPage(emptyList(), false)
     }
