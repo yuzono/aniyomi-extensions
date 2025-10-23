@@ -184,13 +184,15 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 else -> {
                     addPathSegment("directorio")
                     filterList.filterIsInstance<UriPartFilterInterface>()
-                        .joinToString("&") { it.toUriPart() }
+                        .map { it.toUriPart() }
+                        .filter(String::isNotBlank)
+                        .joinToString("&")
                         .takeIf { it.isNotBlank() }
                         ?.let { params ->
                             encodedQuery("page=$page&$params")
                         }
                         ?: run {
-                            addQueryParameter("page", "page")
+                            addQueryParameter("page", page.toString())
                         }
                 }
             }
