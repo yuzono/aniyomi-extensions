@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.animeextension.es.jkanime
 
 import android.content.SharedPreferences
 import android.util.Base64
-import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.es.jkanime.extractors.JkanimeExtractor
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -26,6 +25,8 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
@@ -95,14 +96,14 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     companion object {
         private const val PREF_LANGUAGE_KEY = "preferred_language"
         private const val PREF_LANGUAGE_DEFAULT = "[JAP]"
-        private val LANGUAGE_LIST = arrayOf("[JAP]", "[LAT]")
+        private val LANGUAGE_LIST = listOf("[JAP]", "[LAT]")
 
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
-        private val QUALITY_LIST = arrayOf("1080", "720", "480", "360")
+        private val QUALITY_LIST = listOf("1080", "720", "480", "360")
 
         private const val PREF_SERVER_KEY = "preferred_server"
-        private val SERVER_LIST = arrayOf(
+        private val SERVER_LIST = listOf(
             "Okru",
             "Mixdrop",
             "StreamWish",
@@ -408,9 +409,9 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
-        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
-        val lang = preferences.getString(PREF_LANGUAGE_KEY, PREF_LANGUAGE_DEFAULT)!!
+        val quality = preferences.qualityPref
+        val server = preferences.serverPref
+        val lang = preferences.langPref
         return this.sortedWith(
             compareBy(
                 { it.quality.contains(lang) },
@@ -444,8 +445,12 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         SortModifiers(),
     )
 
+    private val SharedPreferences.qualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
+    private val SharedPreferences.serverPref by preferences.delegate(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+    private val SharedPreferences.langPref by preferences.delegate(PREF_LANGUAGE_KEY, PREF_LANGUAGE_DEFAULT)
+
     private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
-        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
+        val server = getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
         if (server !in SERVER_LIST) {
             edit()
                 .putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
@@ -455,52 +460,31 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        ListPreference(screen.context).apply {
-            key = PREF_LANGUAGE_KEY
-            title = "Preferred language"
-            entries = LANGUAGE_LIST
-            entryValues = LANGUAGE_LIST
-            setDefaultValue(PREF_LANGUAGE_DEFAULT)
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_LANGUAGE_KEY,
+            title = "Preferred language",
+            entries = LANGUAGE_LIST,
+            entryValues = LANGUAGE_LIST,
+            default = PREF_LANGUAGE_DEFAULT,
+            summary = "%s",
+        )
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "Preferred quality",
+            entries = QUALITY_LIST,
+            entryValues = QUALITY_LIST,
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
-        ListPreference(screen.context).apply {
-            key = PREF_QUALITY_KEY
-            title = "Preferred quality"
-            entries = QUALITY_LIST
-            entryValues = QUALITY_LIST
-            setDefaultValue(PREF_QUALITY_DEFAULT)
-            summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
-
-        ListPreference(screen.context).apply {
-            key = PREF_SERVER_KEY
-            title = "Preferred server"
-            entries = SERVER_LIST
-            entryValues = SERVER_LIST
-            setDefaultValue(PREF_SERVER_DEFAULT)
-            summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }.also(screen::addPreference)
+        screen.addListPreference(
+            key = PREF_SERVER_KEY,
+            title = "Preferred server",
+            entries = SERVER_LIST,
+            entryValues = SERVER_LIST,
+            default = PREF_SERVER_DEFAULT,
+            summary = "%s",
+        )
     }
 }
