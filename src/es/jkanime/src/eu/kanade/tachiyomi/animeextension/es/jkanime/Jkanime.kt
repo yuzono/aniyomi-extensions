@@ -174,15 +174,25 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             when {
                 dayFilter.state != 0 -> {
                     addPathSegment("horario")
-                    addPathSegment("#${dayFilter.toValue()}")
+                    addPathSegment("")
+                    fragment(dayFilter.toValue())
                 }
                 query.isNotBlank() -> {
                     addPathSegment("buscar")
                     addPathSegment(query.replace(" ", "_"))
                 }
-                else -> filterList.filterIsInstance<UriPartFilterInterface>()
-                    .joinToString("&") { it.toUriPart() }
-                    .let { params -> "/directorio?p=$page&$params" }
+                else -> {
+                    addPathSegment("directorio")
+                    filterList.filterIsInstance<UriPartFilterInterface>()
+                        .joinToString("&") { it.toUriPart() }
+                        .takeIf { it.isNotBlank() }
+                        ?.let { params ->
+                            encodedQuery("page=$page&$params")
+                        }
+                        ?: run {
+                            addQueryParameter("page", "page")
+                        }
+                }
             }
         }
 
