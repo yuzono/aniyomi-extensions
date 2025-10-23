@@ -23,6 +23,7 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelFlatMap
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.UrlUtils
 import extensions.utils.getPreferencesLazy
 import okhttp3.FormBody
 import okhttp3.Headers
@@ -359,7 +360,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
             return emptyList()
         }
 
-        val kodikPage = "https:$playerUrl"
+        val kodikPage = UrlUtils.fixUrl(playerUrl)
         val headers = Headers.Builder()
         headers.add("Referer", baseUrl)
         val kodikPageResponse = client.newCall(GET(kodikPage, headers.build())).awaitSuccess()
@@ -448,7 +449,7 @@ class Animelib : ConfigurableAnimeSource, AnimeHttpSource() {
             }.toString()
 
             val hlsUrl = Base64.decode(base64Url, Base64.DEFAULT).toString(Charsets.UTF_8)
-            val playlistUrl = if (hlsUrl.startsWith("http")) hlsUrl else "https:$hlsUrl"
+            val playlistUrl = UrlUtils.fixUrl(hlsUrl)
             playlistUtils.extractFromHls(
                 playlistUrl,
                 videoNameGen = { "$teamName (${quality}p Kodik)" },
