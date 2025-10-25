@@ -82,8 +82,8 @@ class AllAnime : ConfigurableAnimeSource, AnimeHttpSource() {
                     "eng" -> it.anyCard!!.englishName ?: it.anyCard.name
                     else -> it.anyCard!!.nativeName ?: it.anyCard.name
                 }
-                thumbnail_url = thumbnailUrl(it.anyCard.thumbnail)
-                url = "${it.anyCard._id}<&sep>${it.anyCard.slugTime ?: ""}<&sep>${it.anyCard.name.slugify()}"
+                thumbnail_url = it.anyCard.thumbnail?.let(::thumbnailUrl)
+                url = "${it.anyCard.id}<&sep>${it.anyCard.slugTime ?: ""}<&sep>${it.anyCard.name.slugify()}"
             }
         }
 
@@ -260,7 +260,7 @@ class AllAnime : ConfigurableAnimeSource, AnimeHttpSource() {
                 url = json.encodeToString(
                     buildJsonObject {
                         putJsonObject("variables") {
-                            put("showId", medias.data.show._id)
+                            put("showId", medias.data.show.id)
                             put("translationType", subPref)
                             put("episodeString", ep)
                         }
@@ -473,8 +473,8 @@ class AllAnime : ConfigurableAnimeSource, AnimeHttpSource() {
                     "eng" -> ani.englishName ?: ani.name
                     else -> ani.nativeName ?: ani.name
                 }
-                thumbnail_url = thumbnailUrl(ani.thumbnail)
-                url = "${ani._id}<&sep>${ani.slugTime ?: ""}<&sep>${ani.name.slugify()}"
+                thumbnail_url = ani.thumbnail?.let(::thumbnailUrl)
+                url = "${ani.id}<&sep>${ani.slugTime ?: ""}<&sep>${ani.name.slugify()}"
             }
         }
 
