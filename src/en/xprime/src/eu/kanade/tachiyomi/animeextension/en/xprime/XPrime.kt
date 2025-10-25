@@ -48,6 +48,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val apiUrl = "https://api.themoviedb.org/3"
     private val backendUrl = "https://backend.xprime.tv"
+    private val tokenApiUrl = "https://enc-dec.app/api/enc-xprime"
     private val decryptionApiUrl = "https://enc-dec.app/api/dec-xprime"
 
     override val lang = "en"
@@ -375,6 +376,8 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         val videoList = servers.parallelCatchingFlatMap { server ->
+            val token = getTurnstileToken()
+
             val serverUrl = backendUrl.toHttpUrl().newBuilder().apply {
                 addPathSegment(server.name)
                 addQueryParameter("name", title)
@@ -385,6 +388,7 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
                     addQueryParameter("season", pathParts[2])
                     addQueryParameter("episode", pathParts[3])
                 }
+                addQueryParameter("turnstile", token)
             }.build()
 
             val backendHeaders = headers.newBuilder().add("Referer", baseUrl).build()
@@ -518,6 +522,16 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             "Released", "Ended" -> SAnime.COMPLETED
             "Returning Series", "In Production" -> SAnime.ONGOING
             else -> SAnime.UNKNOWN
+        }
+    }
+
+    private suspend fun getTurnstileToken(): String {
+        return try {
+            val response = client.newCall(GET(tokenApiUrl)).awaitSuccess()
+            val dto = response.parseAs<EncXprimeDto>()
+            dto.result ?: throw Exception("Token missing")
+        } catch (e: Exception) {
+            throw Exception("Failed to fetch turnstile token: ${e.message}", e)
         }
     }
 
