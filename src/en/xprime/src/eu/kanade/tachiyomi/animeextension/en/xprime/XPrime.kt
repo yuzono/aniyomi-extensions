@@ -375,10 +375,11 @@ class XPrime : ConfigurableAnimeSource, AnimeHttpSource() {
             emptyList()
         }
 
-        val token = runCatching { getTurnstileToken() }
-            .getOrElse {
-                throw Exception("Failed to fetch Turnstile token before fetching servers: ${it.message}", it)
-            }
+        val token = try {
+            getTurnstileToken()
+        } catch (e: Exception) {
+            throw Exception("Failed to fetch Turnstile token before fetching servers: ${e.message}", e)
+        }
 
         val videoList = servers.parallelCatchingFlatMap { server ->
             val serverUrl = backendUrl.toHttpUrl().newBuilder().apply {
