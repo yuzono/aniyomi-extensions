@@ -41,9 +41,9 @@ class DonghuaStream : AnimeStream(
 
     private companion object {
         private const val PREF_HOSTER_KEY = "dm_hoster_selection"
-        private val INTERNAL_HOSTER_NAMES = listOf("Dailymotion", "Streamplay", "Rumble", "Ok ru")
+        private val INTERNAL_HOSTER_NAMES = listOf("Dailymotion", "Streamplay", "Rumble", "Ok.ru")
         private val PREF_HOSTER_ENTRY_VALUES = INTERNAL_HOSTER_NAMES.map { it.lowercase() }.toList()
-        private val PREF_HOSTER_DEFAULT = setOf("dailymotion,streamplay,rumble,ok ru")
+        private val PREF_HOSTER_DEFAULT = INTERNAL_HOSTER_NAMES.map { it.lowercase() }.toSet()
 
         private const val IGNORE_PREVIEW_KEY = "dm_ignore_preview"
         private const val IGNORE_PREVIEW_DEFAULT = true
@@ -94,7 +94,7 @@ class DonghuaStream : AnimeStream(
         return when {
             preferences.getHosters.contains("dailymotion") and url.contains("dailymotion") -> dailymotionExtractor.videosFromUrl(url, prefix = prefix)
             preferences.getHosters.contains("streamplay") and url.contains("streamplay") -> streamPlayExtractor.videosFromUrl(url, prefix = prefix)
-            preferences.getHosters.contains("ok ru") and url.contains("ok.ru") -> okruExtractor.videosFromUrl("https:$url", prefix = prefix)
+            preferences.getHosters.contains("ok.ru") and url.contains("ok.ru") -> okruExtractor.videosFromUrl("https:$url", prefix = prefix)
             preferences.getHosters.contains("rumble") and url.contains("rumble") -> rumbleExtractor.videosFromUrl("https:$url", prefix = prefix)
             else -> emptyList()
         }

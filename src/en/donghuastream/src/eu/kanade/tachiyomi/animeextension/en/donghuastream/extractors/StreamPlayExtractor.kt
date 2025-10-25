@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.donghuastream.extractors
 
+import android.util.MalformedJsonException
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
@@ -50,12 +51,6 @@ class StreamPlayExtractor(private val client: OkHttpClient, private val headers:
         } else {
             emptyList()
         }
-
-        // Print the extracted values
-        println("p = \"\"\"$p\"\"\"")
-        println("a = $a")
-        println("c = $c")
-        println("k = $kList")
 
         // Perform the obfuscation replacement
         val result = obfuscationReplacer(p, a ?: 0, c ?: 0, kList)
@@ -138,7 +133,7 @@ class StreamPlayExtractor(private val client: OkHttpClient, private val headers:
                     }
                 }
             }
-        } catch (_: Exception) { }
+        } catch (_: MalformedJsonException) { }
         return emptyList()
     }
 
