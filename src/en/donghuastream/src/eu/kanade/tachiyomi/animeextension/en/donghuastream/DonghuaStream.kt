@@ -94,8 +94,8 @@ class DonghuaStream : AnimeStream(
         return when {
             preferences.getHosters.contains("dailymotion") and url.contains("dailymotion") -> dailymotionExtractor.videosFromUrl(url, prefix = prefix)
             preferences.getHosters.contains("streamplay") and url.contains("streamplay") -> streamPlayExtractor.videosFromUrl(url, prefix = prefix)
-            preferences.getHosters.contains("ok.ru") and url.contains("ok.ru") -> okruExtractor.videosFromUrl("https:$url", prefix = prefix)
-            preferences.getHosters.contains("rumble") and url.contains("rumble") -> rumbleExtractor.videosFromUrl("https:$url", prefix = prefix)
+            preferences.getHosters.contains("ok.ru") and url.contains("ok.ru") -> okruExtractor.videosFromUrl(url = if (url.startsWith("//")) "https:$url" else url, prefix = prefix)
+            preferences.getHosters.contains("rumble") and url.contains("rumble") -> rumbleExtractor.videosFromUrl(url, prefix = prefix)
             else -> emptyList()
         }
     }
