@@ -194,43 +194,20 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return GET(url.build(), headers)
     }
 
-    private fun parseJsonFromString(text: String): String? {
+    private fun parseAnimeJsonString(script: String): String? {
         // Try to capture a JSON object assigned to `var animes = {...};` using a DOTALL regex.
-        // Use greedy matching so nested braces inside the JSON are included.
-        val pattern = Regex("""var\s+animes\s*=\s*(\{.*\})\s*;""", RegexOption.DOT_MATCHES_ALL)
-        val match = pattern.find(text)
-        if (match != null) {
-            return match.groups[1]?.value
-        }
-
-        // Fallback:
-        val startChar = '{'
-        val endChar = '}'
-        val start = text.indexOf(startChar).takeIf { it != -1 } ?: return null
-
-        var inString = false
-        var escapeChar = false
-        var countChar = 0
-        for (i in start until text.length) {
-            val c = text[i]
-            if (escapeChar) {
-                escapeChar = false
-            } else if (c == '\\') {
-                escapeChar = true
-            } else if (c == '"') {
-                inString = !inString
-            } else if (!inString) {
-                if (c == startChar) countChar++
-                if (c == endChar) countChar--
-                if (countChar == 0) return text.substring(start, i + 1)
-            }
-        }
-        return null
+        // Use non-greedy matching to get until the first closing brace followed by a semicolon.
+        // Exclude possible closing braces followed by semicolons inside strings quoted by " or '.
+        val pattern = Regex(
+            """var\s+animes\s*=\s*(\{(?:[^"']|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*?\})\s*;""",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+        return pattern.find(script)?.groups[1]?.value
     }
 
     private fun searchAnimeParseDirectory(document: Document): AnimesPage {
         val animePageJson = document.selectFirst("script:containsData(var animes = )")?.data()
-            ?.let(::parseJsonFromString)
+            ?.let(::parseAnimeJsonString)
             ?.takeIf { it.isNotBlank() }
             ?.let { jsonStr -> json.decodeFromString<AnimePageDto>(jsonStr) }
             ?: return AnimesPage(emptyList(), false)
