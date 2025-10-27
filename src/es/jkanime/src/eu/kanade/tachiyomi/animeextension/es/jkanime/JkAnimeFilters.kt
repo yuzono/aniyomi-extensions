@@ -3,7 +3,7 @@ package eu.kanade.tachiyomi.animeextension.es.jkanime
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 
 interface UriPartFilterInterface {
-    fun toUriPart(): String
+    fun toQueryParam(): Pair<String, String>?
 }
 
 open class SelectFilter(
@@ -21,9 +21,9 @@ open class UriPartSelectFilter(
     val includeZero: Boolean = false,
 ) : UriPartFilterInterface, SelectFilter(displayName, vals) {
 
-    override fun toUriPart(): String {
+    override fun toQueryParam(): Pair<String, String>? {
         val value = toValue()
-        return if ((includeZero || state != 0) && value.isNotBlank()) "$keyName=$value" else ""
+        return value.takeIf { it.isNotBlank() && (includeZero || state != 0) }?.let { keyName to it }
     }
 }
 
@@ -32,7 +32,7 @@ open class UriPartTextFilter(
     val keyName: String,
 ) : UriPartFilterInterface,
     AnimeFilter.Text(displayName) {
-    override fun toUriPart() = if (state.isNotBlank()) "$keyName=$state" else ""
+    override fun toQueryParam() = state.takeIf { it.isNotBlank() }?.let { keyName to it }
 }
 
 class GenreFilter : UriPartSelectFilter(
