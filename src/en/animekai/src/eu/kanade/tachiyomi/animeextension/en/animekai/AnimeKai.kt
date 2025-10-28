@@ -32,20 +32,16 @@ import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import extensions.utils.toRequestBody
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import okhttp3.CacheControl
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import uy.kohesive.injekt.injectLazy
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.hours
 
@@ -81,8 +77,6 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     private val cacheControl by lazy { CacheControl.Builder().maxAge(1.hours).build() }
-
-    private val json: Json by injectLazy()
 
     // ============================== Popular ===============================
 
@@ -368,8 +362,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val postBody = buildJsonObject {
             put("text", encodedLink)
         }
-        val payload = json.encodeToString(postBody)
-            .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val payload = postBody.toRequestBody()
 
         val iframe = client.newCall(POST("https://enc-dec.app/api/dec-kai", body = payload))
             .awaitSuccess().parseAs<IframeResponse>()
