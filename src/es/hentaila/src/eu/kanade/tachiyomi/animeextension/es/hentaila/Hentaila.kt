@@ -5,6 +5,7 @@ import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimeUpdateStrategy
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
@@ -22,11 +23,19 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
+import extensions.utils.parseAs
 import kotlinx.serialization.json.Json
-import okhttp3.FormBody
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
@@ -36,7 +45,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Hentaila"
 
-    override val baseUrl = "https://www5.hentaila.com"
+    override val baseUrl = "https://hentaila.com"
 
     override val lang = "es"
 
@@ -69,87 +78,64 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         }
     }
 
-    override fun popularAnimeRequest(page: Int) = GET(baseUrl, headers)
+    override fun popularAnimeRequest(page: Int) = GET(
+        "$baseUrl/catalogo/__data.json?order=popular&page=$page",
+        headers,
+    )
 
     override fun popularAnimeParse(response: Response): AnimesPage {
-        val document = response.asJsoup()
-        val elements = document.select("section.latest-hentais div.slider > div.item")
-        val animes = elements.map { element ->
-            SAnime.create().apply {
-                setUrlWithoutDomain(element.select("h2.h-title a").attr("abs:href"))
-                title = element.selectFirst("h2.h-title a")!!.text()
-                thumbnail_url = element.selectFirst("figure.bg img")!!.attr("abs:src").replace("/fondos/", "/portadas/")
-            }
-        }
+        val animes = getAnimes(response)
         return AnimesPage(animes, false)
     }
 
-    override fun latestUpdatesRequest(page: Int) = GET(baseUrl, headers)
+    override fun latestUpdatesRequest(page: Int) = GET(
+        "$baseUrl/catalogo/__data.json?order=latest_released&page=$page",
+        headers,
+    )
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
-        val document = response.asJsoup()
-        val elements = document.select("section.episodes div.grid article.hentai")
-        val animes = elements.map { element ->
-            SAnime.create().apply {
-                setUrlWithoutDomain(element.select("a").attr("abs:href").replace("/ver/", "/hentai-").substringBeforeLast("-"))
-                title = element.selectFirst("h2.h-title")!!.text()
-                thumbnail_url = element.selectFirst("img")!!.attr("abs:src").replace("/thumbs/", "/portadas/")
-            }
-        }
-        return AnimesPage(animes.distinctBy { it.url }, false)
+        val animes = getAnimes(response)
+        return AnimesPage(animes, false)
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
-        val genreFilter = filterList.filterIsInstance<GenreFilter>().firstOrNull()
-
         if (query.isNotEmpty()) {
-            require(query.length >= 2) { "La búsqueda debe tener al menos 2 caracteres" }
-            return POST("$baseUrl/api/search", headers, FormBody.Builder().add("value", query).build())
+            val body = """{"query":"$query"}""".toRequestBody("application/json".toMediaType())
+            return POST("$baseUrl/api/search", headers, body = body)
         }
 
-        val urlBuilder = "$baseUrl/${if (genreFilter?.state != 0) "genero/${genreFilter?.toUriPart()}" else "directorio?p=$page"}"
+        val urlBuilder = "$baseUrl/catalogo/__data.json?page=$page}"
             .toHttpUrl().newBuilder()
 
         filterList.forEach { filter ->
             when (filter) {
+                is GenreFilter -> urlBuilder.addQueryParameter("genre", filter.toUriPart())
                 is OrderFilter -> urlBuilder.addQueryParameter("filter", filter.toUriPart())
-                is StatusOngoingFilter -> if (filter.state) urlBuilder.addQueryParameter("status[1]", "on")
-                is StatusCompletedFilter -> if (filter.state) urlBuilder.addQueryParameter("status[2]", "on")
-                is UncensoredFilter -> if (filter.state) urlBuilder.addQueryParameter("uncensored", "on")
+                is StatusOngoingFilter -> if (filter.state) urlBuilder.addQueryParameter("status", "emision")
+                is StatusCompletedFilter -> if (filter.state) urlBuilder.addQueryParameter("status", "finalizado")
+                is UncensoredFilter -> if (filter.state) urlBuilder.addQueryParameter("uncensored", "")
                 else -> {}
             }
         }
-
         return GET(urlBuilder.build().toString(), headers)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
         if (response.request.url.toString().startsWith("$baseUrl/api/search")) {
-            val jsonString = response.body.string()
-            val results = json.decodeFromString<List<HentailaDto>>(jsonString)
+            val results = response.parseAs<List<HentailaDto>>()
             val animeList = results.map { anime ->
                 SAnime.create().apply {
                     title = anime.title
-                    thumbnail_url = "$baseUrl/uploads/portadas/${anime.id}.jpg"
-                    setUrlWithoutDomain("$baseUrl/hentai-${anime.slug}")
+                    url = "/media/${anime.slug}"
+                    thumbnail_url = "https://cdn.hentaila.com/covers/${anime.id}.jpg"
                 }
             }
             return AnimesPage(animeList, false)
         }
 
-        val document = response.asJsoup()
-        val animeList = document.select("div.columns main section.section div.grid.hentais article.hentai").map {
-            SAnime.create().apply {
-                title = it.select("header.h-header h2").text()
-                setUrlWithoutDomain(it.select("a").attr("abs:href"))
-                thumbnail_url = it.select("div.h-thumb figure img").attr("abs:src")
-            }
-        }
-
-        val hasNextPage = document.select("a.btn.rnd.npd.fa-arrow-right").any()
-
-        return AnimesPage(animeList, hasNextPage)
+        val animeList = getAnimes(response)
+        return AnimesPage(animeList, false)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -186,6 +172,52 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         return episodes
+    }
+
+    private fun getAnimes(response: Response): List<SAnime> {
+        val document = response.parseAs<HentailaJsonDto>()
+        for (doc in document.nodes) {
+            if (doc?.uses?.search_params != null) {
+                val data = doc.data
+                val result = data[0].jsonObject
+                val results = result["results"]?.jsonPrimitive?.intOrNull ?: 0
+                val categoriesIdsMap = result["categoriesIdsMap"]?.jsonPrimitive?.intOrNull ?: 0
+                val genresIdsMap = result["genresIdsMap"]?.jsonPrimitive?.intOrNull ?: 0
+                val pagination = result["pagination"]?.jsonPrimitive?.intOrNull ?: 0
+
+                val animeIdJson = data[results].jsonArray
+                val animeIds = animeIdJson.map { it.jsonPrimitive.int }
+
+                val animes = animeIds.map { id ->
+
+                    val currentAnimeDetails = data[id].jsonObject
+
+                    val animeIdCode = currentAnimeDetails["id"]?.jsonPrimitive?.intOrNull ?: -1
+                    val animeId = data[animeIdCode].jsonPrimitive.content
+
+                    val animeTitleCode =
+                        currentAnimeDetails["title"]?.jsonPrimitive?.intOrNull ?: -1
+                    val animeTitle = data[animeTitleCode].jsonPrimitive.content
+
+                    val animeSynopsisCode =
+                        currentAnimeDetails["synopsis"]?.jsonPrimitive?.intOrNull ?: -1
+                    val animeSynopsis = data[animeSynopsisCode].jsonPrimitive.content
+
+                    val animeSlugCode = currentAnimeDetails["slug"]?.jsonPrimitive?.intOrNull ?: -1
+                    val animeSlug = data[animeSlugCode].jsonPrimitive.content
+
+                    SAnime.create().apply {
+                        title = animeTitle
+                        url = "/media/$animeSlug"
+                        description = animeSynopsis
+                        thumbnail_url = "https://cdn.hentaila.com/covers/$animeId.jpg"
+                        update_strategy = AnimeUpdateStrategy.ONLY_FETCH_ONCE
+                    }
+                }
+                return animes
+            }
+        }
+        return listOf<SAnime>()
     }
 
     /*--------------------------------Video extractors------------------------------------*/
