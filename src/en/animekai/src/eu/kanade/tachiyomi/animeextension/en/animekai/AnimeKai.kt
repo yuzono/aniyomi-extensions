@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.animeextension.en.animekai
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.animeextension.BuildConfig
 import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.CountriesFilter
 import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.GenresFilter
 import eu.kanade.tachiyomi.animeextension.en.animekai.AnimeKaiFilters.LanguagesFilter
@@ -21,6 +20,7 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.interceptor.rateLimitHost
 import eu.kanade.tachiyomi.util.asJsoup
@@ -32,6 +32,9 @@ import extensions.utils.addListPreference
 import extensions.utils.addSetPreference
 import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
+import extensions.utils.toRequestBody
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.CacheControl
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -251,11 +254,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     ?: throw IllegalStateException("Anime ID not found")
             }
 
-        val decoded = decode(animeId)
+        val enc = encDecEndpoints(animeId)
+            .parseAs<ResultResponse>().result
 
-        val chapterListRequest = GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$decoded", docHeaders)
+        val chapterListRequest = GET("$baseUrl/ajax/episodes/list?ani_id=$animeId&_=$enc", docHeaders)
         val document = client.newCall(chapterListRequest)
-            .awaitSuccess().use { it.parseAs<ResultResponse>().toDocument() }
+            .awaitSuccess().parseAs<ResultResponse>().toDocument()
 
         val episodeElements = document.select(episodeListSelector())
         return episodeElements.mapNotNull {
@@ -294,12 +298,13 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val token = episode.url
-        val decodedToken = decode(token)
+        val enc = encDecEndpoints(token)
+            .parseAs<ResultResponse>().result
 
         val typeSelection = preferences.typeToggle
         val hosterSelection = preferences.hostToggle
 
-        val servers = client.newCall(GET("$baseUrl/ajax/links/list?token=$token&_=$decodedToken", docHeaders))
+        val servers = client.newCall(GET("$baseUrl/ajax/links/list?token=$token&_=$enc", docHeaders))
             .awaitSuccess().use { response ->
                 val document = response.parseAs<ResultResponse>().toDocument()
                 document.select("div.server-items[data-id]")
@@ -348,18 +353,20 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private suspend fun extractIframe(server: VideoCode): VideoData {
         val (type, lid, serverName) = server
 
-        val decodedLid = decode(lid)
+        val enc = encDecEndpoints(lid)
+            .parseAs<ResultResponse>().result
 
-        val encodedLink = client.newCall(GET("$baseUrl/ajax/links/view?id=$lid&_=$decodedLid", docHeaders))
-            .awaitSuccess().use { json ->
-                json.parseAs<ResultResponse>().result
-            }
+        val encodedLink = client.newCall(GET("$baseUrl/ajax/links/view?id=$lid&_=$enc", docHeaders))
+            .awaitSuccess().parseAs<ResultResponse>().result
 
-        val iframe = decode(encodedLink, "d").let { json ->
-            val url = json.parseAs<IframeResponse>().url
-            url.toHttpUrl().newBuilder()
-                .build().toString()
+        val postBody = buildJsonObject {
+            put("text", encodedLink)
         }
+        val payload = postBody.toRequestBody()
+
+        val iframe = client.newCall(POST("https://enc-dec.app/api/dec-kai", body = payload))
+            .awaitSuccess().parseAs<IframeResponse>()
+            .result.url
 
         val typeSuffix = when (type) {
             "sub" -> "Hard Sub"
@@ -384,9 +391,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    private suspend fun decode(value: String, type: String = "e"): String {
-        val url = "${BuildConfig.KAISVA}/?f=$type&d=$value"
-        return client.newCall(GET(url, docHeaders)).awaitSuccess().use { it.body.string() }
+    private suspend fun encDecEndpoints(enc: String): String {
+        return client.newCall(GET("https://enc-dec.app/api/enc-kai?text=$enc", docHeaders))
+            .awaitSuccess().body.string()
     }
 
     override fun List<Video>.sort(): List<Video> {
