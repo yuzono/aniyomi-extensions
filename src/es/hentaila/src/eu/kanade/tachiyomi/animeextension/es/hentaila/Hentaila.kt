@@ -85,7 +85,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun popularAnimeParse(response: Response): AnimesPage {
         val animes = getAnimes(response)
-        return AnimesPage(animes, false)
+        return AnimesPage(animes.first, animes.second)
     }
 
     override fun latestUpdatesRequest(page: Int) = GET(
@@ -95,7 +95,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val animes = getAnimes(response)
-        return AnimesPage(animes, false)
+        return AnimesPage(animes.first, animes.second)
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -135,23 +135,32 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         }
 
         val animeList = getAnimes(response)
-        return AnimesPage(animeList, false)
+        return AnimesPage(animeList.first, animeList.second)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
         val document = response.asJsoup()
-        return SAnime.create().apply {
-            thumbnail_url = baseUrl + document.selectFirst("div.h-thumb figure img")!!.attr("src")
-            with(document.selectFirst("article.hentai-single")!!) {
-                title = selectFirst("header.h-header h1")!!.text()
-                description = select("div.h-content p").text()
-                genre = select("footer.h-footer nav.genres a.btn.sm").joinToString { it.text() }
-                status = if (selectFirst("span.status-on") != null) {
-                    SAnime.ONGOING
-                } else {
-                    SAnime.COMPLETED
+        val statusData = document.select("div.flex.flex-wrap.items-center.text-sm span")
+        var currentStatus = SAnime.COMPLETED
+        for (data in statusData) {
+            when (data.text()) {
+                "Finalizado" -> {
+                    currentStatus = SAnime.COMPLETED
+                    break
                 }
+                "En emisión" -> {
+                    currentStatus = SAnime.ONGOING
+                    break
+                }
+                else -> {}
             }
+        }
+        return SAnime.create().apply {
+            thumbnail_url = document.selectFirst("img.object-cover.w-full.aspect-poster")!!.attr("src")
+            title = document.selectFirst(".grid.items-start h1.text-lead")!!.text()
+            description = document.select(".entry.text-lead.text-sm p").text()
+            genre = document.select(".flex-wrap.items-center .btn.btn-xs.rounded-full:not(.sm\\:w-auto)").joinToString { it.text() }
+            status = currentStatus
         }
     }
 
@@ -174,16 +183,22 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         return episodes
     }
 
-    private fun getAnimes(response: Response): List<SAnime> {
+    private fun getAnimes(response: Response): Pair<List<SAnime>, Boolean> {
         val document = response.parseAs<HentailaJsonDto>()
         for (doc in document.nodes) {
             if (doc?.uses?.search_params != null) {
                 val data = doc.data
                 val result = data[0].jsonObject
-                val results = result["results"]?.jsonPrimitive?.intOrNull ?: 0
-                val categoriesIdsMap = result["categoriesIdsMap"]?.jsonPrimitive?.intOrNull ?: 0
-                val genresIdsMap = result["genresIdsMap"]?.jsonPrimitive?.intOrNull ?: 0
-                val pagination = result["pagination"]?.jsonPrimitive?.intOrNull ?: 0
+                val results = result["results"]?.jsonPrimitive?.intOrNull ?: -1
+
+                val paginationCode = result["pagination"]?.jsonPrimitive?.intOrNull ?: -1
+                val pagination = data[paginationCode].jsonObject
+
+                val currentPageCode = pagination["currentPage"]?.jsonPrimitive?.intOrNull ?: -1
+                val currentPage = data[currentPageCode].jsonPrimitive.intOrNull ?: -1
+
+                val totalPageCode = pagination["totalPages"]?.jsonPrimitive?.intOrNull ?: -1
+                val totalPage = data[totalPageCode].jsonPrimitive.intOrNull ?: -1
 
                 val animeIdJson = data[results].jsonArray
                 val animeIds = animeIdJson.map { it.jsonPrimitive.int }
@@ -214,10 +229,12 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                         update_strategy = AnimeUpdateStrategy.ONLY_FETCH_ONCE
                     }
                 }
-                return animes
+
+                val nextPage = currentPage <= totalPage
+                return Pair(animes, nextPage)
             }
         }
-        return listOf<SAnime>()
+        return Pair(listOf<SAnime>(), false)
     }
 
     /*--------------------------------Video extractors------------------------------------*/
