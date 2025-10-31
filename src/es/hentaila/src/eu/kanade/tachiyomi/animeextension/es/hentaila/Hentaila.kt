@@ -22,7 +22,6 @@ import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
 import extensions.utils.parseAs
@@ -166,16 +165,15 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val episodes = mutableListOf<SEpisode>()
-        val animeId = response.request.url.toString().substringAfter("hentai-").lowercase()
+        val animeId = response.request.url.toString().substringAfter("media/").lowercase()
         val jsoup = response.asJsoup()
 
-        jsoup.select("div.episodes-list article").forEach { it ->
-            val epNum = it.select("a").attr("href").replace("/ver/$animeId-", "")
+        jsoup.select("article.group\\/item").forEach { it ->
+            val epNum = it.select("div.bg-line.text-subs span").text()
             val episode = SEpisode.create().apply {
                 episode_number = epNum.toFloat()
                 name = "Episodio $epNum"
-                url = "/ver/$animeId-$epNum"
-                date_upload = it.select(".h-header time").text().toDate()
+                url = "/media/$animeId/$epNum"
             }
             episodes.add(episode)
         }
@@ -186,24 +184,24 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private fun getAnimes(response: Response): Pair<List<SAnime>, Boolean> {
         val document = response.parseAs<HentailaJsonDto>()
         for (doc in document.nodes) {
-            if (doc?.uses?.search_params != null) {
+            if (doc?.uses?.searchParams != null) {
                 val data = doc.data
-                val result = data[0].jsonObject
-                val results = result["results"]?.jsonPrimitive?.intOrNull ?: -1
+                val result = data?.get(0)?.jsonObject
+                val results = result?.get("results")?.jsonPrimitive?.intOrNull ?: -1
 
-                val paginationCode = result["pagination"]?.jsonPrimitive?.intOrNull ?: -1
-                val pagination = data[paginationCode].jsonObject
+                val paginationCode = result?.get("pagination")?.jsonPrimitive?.intOrNull ?: -1
+                val pagination = data?.get(paginationCode)?.jsonObject
 
-                val currentPageCode = pagination["currentPage"]?.jsonPrimitive?.intOrNull ?: -1
-                val currentPage = data[currentPageCode].jsonPrimitive.intOrNull ?: -1
+                val currentPageCode = pagination?.get("currentPage")?.jsonPrimitive?.intOrNull ?: -1
+                val currentPage = data?.get(currentPageCode)?.jsonPrimitive?.intOrNull ?: -1
 
-                val totalPageCode = pagination["totalPages"]?.jsonPrimitive?.intOrNull ?: -1
-                val totalPage = data[totalPageCode].jsonPrimitive.intOrNull ?: -1
+                val totalPageCode = pagination?.get("totalPages")?.jsonPrimitive?.intOrNull ?: -1
+                val totalPage = data?.get(totalPageCode)?.jsonPrimitive?.intOrNull ?: -1
 
-                val animeIdJson = data[results].jsonArray
-                val animeIds = animeIdJson.map { it.jsonPrimitive.int }
+                val animeIdJson = data?.get(results)?.jsonArray
+                val animeIds = animeIdJson?.map { it.jsonPrimitive.int }
 
-                val animes = animeIds.map { id ->
+                val animes = animeIds?.map { id ->
 
                     val currentAnimeDetails = data[id].jsonObject
 
@@ -231,10 +229,12 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 }
 
                 val nextPage = currentPage <= totalPage
-                return Pair(animes, nextPage)
+                if (animes != null) {
+                    return Pair(animes, nextPage)
+                }
             }
         }
-        return Pair(listOf<SAnime>(), false)
+        return Pair(emptyList(), false)
     }
 
     /*--------------------------------Video extractors------------------------------------*/
@@ -247,30 +247,54 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val universalExtractor by lazy { UniversalExtractor(client) }
     private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
 
+    override fun videoListRequest(episode: SEpisode): Request {
+        val url = "$baseUrl/media/${episode.url.substringAfter("/media/")}/__data.json"
+        return GET(url, headers)
+    }
+
     override fun videoListParse(response: Response): List<Video> {
-        val document = response.asJsoup()
-        val videoServers = document.selectFirst("script:containsData(var videos = [)")!!.data()
-            .substringAfter("videos = ").substringBefore(";")
-            .replace("[[", "").replace("]]", "")
+        val document = response.parseAs<HentailaJsonDto>()
 
-        val videoServerList = videoServers.split("],[")
-        return videoServerList.parallelCatchingFlatMapBlocking {
-            val server = it.split(",").map { a -> a.replace("\"", "") }
-            val urlServer = server[1].replace("\\/", "/")
-            val nameServer = server[0]
+        val serverList = mutableListOf<VideoData>()
 
-            when (nameServer.lowercase()) {
-                "streamwish" -> streamWishExtractor.videosFromUrl(urlServer, videoNameGen = { "StreamWish:$it" })
-                "voe" -> voeExtractor.videosFromUrl(urlServer)
-                "arc" -> listOf(Video(urlServer.substringAfter("#"), "Arc", urlServer.substringAfter("#")))
-                "yupi" -> yourUploadExtractor.videoFromUrl(urlServer, headers = headers)
-                "mp4upload" -> mp4uploadExtractor.videosFromUrl(urlServer, headers = headers)
-                "burst" -> burstCloudExtractor.videoFromUrl(urlServer, headers = headers)
-                "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(urlServer)
-                "sendvid" -> sendvidExtractor.videosFromUrl(urlServer)
-                else -> universalExtractor.videosFromUrl(urlServer, headers)
+        for (each in document.nodes) {
+            if (each?.type == "data") {
+                val data = each.data
+                val result = data?.get(0)?.jsonObject
+                val embedsCode = result?.get("embeds")?.jsonPrimitive?.intOrNull ?: -1
+                val embedData = data?.get(embedsCode)?.jsonObject
+                val subEmbedDataCode = embedData?.get("SUB")?.jsonPrimitive?.intOrNull ?: -1
+                val subEmbedVideoArray = data?.get(subEmbedDataCode)?.jsonArray
+                val subEmbedVideoArrayList = subEmbedVideoArray?.map {
+                    it.jsonPrimitive.intOrNull ?: -1
+                }
+                if (subEmbedVideoArrayList != null) {
+                    for (sourceCode in subEmbedVideoArrayList) {
+                        val currentSourceData = data[sourceCode].jsonObject
+                        val serverNameCode = currentSourceData["server"]?.jsonPrimitive?.intOrNull ?: -1
+                        val serverUrlCode = currentSourceData["url"]?.jsonPrimitive?.intOrNull ?: -1
+
+                        val serverName = data[serverNameCode].jsonPrimitive.content
+                        val serverUrl = data[serverUrlCode].jsonPrimitive.content
+                        println("$serverUrl, $serverName")
+                    }
+                }
             }
         }
+        serverList.forEach { each ->
+            return when (each.name.lowercase()) {
+                "streamwish" -> streamWishExtractor.videosFromUrl(each.url, videoNameGen = { "StreamWish:$it" })
+                "voe" -> voeExtractor.videosFromUrl(each.url)
+                "arc" -> listOf(Video(each.url.substringAfter("#"), "Arc", each.url.substringAfter("#")))
+                "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
+                "mp4upload" -> mp4uploadExtractor.videosFromUrl(each.url, headers = headers)
+                "burst" -> burstCloudExtractor.videoFromUrl(each.url, headers = headers)
+                "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(each.url)
+                "sendvid" -> sendvidExtractor.videosFromUrl(each.url)
+                else -> return@forEach
+            }
+        }
+        return emptyList()
     }
 
     override fun List<Video>.sort(): List<Video> {
