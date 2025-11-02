@@ -368,7 +368,15 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_DOMAIN_KEY = "preferred_domain"
         private const val PREF_DOMAIN_TITLE = "Preferred domain (requires app restart)"
-        private val PREF_DOMAIN_ENTRIES = arrayOf("kaa.to")
+
+        // Check domains here: https://kickassanime.cx/
+        private val PREF_DOMAIN_ENTRIES = arrayOf(
+            "kickass-anime.ru",
+            "kickass-anime.ro",
+            "kaa.to",
+            "kaa.rs",
+            "kaa.si",
+        )
         private val PREF_DOMAIN_ENTRY_VALUES = PREF_DOMAIN_ENTRIES.map { "https://$it" }.toTypedArray()
         private val PREF_DOMAIN_DEFAULT = PREF_DOMAIN_ENTRY_VALUES[0]
 
