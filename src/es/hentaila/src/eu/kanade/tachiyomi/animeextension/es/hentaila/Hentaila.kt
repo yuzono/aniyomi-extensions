@@ -16,7 +16,6 @@ import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
-import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -24,8 +23,6 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
-import extensions.utils.parseAs
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -36,7 +33,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import uy.kohesive.injekt.injectLazy
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -47,8 +43,6 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     override val baseUrl = "https://hentaila.com"
 
     override val lang = "es"
-
-    private val json: Json by injectLazy()
 
     override val supportsLatest = true
 
@@ -168,7 +162,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         val animeId = response.request.url.toString().substringAfter("media/").lowercase()
         val jsoup = response.asJsoup()
 
-        jsoup.select("article.group\\/item").forEach { it ->
+        jsoup.select("article.group\\/item").forEach {
             val epNum = it.select("div.bg-line.text-subs span").text()
             val episode = SEpisode.create().apply {
                 episode_number = epNum.toFloat()
@@ -244,21 +238,18 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
-    private val universalExtractor by lazy { UniversalExtractor(client) }
     private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
 
     override fun videoListRequest(episode: SEpisode): Request {
-        val url = "$baseUrl/media/${episode.url.substringAfter("/media/")}/__data.json"
+        val url = "$baseUrl${episode.url}/__data.json"
         return GET(url, headers)
     }
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.parseAs<HentailaJsonDto>()
-
         val serverList = mutableListOf<VideoData>()
-
         for (each in document.nodes) {
-            if (each?.type == "data") {
+            if (each?.uses?.params != null && each.uses.params[0] == "number") {
                 val data = each.data
                 val result = data?.get(0)?.jsonObject
                 val embedsCode = result?.get("embeds")?.jsonPrimitive?.intOrNull ?: -1
@@ -271,12 +262,14 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 if (subEmbedVideoArrayList != null) {
                     for (sourceCode in subEmbedVideoArrayList) {
                         val currentSourceData = data[sourceCode].jsonObject
-                        val serverNameCode = currentSourceData["server"]?.jsonPrimitive?.intOrNull ?: -1
-                        val serverUrlCode = currentSourceData["url"]?.jsonPrimitive?.intOrNull ?: -1
+                        val serverNameCode =
+                            currentSourceData["server"]?.jsonPrimitive?.intOrNull ?: -1
+                        val serverUrlCode =
+                            currentSourceData["url"]?.jsonPrimitive?.intOrNull ?: -1
 
                         val serverName = data[serverNameCode].jsonPrimitive.content
                         val serverUrl = data[serverUrlCode].jsonPrimitive.content
-                        println("$serverUrl, $serverName")
+                        serverList.add(VideoData(serverName, serverUrl))
                     }
                 }
             }
@@ -383,11 +376,6 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private open class UriPartFilter(displayName: String, val vals: Array<Pair<String, String>>) :
         AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
         fun toUriPart() = vals[state].second
-    }
-
-    private fun String.toDate(): Long {
-        return runCatching { DATE_FORMATTER.parse(trim())?.time }
-            .getOrNull() ?: 0L
     }
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {

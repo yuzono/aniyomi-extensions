@@ -14,6 +14,7 @@ data class HentailaDto(
 @Serializable
 data class Uses(
     @SerialName("search_params") val searchParams: List<String>? = null,
+    val params: List<String>? = null,
     val dependencies: List<String>? = null,
 )
 
