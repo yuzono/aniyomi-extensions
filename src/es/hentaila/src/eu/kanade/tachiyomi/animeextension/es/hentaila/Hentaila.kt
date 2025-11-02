@@ -12,15 +12,15 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
-import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
-import eu.kanade.tachiyomi.lib.streamhidevidextractor.StreamHideVidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.json.int
@@ -235,10 +235,14 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val voeExtractor by lazy { VoeExtractor(client, headers) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
-    private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
+
+    // private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
-    private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
+
+    // private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
+
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListRequest(episode: SEpisode): Request {
         val url = "$baseUrl${episode.url}/__data.json"
@@ -274,20 +278,21 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 }
             }
         }
-        serverList.forEach { each ->
-            return when (each.name.lowercase()) {
+        val allVideos = serverList.parallelCatchingFlatMapBlocking { each ->
+            when (each.name.lowercase()) {
                 "streamwish" -> streamWishExtractor.videosFromUrl(each.url, videoNameGen = { "StreamWish:$it" })
                 "voe" -> voeExtractor.videosFromUrl(each.url)
                 "arc" -> listOf(Video(each.url.substringAfter("#"), "Arc", each.url.substringAfter("#")))
                 "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
-                "mp4upload" -> mp4uploadExtractor.videosFromUrl(each.url, headers = headers)
+                // "mp4upload" -> mp4uploadExtractor.videosFromUrl(each.url, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(each.url, headers = headers)
-                "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(each.url)
+                // "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(each.url)
                 "sendvid" -> sendvidExtractor.videosFromUrl(each.url)
-                else -> return@forEach
+                else -> emptyList()
+                // else -> universalExtractor.videosFromUrl(each.url, headers)
             }
         }
-        return emptyList()
+        return allVideos
     }
 
     override fun List<Video>.sort(): List<Video> {
