@@ -162,17 +162,17 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         val animeId = response.request.url.toString().substringAfter("media/").lowercase()
         val jsoup = response.asJsoup()
 
-        jsoup.select("article.group\\/item").forEach {
-            val epNum = it.select("div.bg-line.text-subs span").text()
-            val episode = SEpisode.create().apply {
-                episode_number = epNum.toFloat()
-                name = "Episodio $epNum"
-                url = "/media/$animeId/$epNum"
+        jsoup.select("article.group\\/item")
+            .forEach {
+                val epNum = it.select("div.bg-line.text-subs span").text()
+                val episode = SEpisode.create().apply {
+                    episode_number = epNum.toFloat()
+                    name = "Episodio $epNum"
+                    url = "/media/$animeId/$epNum"
+                }
+                episodes.add(episode)
             }
-            episodes.add(episode)
-        }
-
-        return episodes
+        return episodes.reversed()
     }
 
     private fun getAnimes(response: Response): Pair<List<SAnime>, Boolean> {
