@@ -14,7 +14,6 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
-import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -39,16 +38,14 @@ import java.util.Locale
 class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Hentaila"
-
     override val baseUrl = "https://hentaila.com"
-
     override val lang = "es"
-
     override val supportsLatest = true
 
     private val preferences by getPreferencesLazy()
 
     companion object {
+        private const val CDN_BASE_URL = "https://cdn.hentaila.com"
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
         private val QUALITY_LIST = arrayOf("1080", "720", "480", "360")
@@ -77,8 +74,8 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     )
 
     override fun popularAnimeParse(response: Response): AnimesPage {
-        val animes = getAnimes(response)
-        return AnimesPage(animes.first, animes.second)
+        val (animes, hasNextPage) = getAnimes(response)
+        return AnimesPage(animes, hasNextPage)
     }
 
     override fun latestUpdatesRequest(page: Int) = GET(
@@ -87,27 +84,33 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     )
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
-        val animes = getAnimes(response)
-        return AnimesPage(animes.first, animes.second)
+        val (animes, hasNextPage) = getAnimes(response)
+        return AnimesPage(animes, hasNextPage)
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
+
         if (query.isNotEmpty()) {
             val body = """{"query":"$query"}""".toRequestBody("application/json".toMediaType())
             return POST("$baseUrl/api/search", headers, body = body)
         }
 
-        val urlBuilder = "$baseUrl/catalogo/__data.json?page=$page}"
-            .toHttpUrl().newBuilder()
+        val urlBuilder = "$baseUrl/catalogo/__data.json?page=$page".toHttpUrl().newBuilder()
 
         filterList.forEach { filter ->
             when (filter) {
                 is GenreFilter -> urlBuilder.addQueryParameter("genre", filter.toUriPart())
                 is OrderFilter -> urlBuilder.addQueryParameter("filter", filter.toUriPart())
-                is StatusOngoingFilter -> if (filter.state) urlBuilder.addQueryParameter("status", "emision")
-                is StatusCompletedFilter -> if (filter.state) urlBuilder.addQueryParameter("status", "finalizado")
-                is UncensoredFilter -> if (filter.state) urlBuilder.addQueryParameter("uncensored", "")
+                is StatusOngoingFilter -> if (filter.state) {
+                    urlBuilder.addQueryParameter("status", "emision")
+                }
+                is StatusCompletedFilter -> if (filter.state) {
+                    urlBuilder.addQueryParameter("status", "finalizado")
+                }
+                is UncensoredFilter -> if (filter.state) {
+                    urlBuilder.addQueryParameter("uncensored", "")
+                }
                 else -> {}
             }
         }
@@ -121,19 +124,20 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 SAnime.create().apply {
                     title = anime.title
                     url = "/media/${anime.slug}"
-                    thumbnail_url = "https://cdn.hentaila.com/covers/${anime.id}.jpg"
+                    thumbnail_url = "$CDN_BASE_URL/covers/${anime.id}.jpg"
                 }
             }
-            return AnimesPage(animeList, false)
+            return AnimesPage(animeList, hasNextPage = false)
         }
 
-        val animeList = getAnimes(response)
-        return AnimesPage(animeList.first, animeList.second)
+        val (animeList, hasNextPage) = getAnimes(response)
+        return AnimesPage(animeList, hasNextPage)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
         val document = response.asJsoup()
         val statusData = document.select("div.flex.flex-wrap.items-center.text-sm span")
+
         var currentStatus = SAnime.COMPLETED
         for (data in statusData) {
             when (data.text()) {
@@ -145,14 +149,15 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                     currentStatus = SAnime.ONGOING
                     break
                 }
-                else -> {}
             }
         }
+
         return SAnime.create().apply {
-            thumbnail_url = document.selectFirst("img.object-cover.w-full.aspect-poster")!!.attr("src")
-            title = document.selectFirst(".grid.items-start h1.text-lead")!!.text()
+            thumbnail_url = document.selectFirst("img.object-cover.w-full.aspect-poster")?.attr("src").orEmpty()
+            title = document.selectFirst(".grid.items-start h1.text-lead")?.text().orEmpty()
             description = document.select(".entry.text-lead.text-sm p").text()
-            genre = document.select(".flex-wrap.items-center .btn.btn-xs.rounded-full:not(.sm\\:w-auto)").joinToString { it.text() }
+            genre = document.select(".flex-wrap.items-center .btn.btn-xs.rounded-full:not(.sm\\:w-auto)")
+                .joinToString { it.text() }
             status = currentStatus
         }
     }
@@ -162,70 +167,65 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         val animeId = response.request.url.toString().substringAfter("media/").lowercase()
         val jsoup = response.asJsoup()
 
-        jsoup.select("article.group\\/item")
-            .forEach {
-                val epNum = it.select("div.bg-line.text-subs span").text()
-                val episode = SEpisode.create().apply {
-                    episode_number = epNum.toFloat()
-                    name = "Episodio $epNum"
-                    url = "/media/$animeId/$epNum"
-                }
-                episodes.add(episode)
+        jsoup.select("article.group\\/item").forEach {
+            val epNum = it.select("div.bg-line.text-subs span").text()
+            val episode = SEpisode.create().apply {
+                episode_number = epNum.toFloatOrNull() ?: return@forEach
+                name = "Episodio $epNum"
+                url = "/media/$animeId/$epNum"
             }
+            episodes.add(episode)
+        }
         return episodes.reversed()
     }
 
     private fun getAnimes(response: Response): Pair<List<SAnime>, Boolean> {
         val document = response.parseAs<HentailaJsonDto>()
+
         for (doc in document.nodes) {
             if (doc?.uses?.searchParams != null) {
-                val data = doc.data
-                val result = data?.get(0)?.jsonObject
-                val results = result?.get("results")?.jsonPrimitive?.intOrNull ?: -1
+                val data = doc.data ?: continue
+                val result = data.getOrNull(0)?.jsonObject ?: continue
 
-                val paginationCode = result?.get("pagination")?.jsonPrimitive?.intOrNull ?: -1
-                val pagination = data?.get(paginationCode)?.jsonObject
+                val resultsCode = result["results"]?.jsonPrimitive?.intOrNull ?: continue
+                val animeIdJson = data.getOrNull(resultsCode)?.jsonArray ?: continue
+                val animeIds = animeIdJson.map { it.jsonPrimitive.int }
+
+                val paginationCode = result["pagination"]?.jsonPrimitive?.intOrNull ?: -1
+                val pagination = data.getOrNull(paginationCode)?.jsonObject
 
                 val currentPageCode = pagination?.get("currentPage")?.jsonPrimitive?.intOrNull ?: -1
-                val currentPage = data?.get(currentPageCode)?.jsonPrimitive?.intOrNull ?: -1
+                val currentPage = data.getOrNull(currentPageCode)?.jsonPrimitive?.intOrNull ?: -1
 
                 val totalPageCode = pagination?.get("totalPages")?.jsonPrimitive?.intOrNull ?: -1
-                val totalPage = data?.get(totalPageCode)?.jsonPrimitive?.intOrNull ?: -1
+                val totalPage = data.getOrNull(totalPageCode)?.jsonPrimitive?.intOrNull ?: -1
 
-                val animeIdJson = data?.get(results)?.jsonArray
-                val animeIds = animeIdJson?.map { it.jsonPrimitive.int }
+                val animes = animeIds.mapNotNull { id ->
+                    val currentAnimeDetails = data.getOrNull(id)?.jsonObject ?: return@mapNotNull null
 
-                val animes = animeIds?.map { id ->
+                    val animeIdCode = currentAnimeDetails["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                    val animeId = data.getOrNull(animeIdCode)?.jsonPrimitive?.content ?: return@mapNotNull null
 
-                    val currentAnimeDetails = data[id].jsonObject
+                    val animeTitleCode = currentAnimeDetails["title"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                    val animeTitle = data.getOrNull(animeTitleCode)?.jsonPrimitive?.content ?: return@mapNotNull null
 
-                    val animeIdCode = currentAnimeDetails["id"]?.jsonPrimitive?.intOrNull ?: -1
-                    val animeId = data[animeIdCode].jsonPrimitive.content
+                    val animeSynopsisCode = currentAnimeDetails["synopsis"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                    val animeSynopsis = data.getOrNull(animeSynopsisCode)?.jsonPrimitive?.content ?: return@mapNotNull null
 
-                    val animeTitleCode =
-                        currentAnimeDetails["title"]?.jsonPrimitive?.intOrNull ?: -1
-                    val animeTitle = data[animeTitleCode].jsonPrimitive.content
-
-                    val animeSynopsisCode =
-                        currentAnimeDetails["synopsis"]?.jsonPrimitive?.intOrNull ?: -1
-                    val animeSynopsis = data[animeSynopsisCode].jsonPrimitive.content
-
-                    val animeSlugCode = currentAnimeDetails["slug"]?.jsonPrimitive?.intOrNull ?: -1
-                    val animeSlug = data[animeSlugCode].jsonPrimitive.content
+                    val animeSlugCode = currentAnimeDetails["slug"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+                    val animeSlug = data.getOrNull(animeSlugCode)?.jsonPrimitive?.content ?: return@mapNotNull null
 
                     SAnime.create().apply {
                         title = animeTitle
                         url = "/media/$animeSlug"
                         description = animeSynopsis
-                        thumbnail_url = "https://cdn.hentaila.com/covers/$animeId.jpg"
+                        thumbnail_url = "$CDN_BASE_URL/covers/$animeId.jpg"
                         update_strategy = AnimeUpdateStrategy.ONLY_FETCH_ONCE
                     }
                 }
 
-                val nextPage = currentPage <= totalPage
-                if (animes != null) {
-                    return Pair(animes, nextPage)
-                }
+                val hasNextPage = currentPage < totalPage
+                return Pair(animes, hasNextPage)
             }
         }
         return Pair(emptyList(), false)
@@ -235,14 +235,8 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val voeExtractor by lazy { VoeExtractor(client, headers) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
-
-    // private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
-
-    // private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
     private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
-
-    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListRequest(episode: SEpisode): Request {
         val url = "$baseUrl${episode.url}/__data.json"
@@ -252,63 +246,63 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun videoListParse(response: Response): List<Video> {
         val document = response.parseAs<HentailaJsonDto>()
         val serverList = mutableListOf<VideoData>()
-        for (each in document.nodes) {
-            if (each?.uses?.params != null && each.uses.params[0] == "number") {
-                val data = each.data
-                val result = data?.get(0)?.jsonObject
-                val embedsCode = result?.get("embeds")?.jsonPrimitive?.intOrNull ?: -1
-                val embedData = data?.get(embedsCode)?.jsonObject
-                val subEmbedDataCode = embedData?.get("SUB")?.jsonPrimitive?.intOrNull ?: -1
-                val subEmbedVideoArray = data?.get(subEmbedDataCode)?.jsonArray
-                val subEmbedVideoArrayList = subEmbedVideoArray?.map {
-                    it.jsonPrimitive.intOrNull ?: -1
-                }
-                if (subEmbedVideoArrayList != null) {
-                    for (sourceCode in subEmbedVideoArrayList) {
-                        val currentSourceData = data[sourceCode].jsonObject
-                        val serverNameCode =
-                            currentSourceData["server"]?.jsonPrimitive?.intOrNull ?: -1
-                        val serverUrlCode =
-                            currentSourceData["url"]?.jsonPrimitive?.intOrNull ?: -1
 
-                        val serverName = data[serverNameCode].jsonPrimitive.content
-                        val serverUrl = data[serverUrlCode].jsonPrimitive.content
-                        serverList.add(VideoData(serverName, serverUrl))
-                    }
+        for (each in document.nodes) {
+            if (each?.uses?.params != null && each.uses.params.firstOrNull() == "number") {
+                val data = each.data ?: continue
+                val result = data.getOrNull(0)?.jsonObject ?: continue
+
+                val embedsCode = result["embeds"]?.jsonPrimitive?.intOrNull ?: continue
+                val embedData = data.getOrNull(embedsCode)?.jsonObject ?: continue
+
+                val subEmbedDataCode = embedData["SUB"]?.jsonPrimitive?.intOrNull ?: continue
+                val subEmbedVideoArray = data.getOrNull(subEmbedDataCode)?.jsonArray ?: continue
+
+                val subEmbedVideoArrayList = subEmbedVideoArray.mapNotNull {
+                    it.jsonPrimitive.intOrNull
+                }
+
+                for (sourceCode in subEmbedVideoArrayList) {
+                    val currentSourceData = data.getOrNull(sourceCode)?.jsonObject ?: continue
+
+                    val serverNameCode = currentSourceData["server"]?.jsonPrimitive?.intOrNull ?: continue
+                    val serverUrlCode = currentSourceData["url"]?.jsonPrimitive?.intOrNull ?: continue
+
+                    val serverName = data.getOrNull(serverNameCode)?.jsonPrimitive?.content ?: continue
+                    val serverUrl = data.getOrNull(serverUrlCode)?.jsonPrimitive?.content ?: continue
+
+                    serverList.add(VideoData(serverName, serverUrl))
                 }
             }
         }
+
         val allVideos = serverList.parallelCatchingFlatMapBlocking { each ->
             when (each.name.lowercase()) {
                 "streamwish" -> streamWishExtractor.videosFromUrl(each.url, videoNameGen = { "StreamWish:$it" })
                 "voe" -> voeExtractor.videosFromUrl(each.url)
                 "arc" -> listOf(Video(each.url.substringAfter("#"), "Arc", each.url.substringAfter("#")))
                 "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
-                // "mp4upload" -> mp4uploadExtractor.videosFromUrl(each.url, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(each.url, headers = headers)
-                // "vidhide", "streamhide", "guccihide", "streamvid" -> streamHideVidExtractor.videosFromUrl(each.url)
                 "sendvid" -> sendvidExtractor.videosFromUrl(each.url)
                 else -> emptyList()
-                // else -> universalExtractor.videosFromUrl(each.url, headers)
             }
         }
         return allVideos
     }
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
-        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
-        return this.sortedWith(
-            compareBy(
-                { it.quality.contains(server, true) },
-                { it.quality.contains(quality) },
-                { Regex("""(\d+)p""").find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0 },
-            ),
+        val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT).orEmpty()
+        val server = preferences.getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT).orEmpty()
+
+        return sortedWith(
+            compareBy<Video> { it.quality.contains(server, ignoreCase = true) }
+                .thenBy { it.quality.contains(quality) }
+                .thenBy { Regex("""(\d+)p""").find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0 },
         ).reversed()
     }
 
     override fun getFilterList(): AnimeFilterList = AnimeFilterList(
-        AnimeFilter.Header("La busqueda por texto ignora el filtro"),
+        AnimeFilter.Header("La búsqueda por texto ignora el filtro"),
         GenreFilter(),
         AnimeFilter.Separator(),
         OrderFilter(),
@@ -319,67 +313,69 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         UncensoredFilter(),
     )
 
-    private class StatusOngoingFilter : AnimeFilter.CheckBox("En Emision")
+    private class StatusOngoingFilter : AnimeFilter.CheckBox("En Emisión")
     private class StatusCompletedFilter : AnimeFilter.CheckBox("Finalizado")
     private class UncensoredFilter : AnimeFilter.CheckBox("Sin Censura")
 
     private class OrderFilter : UriPartFilter(
         "Ordenar por",
         arrayOf(
-            Pair("<Seleccionar>", ""),
-            Pair("Populares", "popular"),
-            Pair("Recientes", "recent"),
+            "<Seleccionar>" to "",
+            "Populares" to "popular",
+            "Recientes" to "recent",
         ),
     )
 
     private class GenreFilter : UriPartFilter(
-        "Generos",
+        "Géneros",
         arrayOf(
-            Pair("<Seleccionar>", ""),
-            Pair("3D", "3d"),
-            Pair("Ahegao", "ahegao"),
-            Pair("Anal", "anal"),
-            Pair("Casadas", "casadas"),
-            Pair("Chikan", "chikan"),
-            Pair("Ecchi", "ecchi"),
-            Pair("Enfermeras", "enfermeras"),
-            Pair("Futanari", "futanari"),
-            Pair("Escolares", "escolares"),
-            Pair("Gore", "gore"),
-            Pair("Hardcore", "hardcore"),
-            Pair("Harem", "harem"),
-            Pair("Incesto", "incesto"),
-            Pair("Juegos Sexuales", "juegos-sexuales"),
-            Pair("Milfs", "milfs"),
-            Pair("Maids", "maids"),
-            Pair("Netorare", "netorare"),
-            Pair("Ninfomania", "ninfomania"),
-            Pair("Ninjas", "ninjas"),
-            Pair("Orgias", "orgias"),
-            Pair("Romance", "romance"),
-            Pair("Shota", "shota"),
-            Pair("Softcore", "softcore"),
-            Pair("Succubus", "succubus"),
-            Pair("Teacher", "teacher"),
-            Pair("Tentaculos", "tentaculos"),
-            Pair("Tetonas", "tetonas"),
-            Pair("Vanilla", "vanilla"),
-            Pair("Violacion", "violacion"),
-            Pair("Virgenes", "virgenes"),
-            Pair("Yaoi", "yaoi"),
-            Pair("Yuri", "yuri"),
-            Pair("Bondage", "bondage"),
-            Pair("Elfas", "elfas"),
-            Pair("Petit", "petit"),
-            Pair("Threesome", "threesome"),
-            Pair("Paizuri", "paizuri"),
-            Pair("Gal", "gal"),
-            Pair("Oyakodon", "oyakodon"),
+            "<Seleccionar>" to "",
+            "3D" to "3d",
+            "Ahegao" to "ahegao",
+            "Anal" to "anal",
+            "Casadas" to "casadas",
+            "Chikan" to "chikan",
+            "Ecchi" to "ecchi",
+            "Enfermeras" to "enfermeras",
+            "Futanari" to "futanari",
+            "Escolares" to "escolares",
+            "Gore" to "gore",
+            "Hardcore" to "hardcore",
+            "Harem" to "harem",
+            "Incesto" to "incesto",
+            "Juegos Sexuales" to "juegos-sexuales",
+            "Milfs" to "milfs",
+            "Maids" to "maids",
+            "Netorare" to "netorare",
+            "Ninfomanía" to "ninfomania",
+            "Ninjas" to "ninjas",
+            "Orgías" to "orgias",
+            "Romance" to "romance",
+            "Shota" to "shota",
+            "Softcore" to "softcore",
+            "Succubus" to "succubus",
+            "Teacher" to "teacher",
+            "Tentáculos" to "tentaculos",
+            "Tetonas" to "tetonas",
+            "Vanilla" to "vanilla",
+            "Violación" to "violacion",
+            "Vírgenes" to "virgenes",
+            "Yaoi" to "yaoi",
+            "Yuri" to "yuri",
+            "Bondage" to "bondage",
+            "Elfas" to "elfas",
+            "Petit" to "petit",
+            "Threesome" to "threesome",
+            "Paizuri" to "paizuri",
+            "Gal" to "gal",
+            "Oyakodon" to "oyakodon",
         ),
     )
 
-    private open class UriPartFilter(displayName: String, val vals: Array<Pair<String, String>>) :
-        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
+    private open class UriPartFilter(
+        displayName: String,
+        private val vals: Array<Pair<String, String>>,
+    ) : AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
         fun toUriPart() = vals[state].second
     }
 
@@ -393,10 +389,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             summary = "%s"
 
             setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
+                preferences.edit().putString(key, newValue as String).commit()
             }
         }.also(screen::addPreference)
 
@@ -409,10 +402,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             summary = "%s"
 
             setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
+                preferences.edit().putString(key, newValue as String).commit()
             }
         }.also(screen::addPreference)
     }
