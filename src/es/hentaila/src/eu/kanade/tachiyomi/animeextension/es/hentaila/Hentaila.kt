@@ -172,7 +172,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             }
             episodes.add(episode)
         }
-        return episodes.sortedBy { it.episode_number }
+        return episodes.sortedByDescending { it.episode_number }
     }
 
     private fun JsonArray.getString(obj: JsonObject, key: String): String? {
