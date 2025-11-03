@@ -282,7 +282,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 else -> {
                     Log.e(
                         "FromHentaila",
-                        "Unknown server type encountered: name='${each.name}', url='${each.url}'"
+                        "Unknown server type encountered: name='${each.name}', url='${each.url}'",
                     )
                     emptyList()
                 }
