@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.es.hentaila
 
+import android.util.Log
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -22,6 +23,8 @@ import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
 import extensions.utils.getPreferencesLazy
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -138,18 +141,10 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         val document = response.asJsoup()
         val statusData = document.select("div.flex.flex-wrap.items-center.text-sm span")
 
-        var currentStatus = SAnime.COMPLETED
-        for (data in statusData) {
-            when (data.text()) {
-                "Finalizado" -> {
-                    currentStatus = SAnime.COMPLETED
-                    break
-                }
-                "En emisión" -> {
-                    currentStatus = SAnime.ONGOING
-                    break
-                }
-            }
+        val currentStatus = if (statusData.any { it.text() == "En emisión" }) {
+            SAnime.ONGOING
+        } else {
+            SAnime.COMPLETED
         }
 
         return SAnime.create().apply {
@@ -164,7 +159,8 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val episodes = mutableListOf<SEpisode>()
-        val animeId = response.request.url.toString().substringAfter("media/").lowercase()
+        val animeId = Regex("""media/([^/?#]+)""")
+            .find(response.request.url.toString())?.groupValues?.get(1)?.lowercase() ?: ""
         val jsoup = response.asJsoup()
 
         jsoup.select("article.group\\/item").forEach {
@@ -176,7 +172,12 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             }
             episodes.add(episode)
         }
-        return episodes.reversed()
+        return episodes.sortedBy { it.episode_number }
+    }
+
+    private fun JsonArray.getString(obj: JsonObject, key: String): String? {
+        val code = obj[key]?.jsonPrimitive?.intOrNull ?: return null
+        return this.getOrNull(code)?.jsonPrimitive?.content
     }
 
     private fun getAnimes(response: Response): Pair<List<SAnime>, Boolean> {
@@ -202,21 +203,15 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
                 val animes = animeIds.mapNotNull { id ->
                     val currentAnimeDetails = data.getOrNull(id)?.jsonObject ?: return@mapNotNull null
-
-                    val animeIdCode = currentAnimeDetails["id"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-                    val animeId = data.getOrNull(animeIdCode)?.jsonPrimitive?.content ?: return@mapNotNull null
-
-                    val animeTitleCode = currentAnimeDetails["title"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-                    val animeTitle = data.getOrNull(animeTitleCode)?.jsonPrimitive?.content ?: return@mapNotNull null
-
-                    val animeSynopsisCode = currentAnimeDetails["synopsis"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-                    val animeSynopsis = data.getOrNull(animeSynopsisCode)?.jsonPrimitive?.content ?: return@mapNotNull null
-
-                    val animeSlugCode = currentAnimeDetails["slug"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-                    val animeSlug = data.getOrNull(animeSlugCode)?.jsonPrimitive?.content ?: return@mapNotNull null
+                    val animeId = data.getString(currentAnimeDetails, "id")
+                    val animeTitle = data.getString(currentAnimeDetails, "title")
+                    val animeSynopsis = data.getString(currentAnimeDetails, "synopsis")
+                    val animeSlug = data.getString(currentAnimeDetails, "slug")
 
                     SAnime.create().apply {
-                        title = animeTitle
+                        if (animeTitle != null) {
+                            title = animeTitle
+                        }
                         url = "/media/$animeSlug"
                         description = animeSynopsis
                         thumbnail_url = "$CDN_BASE_URL/covers/$animeId.jpg"
@@ -284,7 +279,13 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(each.url, headers = headers)
                 "sendvid" -> sendvidExtractor.videosFromUrl(each.url)
-                else -> emptyList()
+                else -> {
+                    Log.e(
+                        "FromHentaila",
+                        "Unknown server type encountered: name='${each.name}', url='${each.url}'"
+                    )
+                    emptyList()
+                }
             }
         }
         return allVideos
