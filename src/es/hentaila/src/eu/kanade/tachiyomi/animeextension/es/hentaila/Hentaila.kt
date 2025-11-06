@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.es.hentaila
 
-import android.util.Log
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -172,7 +171,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             }
             episodes.add(episode)
         }
-        return episodes.sortedByDescending { it.episode_number }
+        return episodes.reversed()
     }
 
     private fun JsonArray.getString(obj: JsonObject, key: String): String? {
@@ -279,13 +278,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(each.url, headers = headers)
                 "sendvid" -> sendvidExtractor.videosFromUrl(each.url)
-                else -> {
-                    Log.e(
-                        "FromHentaila",
-                        "Unknown server type encountered: name='${each.name}', url='${each.url}'",
-                    )
-                    emptyList()
-                }
+                else -> emptyList()
             }
         }
         return allVideos
