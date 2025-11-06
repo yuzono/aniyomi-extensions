@@ -121,7 +121,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val itemText = element.selectFirst("div.anime__item__text a") ?: return null
         return SAnime.create().apply {
             title = itemText.text()
-            thumbnail_url = element.select("div.g-0").attr("abs:data-setbg")
+            thumbnail_url = element.selectFirst("div.g-0")?.attr("abs:data-setbg")
             setUrlWithoutDomain(itemText.attr("href"))
         }
     }
