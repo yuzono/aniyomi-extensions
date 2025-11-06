@@ -75,20 +75,14 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         headers,
     )
 
-    override fun popularAnimeParse(response: Response): AnimesPage {
-        val (animes, hasNextPage) = getAnimes(response)
-        return AnimesPage(animes, hasNextPage)
-    }
+    override fun popularAnimeParse(response: Response) = getAnimes(response)
 
     override fun latestUpdatesRequest(page: Int) = GET(
         "$baseUrl/catalogo/__data.json?order=latest_released&page=$page",
         headers,
     )
 
-    override fun latestUpdatesParse(response: Response): AnimesPage {
-        val (animes, hasNextPage) = getAnimes(response)
-        return AnimesPage(animes, hasNextPage)
-    }
+    override fun latestUpdatesParse(response: Response) = getAnimes(response)
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
@@ -132,8 +126,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             return AnimesPage(animeList, hasNextPage = false)
         }
 
-        val (animeList, hasNextPage) = getAnimes(response)
-        return AnimesPage(animeList, hasNextPage)
+        return getAnimes(response)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -179,7 +172,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         return this.getOrNull(code)?.jsonPrimitive?.content
     }
 
-    private fun getAnimes(response: Response): Pair<List<SAnime>, Boolean> {
+    private fun getAnimes(response: Response): AnimesPage {
         val document = response.parseAs<HentailaJsonDto>()
 
         for (doc in document.nodes) {
@@ -219,10 +212,10 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 }
 
                 val hasNextPage = currentPage < totalPage
-                return Pair(animes, hasNextPage)
+                return AnimesPage(animes, hasNextPage)
             }
         }
-        return Pair(emptyList(), false)
+        return AnimesPage(emptyList(), false)
     }
 
     /*--------------------------------Video extractors------------------------------------*/
