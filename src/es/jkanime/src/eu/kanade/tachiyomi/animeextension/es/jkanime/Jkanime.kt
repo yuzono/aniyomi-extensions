@@ -288,8 +288,9 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val pageBody = response.asJsoup()
         val token = pageBody.selectFirst("meta[name=csrf-token]")?.attr("content") ?: return emptyList()
         val formData = FormBody.Builder().add("_token", token).build()
-        val animeId = pageBody.select("div.anime__details__content div.pc div#guardar-anime")
-            .attr("data-anime")
+        val animeId = pageBody.selectFirst("div.anime__details__content div.pc div#guardar-anime")
+            ?.attr("data-anime")
+            ?.takeIf { it.isNotBlank() } ?: return emptyList()
 
         val episodesPage = client.newCall(POST("$baseUrl/ajax/episodes/$animeId/1", headers, formData))
             .execute().body.string()
