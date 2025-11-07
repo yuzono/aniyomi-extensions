@@ -54,9 +54,7 @@ class JkanimeExtractor(
         val contentType = response.header("Content-Type") ?: ""
 
         if (contentType.startsWith("video/")) {
-            val realUrl = response.networkResponse.toString()
-                .substringAfter("url=")
-                .substringBefore("}")
+            val realUrl = response.request.url.toString()
             return listOf(Video(realUrl, "${prefix}Desuka", realUrl))
         }
         return parseVideoFromDpPlayer(response, "${prefix}Desuka")
