@@ -135,11 +135,12 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/ranking/", headers)
 
-    override fun popularAnimeFromElement(element: Element): SAnime = parseAnimeItem(element)!!
+    override fun popularAnimeFromElement(element: Element): SAnime = throw UnsupportedOperationException()
 
     override fun popularAnimeParse(response: Response): AnimesPage {
-        val document = super.popularAnimeParse(response)
-        val distinctList = document.animes.distinctBy { it.url }
+        val document = response.asJsoup()
+        val animes = document.select(popularAnimeSelector()).mapNotNull(::parseAnimeItem)
+        val distinctList = animes.distinctBy { it.url }
         return AnimesPage(distinctList, false)
     }
 
