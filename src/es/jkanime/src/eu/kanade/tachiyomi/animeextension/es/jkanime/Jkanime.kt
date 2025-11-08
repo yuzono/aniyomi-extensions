@@ -131,20 +131,14 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    override fun popularAnimeSelector(): String = "div.row div.row.page_mirando div.anime__item"
 
-    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/ranking/", headers)
+    override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/directorio?filtro=popularidad&p=$page", headers)
 
-    override fun popularAnimeFromElement(element: Element): SAnime = throw UnsupportedOperationException()
+    override fun popularAnimeParse(response: Response) = searchAnimeParse(response)
 
-    override fun popularAnimeParse(response: Response): AnimesPage {
-        val document = response.asJsoup()
-        val animes = document.select(popularAnimeSelector()).mapNotNull(::parseAnimeItem)
-        val distinctList = animes.distinctBy { it.url }
-        return AnimesPage(distinctList, false)
-    }
-
-    override fun popularAnimeNextPageSelector(): String = "uwu"
+    override fun popularAnimeSelector() = throw UnsupportedOperationException()
+    override fun popularAnimeFromElement(element: Element) = throw UnsupportedOperationException()
+    override fun popularAnimeNextPageSelector() = throw UnsupportedOperationException()
 
     override fun latestUpdatesSelector(): String = "div.trending_div div.custom_thumb_home a"
 
@@ -158,20 +152,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    override fun latestUpdatesParse(response: Response): AnimesPage {
-        val vista = super.latestUpdatesParse(response)
-        val distinctList = vista.animes.distinctBy { it.title }
-        return AnimesPage(distinctList, false)
-    }
     override fun latestUpdatesNextPageSelector(): String? = null
-
-    override suspend fun getSearchAnime(
-        page: Int,
-        query: String,
-        filters: AnimeFilterList,
-    ): AnimesPage {
-        return super.getSearchAnime(page, query, filters)
-    }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
@@ -256,12 +237,12 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun searchAnimeParse(response: Response): AnimesPage {
         val document = response.asJsoup()
         val location = document.location().toHttpUrl().encodedPath
-        when {
-            location.startsWith("/directorio") -> return searchAnimeParseDirectory(document)
-            location.startsWith("/buscar") -> return searchAnimeParseSearch(document)
-            location.startsWith("/horario") -> return searchAnimeParseSchedule(document)
+        return when {
+            location.startsWith("/directorio") -> searchAnimeParseDirectory(document)
+            location.startsWith("/buscar") -> searchAnimeParseSearch(document)
+            location.startsWith("/horario") -> searchAnimeParseSchedule(document)
+            else -> AnimesPage(emptyList(), false)
         }
-        return AnimesPage(emptyList(), false)
     }
 
     override fun searchAnimeFromElement(element: Element): SAnime = throw UnsupportedOperationException()
