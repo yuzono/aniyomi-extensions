@@ -131,7 +131,6 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-
     override fun popularAnimeRequest(page: Int): Request = GET("$baseUrl/directorio?filtro=popularidad&p=$page", headers)
 
     override fun popularAnimeParse(response: Response) = searchAnimeParse(response)
