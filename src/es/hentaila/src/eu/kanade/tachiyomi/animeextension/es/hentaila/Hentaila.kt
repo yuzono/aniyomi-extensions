@@ -31,8 +31,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
@@ -41,7 +39,15 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     override val lang = "es"
     override val supportsLatest = true
 
-    private val preferences by getPreferencesLazy()
+    private val preferences by getPreferencesLazy {
+        val server = getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+
+        if (server !in SERVER_LIST) {
+            edit().also { editor ->
+                editor.putString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
+            }.apply()
+        }
+    }
 
     companion object {
         private const val CDN_BASE_URL = "https://cdn.hentaila.com"
@@ -50,7 +56,6 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         private val QUALITY_LIST = arrayOf("1080", "720", "480", "360")
 
         private const val PREF_SERVER_KEY = "preferred_server"
-        private const val PREF_SERVER_DEFAULT = "StreamWish"
         private val SERVER_LIST = arrayOf(
             "StreamWish",
             "Voe",
@@ -61,10 +66,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             "StreamHideVid",
             "Sendvid",
         )
-
-        private val DATE_FORMATTER by lazy {
-            SimpleDateFormat("MMMMM dd, yyyy", Locale.ENGLISH)
-        }
+        private val PREF_SERVER_DEFAULT = SERVER_LIST.first()
     }
 
     override fun popularAnimeRequest(page: Int) = GET(
@@ -360,10 +362,6 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = SERVER_LIST
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                preferences.edit().putString(key, newValue as String).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
