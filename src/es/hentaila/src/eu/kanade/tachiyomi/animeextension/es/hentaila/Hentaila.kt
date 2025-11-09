@@ -16,6 +16,7 @@ import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
 import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
+import eu.kanade.tachiyomi.lib.mp4uploadextractor.Mp4uploadExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
@@ -63,14 +64,18 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private val SERVER_LIST = arrayOf(
-            "StreamWish",
+            "Megacloud",
             "Voe",
             "Arc",
             "YourUpload",
-            "Mp4Upload",
             "BurstCloud",
-            "StreamHideVid",
             "Sendvid",
+            "MediaFire",
+            "FireLoad",
+            "VidHide",
+            "VIP",
+            "Mp4Upload",
+            "StreamWish",
         )
         private val PREF_SERVER_DEFAULT = SERVER_LIST.first()
     }
@@ -214,19 +219,16 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     /*--------------------------------Video extractors------------------------------------*/
     private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
+    private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val voeExtractor by lazy { VoeExtractor(client, headers) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
     private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
-
     private val mediaFireExtractor by lazy { MediaFireExtractor(client) }
-
     private val fireLoadExtractor by lazy { FireLoadExtractor(client) }
-
     private val vidhideExtractor by lazy { VidHideExtractor(client, headers) }
-
-    private val universalExtractor by lazy { UniversalExtractor(client) }
     private val megacloudExtractor by lazy { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
+    private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListRequest(episode: SEpisode): Request {
         val url = "$baseUrl${episode.url}/__data.json"
@@ -272,6 +274,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
         val allVideos = serverList.parallelCatchingFlatMapBlocking { each ->
             when (each.name.lowercase()) {
                 "streamwish" -> streamWishExtractor.videosFromUrl(each.url, videoNameGen = { "StreamWish:$it" })
+                "mp4upload" -> mp4uploadExtractor.videosFromUrl(each.url, headers = headers, prefix = "Mp4Upload")
                 "voe" -> voeExtractor.videosFromUrl(each.url)
                 "arc" -> listOf(Video(each.url.substringAfter("#"), "Arc", each.url.substringAfter("#")))
                 "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
@@ -284,6 +287,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 "vip" -> universalExtractor.videosFromUrl(
                     each.url.replace("/play/", "/m3u8/"),
                     origRequestHeader = headers,
+                    prefix = "VIP",
                 )
                 else -> emptyList()
             }
