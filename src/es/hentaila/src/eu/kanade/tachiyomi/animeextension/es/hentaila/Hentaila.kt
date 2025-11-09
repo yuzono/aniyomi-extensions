@@ -266,6 +266,9 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             }
         }
 
+        // MP4Upload and StreamWish is available on the server but it gives an error so i have removed it
+        // NOTE : if possible it needs to supports those server
+        // Here a example of an episode server list : https://hentaila.com/media/guilty-hole/1/__data.json
         val allVideos = serverList.parallelCatchingFlatMapBlocking { each ->
             when (each.name.lowercase()) {
                 "streamwish" -> streamWishExtractor.videosFromUrl(each.url, videoNameGen = { "StreamWish:$it" })
