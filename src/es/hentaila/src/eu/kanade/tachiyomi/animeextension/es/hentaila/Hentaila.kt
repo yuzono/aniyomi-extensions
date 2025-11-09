@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.animeextension.es.hentaila
 
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animeextension.BuildConfig
+import eu.kanade.tachiyomi.animeextension.es.hentaila.extractors.FireLoadExtractor
+import eu.kanade.tachiyomi.animeextension.es.hentaila.extractors.MediaFireExtractor
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
@@ -12,8 +15,11 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.burstcloudextractor.BurstCloudExtractor
+import eu.kanade.tachiyomi.lib.megacloudextractor.MegaCloudExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
+import eu.kanade.tachiyomi.lib.universalextractor.UniversalExtractor
+import eu.kanade.tachiyomi.lib.vidhideextractor.VidHideExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
@@ -213,6 +219,15 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     private val burstCloudExtractor by lazy { BurstCloudExtractor(client) }
     private val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
 
+    private val mediaFireExtractor by lazy { MediaFireExtractor(client) }
+
+    private val fireLoadExtractor by lazy { FireLoadExtractor(client) }
+
+    private val vidhideExtractor by lazy { VidHideExtractor(client, headers) }
+
+    private val universalExtractor by lazy { UniversalExtractor(client) }
+    private val megacloudExtractor by lazy { MegaCloudExtractor(client, headers, BuildConfig.MEGACLOUD_API) }
+
     override fun videoListRequest(episode: SEpisode): Request {
         val url = "$baseUrl${episode.url}/__data.json"
         return GET(url, headers)
@@ -259,6 +274,14 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 "yupi", "yourupload" -> yourUploadExtractor.videoFromUrl(each.url, headers = headers)
                 "burst" -> burstCloudExtractor.videoFromUrl(each.url, headers = headers)
                 "sendvid" -> sendvidExtractor.videosFromUrl(each.url)
+                "mediafire" -> mediaFireExtractor.getVideoFromUrl(each.url)
+                "fireload" -> fireLoadExtractor.getVideoFromUrl(each.url)
+                "vidhide" -> vidhideExtractor.videosFromUrl(each.url) { "VidHide" }
+                "mega" -> megacloudExtractor.getVideosFromUrl(each.url, "Megacloud", "Megacloud")
+                "vip" -> universalExtractor.videosFromUrl(
+                    each.url.replace("/play/", "/m3u8/"),
+                    origRequestHeader = headers,
+                )
                 else -> emptyList()
             }
         }

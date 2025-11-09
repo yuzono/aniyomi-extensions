@@ -16,4 +16,6 @@ dependencies {
     implementation(project(':lib:streamhidevid-extractor'))
     implementation(project(':lib:sendvid-extractor'))
     implementation(project(':lib:universal-extractor'))
+    implementation(project(':lib:vidhide-extractor'))
+    implementation(project(':lib:megacloud-extractor'))
 }
