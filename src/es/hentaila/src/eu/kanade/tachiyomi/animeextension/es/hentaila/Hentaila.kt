@@ -17,7 +17,6 @@ import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
 import eu.kanade.tachiyomi.lib.voeextractor.VoeExtractor
 import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
 import eu.kanade.tachiyomi.util.parseAs
@@ -30,9 +29,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -85,49 +82,38 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesParse(response: Response) = getAnimes(response)
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val filterList = if (filters.isEmpty()) getFilterList() else filters
+        val urlBuilder = "$baseUrl/catalogo/__data.json".toHttpUrl().newBuilder()
+        urlBuilder.addQueryParameter("page", page.toString())
 
         if (query.isNotEmpty()) {
-            val body = """{"query":"$query"}""".toRequestBody("application/json".toMediaType())
-            return POST("$baseUrl/api/search", headers, body = body)
-        }
+            urlBuilder.addQueryParameter("search", query)
+        } else {
+            val filterList = if (filters.isEmpty()) getFilterList() else filters
 
-        val urlBuilder = "$baseUrl/catalogo/__data.json?page=$page".toHttpUrl().newBuilder()
+            filterList.forEach { filter ->
+                when (filter) {
+                    is GenreFilter -> urlBuilder.addQueryParameter("genre", filter.toUriPart())
+                    is OrderFilter -> urlBuilder.addQueryParameter("filter", filter.toUriPart())
+                    is StatusOngoingFilter -> if (filter.state) {
+                        urlBuilder.addQueryParameter("status", "emision")
+                    }
 
-        filterList.forEach { filter ->
-            when (filter) {
-                is GenreFilter -> urlBuilder.addQueryParameter("genre", filter.toUriPart())
-                is OrderFilter -> urlBuilder.addQueryParameter("filter", filter.toUriPart())
-                is StatusOngoingFilter -> if (filter.state) {
-                    urlBuilder.addQueryParameter("status", "emision")
+                    is StatusCompletedFilter -> if (filter.state) {
+                        urlBuilder.addQueryParameter("status", "finalizado")
+                    }
+
+                    is UncensoredFilter -> if (filter.state) {
+                        urlBuilder.addQueryParameter("uncensored", "")
+                    }
+
+                    else -> {}
                 }
-                is StatusCompletedFilter -> if (filter.state) {
-                    urlBuilder.addQueryParameter("status", "finalizado")
-                }
-                is UncensoredFilter -> if (filter.state) {
-                    urlBuilder.addQueryParameter("uncensored", "")
-                }
-                else -> {}
             }
         }
         return GET(urlBuilder.build().toString(), headers)
     }
 
-    override fun searchAnimeParse(response: Response): AnimesPage {
-        if (response.request.url.toString().contains("/api/search")) {
-            val results = response.parseAs<List<HentailaDto>>()
-            val animeList = results.map { anime ->
-                SAnime.create().apply {
-                    title = anime.title
-                    url = "/media/${anime.slug}"
-                    thumbnail_url = "$CDN_BASE_URL/covers/${anime.id}.jpg"
-                }
-            }
-            return AnimesPage(animeList, hasNextPage = false)
-        }
-
-        return getAnimes(response)
-    }
+    override fun searchAnimeParse(response: Response) = getAnimes(response)
 
     override fun animeDetailsParse(response: Response): SAnime {
         val document = response.asJsoup()
