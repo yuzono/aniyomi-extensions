@@ -114,7 +114,7 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
-        if (response.request.url.toString().startsWith("$baseUrl/api/search")) {
+        if (response.request.url.toString().contains("/api/search")) {
             val results = response.parseAs<List<HentailaDto>>()
             val animeList = results.map { anime ->
                 SAnime.create().apply {
