@@ -371,10 +371,6 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             entryValues = QUALITY_LIST
             setDefaultValue(PREF_QUALITY_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                preferences.edit().putString(key, newValue as String).commit()
-            }
         }.also(screen::addPreference)
     }
 }
