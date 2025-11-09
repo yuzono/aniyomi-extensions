@@ -5,13 +5,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 
 @Serializable
-data class HentailaDto(
-    val id: String,
-    val slug: String,
-    val title: String,
-)
-
-@Serializable
 data class Uses(
     @SerialName("search_params") val searchParams: List<String>? = null,
     val params: List<String>? = null,
