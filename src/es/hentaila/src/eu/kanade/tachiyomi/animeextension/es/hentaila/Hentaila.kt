@@ -141,17 +141,17 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
                 val animes = animeIds.mapNotNull { id ->
                     val currentAnimeDetails = data.getOrNull(id)?.jsonObject ?: return@mapNotNull null
                     val animeId = data.getString(currentAnimeDetails, "id")
-                    val animeTitle = data.getString(currentAnimeDetails, "title")
+                    val animeTitle = data.getString(currentAnimeDetails, "title") ?: return@mapNotNull null
                     val animeSynopsis = data.getString(currentAnimeDetails, "synopsis")
-                    val animeSlug = data.getString(currentAnimeDetails, "slug")
+                    val animeSlug = data.getString(currentAnimeDetails, "slug") ?: return@mapNotNull null
 
                     SAnime.create().apply {
-                        if (animeTitle != null) {
-                            title = animeTitle
-                        }
+                        title = animeTitle
                         url = "/media/$animeSlug"
                         description = animeSynopsis
-                        thumbnail_url = "$CDN_BASE_URL/covers/$animeId.jpg"
+                        animeId?.let {
+                            thumbnail_url = "$CDN_BASE_URL/covers/$it.jpg"
+                        }
                         update_strategy = AnimeUpdateStrategy.ONLY_FETCH_ONCE
                     }
                 }
