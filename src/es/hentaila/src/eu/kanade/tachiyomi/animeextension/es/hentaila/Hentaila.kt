@@ -115,49 +115,6 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun searchAnimeParse(response: Response) = getAnimes(response)
 
-    override fun animeDetailsParse(response: Response): SAnime {
-        val document = response.asJsoup()
-        val statusData = document.select("div.flex.flex-wrap.items-center.text-sm span")
-
-        val currentStatus = if (statusData.any { it.text() == "En emisión" }) {
-            SAnime.ONGOING
-        } else {
-            SAnime.COMPLETED
-        }
-
-        return SAnime.create().apply {
-            thumbnail_url = document.selectFirst("img.object-cover.w-full.aspect-poster")?.attr("src").orEmpty()
-            title = document.selectFirst(".grid.items-start h1.text-lead")?.text().orEmpty()
-            description = document.select(".entry.text-lead.text-sm p").text()
-            genre = document.select(".flex-wrap.items-center .btn.btn-xs.rounded-full:not(.sm\\:w-auto)")
-                .joinToString { it.text() }
-            status = currentStatus
-        }
-    }
-
-    override fun episodeListParse(response: Response): List<SEpisode> {
-        val episodes = mutableListOf<SEpisode>()
-        val animeId = Regex("""media/([^/?#]+)""")
-            .find(response.request.url.toString())?.groupValues?.get(1)?.lowercase() ?: ""
-        val jsoup = response.asJsoup()
-
-        jsoup.select("article.group\\/item").forEach {
-            val epNum = it.select("div.bg-line.text-subs span").text()
-            val episode = SEpisode.create().apply {
-                episode_number = epNum.toFloatOrNull() ?: return@forEach
-                name = "Episodio $epNum"
-                url = "/media/$animeId/$epNum"
-            }
-            episodes.add(episode)
-        }
-        return episodes.reversed()
-    }
-
-    private fun JsonArray.getString(obj: JsonObject, key: String): String? {
-        val code = obj[key]?.jsonPrimitive?.intOrNull ?: return null
-        return this.getOrNull(code)?.jsonPrimitive?.content
-    }
-
     private fun getAnimes(response: Response): AnimesPage {
         val document = response.parseAs<HentailaJsonDto>()
 
@@ -202,6 +159,49 @@ class Hentaila : ConfigurableAnimeSource, AnimeHttpSource() {
             }
         }
         return AnimesPage(emptyList(), false)
+    }
+
+    override fun animeDetailsParse(response: Response): SAnime {
+        val document = response.asJsoup()
+        val statusData = document.select("div.flex.flex-wrap.items-center.text-sm span")
+
+        val currentStatus = if (statusData.any { it.text() == "En emisión" }) {
+            SAnime.ONGOING
+        } else {
+            SAnime.COMPLETED
+        }
+
+        return SAnime.create().apply {
+            thumbnail_url = document.selectFirst("img.object-cover.w-full.aspect-poster")?.attr("src")
+            title = document.selectFirst(".grid.items-start h1.text-lead")?.text()!!
+            description = document.select(".entry.text-lead.text-sm p").text()
+            genre = document.select(".flex-wrap.items-center .btn.btn-xs.rounded-full:not(.sm\\:w-auto)")
+                .joinToString { it.text() }
+            status = currentStatus
+        }
+    }
+
+    override fun episodeListParse(response: Response): List<SEpisode> {
+        val episodes = mutableListOf<SEpisode>()
+        val animeId = Regex("""media/([^/?#]+)""")
+            .find(response.request.url.toString())?.groupValues?.get(1)?.lowercase() ?: ""
+        val jsoup = response.asJsoup()
+
+        jsoup.select("article.group\\/item").forEach {
+            val epNum = it.select("div.bg-line.text-subs span").text()
+            val episode = SEpisode.create().apply {
+                episode_number = epNum.toFloatOrNull() ?: return@forEach
+                name = "Episodio $epNum"
+                url = "/media/$animeId/$epNum"
+            }
+            episodes.add(episode)
+        }
+        return episodes.reversed()
+    }
+
+    private fun JsonArray.getString(obj: JsonObject, key: String): String? {
+        val code = obj[key]?.jsonPrimitive?.intOrNull ?: return null
+        return this.getOrNull(code)?.jsonPrimitive?.content
     }
 
     /*--------------------------------Video extractors------------------------------------*/
