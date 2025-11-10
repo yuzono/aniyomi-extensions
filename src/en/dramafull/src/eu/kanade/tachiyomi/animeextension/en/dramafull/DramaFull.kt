@@ -1,0 +1,280 @@
+package eu.kanade.tachiyomi.animeextension.en.dramafull
+
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter
+import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimesPage
+import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.animesource.model.Track
+import eu.kanade.tachiyomi.animesource.model.Video
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.POST
+import eu.kanade.tachiyomi.network.awaitSuccess
+import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parseAs
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import org.jsoup.nodes.Element
+import uy.kohesive.injekt.injectLazy
+
+class DramaFull : AnimeHttpSource() {
+
+    override val name = "DramaFull"
+
+    override val baseUrl = "https://dramafull.cc"
+
+    override val lang = "en"
+
+    override val supportsLatest = true
+
+    private val json: Json by injectLazy()
+
+    private val apiJson = Json(from = json) {
+        encodeDefaults = true
+        explicitNulls = false
+    }
+
+    private val jsonMime = "application/json".toMediaType()
+
+    // ============================== Popular ===============================
+    override fun popularAnimeRequest(page: Int): Request {
+        val payload = FilterPayload(page = page, sort = 5, country = -1)
+        val body = apiJson.encodeToString(payload).toRequestBody(jsonMime)
+        return POST("$baseUrl/api/filter", headers, body)
+    }
+
+    override fun popularAnimeParse(response: Response): AnimesPage {
+        val parsed = response.parseAs<FilterResponse>()
+        val animes = parsed.data.map(::searchAnimeFromDto)
+        val hasNextPage = parsed.nextPageUrl != null
+        return AnimesPage(animes, hasNextPage)
+    }
+
+    // =============================== Latest ===============================
+    override fun latestUpdatesRequest(page: Int): Request {
+        return GET("$baseUrl/recently-updated?page=$page", headers)
+    }
+
+    override fun latestUpdatesParse(response: Response): AnimesPage {
+        val document = response.asJsoup()
+        val animes = document.select("div.flw-item").map(::latestAnimeFromElement)
+        val hasNextPage =
+            document.selectFirst("ul.pagination li.page-item a[href*=\"recently-updated?page=\"]:has(i.fa-angle-right)") != null
+        return AnimesPage(animes, hasNextPage)
+    }
+
+    private fun latestAnimeFromElement(element: Element): SAnime {
+        return SAnime.create().apply {
+            val a = element.selectFirst("a.film-poster-ahref")!!
+            setUrlWithoutDomain(a.attr("href"))
+            title = a.attr("title")
+            thumbnail_url = element.selectFirst("img.film-poster-img")?.let {
+                it.attr("data-src").ifBlank { it.attr("src") }
+            }?.let(::absUrl)
+        }
+    }
+
+    // =============================== Search ===============================
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val payload = FilterPayload(
+            page = page,
+            keyword = query.takeIf(String::isNotBlank),
+            type = filters.firstInstanceOrNull<DramaFullFilters.TypeFilter>()?.getValue() ?: -1,
+            country = filters.firstInstanceOrNull<DramaFullFilters.CountryFilter>()?.getValue() ?: -1,
+            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue() ?: 4, // "4" is Name A-Z site default
+            genres = filters.firstInstanceOrNull<DramaFullFilters.GenreFilter>()
+                ?.state
+                ?.filter { it.state }
+                ?.map { it.id }
+                ?: emptyList(),
+            adult = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
+                ?.let { it.state != AnimeFilter.TriState.STATE_EXCLUDE } ?: true,
+            adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultOnlyFilter>()
+                ?.let { it.state == AnimeFilter.TriState.STATE_INCLUDE } ?: false,
+        )
+        val body = apiJson.encodeToString(payload).toRequestBody(jsonMime)
+        return POST("$baseUrl/api/filter", headers, body)
+    }
+
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        return popularAnimeParse(response)
+    }
+
+    private fun searchAnimeFromDto(dto: DramaDto): SAnime {
+        return SAnime.create().apply {
+            setUrlWithoutDomain("/film/${dto.slug}")
+            title = dto.name
+            thumbnail_url = dto.thumbnail?.let(::absUrl) // Handle nullable thumbnail
+        }
+    }
+
+    // ============================== Details ===============================
+    override fun animeDetailsParse(response: Response): SAnime {
+        val document = response.asJsoup()
+        return SAnime.create().apply {
+            title = document.selectFirst("h1.film-name")!!.text()
+            thumbnail_url = document.selectFirst("div.cover-image")
+                ?.attr("style")
+                ?.substringAfter("url('", "")
+                ?.substringBefore("')", "")
+                ?.let(::absUrl)
+
+            genre = document.select("div.genre-list a.genre").joinToString { it.text() }
+
+            // Status: A movie has NO "div#episode-section"
+            val isMovie = document.selectFirst("div#episode-section") == null
+            status = if (isMovie) SAnime.COMPLETED else SAnime.ONGOING
+
+            val descriptionText = document.selectFirst("p.summary-content")?.text()
+            val releaseDate = document.selectFirst("div.released-at")
+                ?.text()
+                ?.substringAfter("Released at:")
+                ?.trim()
+                ?.takeIf(String::isNotBlank)
+            val altName = document.selectFirst("h2.fst-italic")?.text()
+
+            description = buildString {
+                if (!descriptionText.isNullOrBlank()) {
+                    append(descriptionText)
+                }
+                if (releaseDate != null) {
+                    append("\n\n**Released at:** $releaseDate")
+                }
+                if (!altName.isNullOrBlank()) {
+                    append("\n\n**Alternative Name(s):**\n$altName")
+                }
+            }.trim()
+        }
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        return document.select("div#latest-release div.flw-item")
+            .map(::latestAnimeFromElement)
+    }
+
+    // ============================== Filters ===============================
+    override fun getFilterList(): AnimeFilterList = DramaFullFilters.FILTER_LIST
+
+    // ============================== Episodes ==============================
+    override fun episodeListParse(response: Response): List<SEpisode> {
+        val document = response.asJsoup()
+
+        // Try to parse as TV Show first
+        val episodeList = document.select("div#episode-section div.episode-item a.btn-play")
+        if (episodeList.isNotEmpty()) {
+            return episodeList.mapNotNull { element ->
+                val epText = element.text()
+                val epNumStr = epText.substringBefore("(").trim()
+                val epNum = epNumStr.toFloatOrNull() ?: return@mapNotNull null
+
+                SEpisode.create().apply {
+                    url = element.attr("href")
+                    name = "Episode $epNumStr"
+                    episode_number = epNum
+                    scanlator = epText.substringAfter("(").substringBefore(")").trim() // "SUB" or "RAW"
+                }
+            }.reversed()
+        }
+
+        // Fallback to Movie
+        val movieLink = document.selectFirst("div.last-episode a[href*=\"/watch/\"]")
+            ?: document.selectFirst("a.btn-play[href*=\"/watch/\"]") // Fallback selector
+
+        if (movieLink != null) {
+            return listOf(
+                SEpisode.create().apply {
+                    url = movieLink.attr("href")
+                    name = "Movie"
+                    episode_number = 1f
+                },
+            )
+        }
+        return emptyList()
+    }
+
+    // ============================ Video Links =============================
+    override suspend fun getVideoList(episode: SEpisode): List<Video> {
+        // Get watch page
+        val watchPage = client.newCall(GET(episode.url, headers)).awaitSuccess().asJsoup()
+
+        // Get backend player URL
+        val backendUrl = watchPage.selectFirst("div#base-url[baseUrl]")
+            ?.attr("baseUrl")
+            ?: throw Exception("Could not find backend URL")
+
+        val backendPage = client.newCall(GET(backendUrl, headers)).awaitSuccess().body.string()
+
+        // Get signed API URL (and clean it)
+        val signedUrl = SIGNED_URL_REGEX.find(backendPage)?.groupValues?.get(1)
+            ?.replace("\\/", "/") // Fix escaped slashes
+            ?: throw Exception("Could not find signed URL. Cloudflare?")
+
+        // Get video JSON (use the cleaned, absolute signedUrl)
+        val videoData = client.newCall(GET(signedUrl, headers)).awaitSuccess()
+            .parseAs<VideoResponse>()
+
+        // Extract subtitles
+        val subtitles = videoData.sub?.let { subElement ->
+            if (subElement is JsonObject) {
+                try {
+                    val subtitleMap = json.decodeFromJsonElement<Map<String, List<String>>>(subElement)
+                    subtitleMap.values.flatten().distinct().map { subUrl ->
+                        Track(absUrl(subUrl), "English")
+                    }
+                } catch (_: Exception) {
+                    emptyList() // Failed to parse, treat as no subs
+                }
+            } else {
+                emptyList() // If a JsonArray (like "[]") or something else
+            }
+        } ?: emptyList()
+
+        // Extract videos
+        val videoList = videoData.videoSource.mapNotNull { (quality, videoUrl) ->
+            if (videoUrl.isNullOrBlank()) return@mapNotNull null
+            Video(videoUrl, "DramaFull ${quality}p", videoUrl, subtitleTracks = subtitles)
+        }
+
+        return videoList.sortedByDescending { QUALITY_REGEX.find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0 }
+    }
+
+    // ============================= Utilities ==============================
+    private fun absUrl(url: String): String {
+        return when {
+            url.startsWith("http") -> url
+            url.startsWith("//") -> "https:$url"
+            else -> "$baseUrl$url"
+        }
+    }
+
+    @Serializable
+    private data class FilterPayload(
+        val page: Int,
+        val type: Int = -1,
+        val country: Int = -1,
+        val sort: Int,
+        val adult: Boolean = true,
+        val adultOnly: Boolean = false,
+        val ignoreWatched: Boolean = false,
+        val genres: List<Int> = emptyList(),
+        val keyword: String? = null,
+    )
+
+    private inline fun <reified T> AnimeFilterList.firstInstanceOrNull(): T? {
+        return firstOrNull { it is T } as? T
+    }
+
+    companion object {
+        private val SIGNED_URL_REGEX = Regex("""window\.signedUrl\s*=\s*"([^"]+)"""")
+        private val QUALITY_REGEX = Regex("""(\d+)p""")
+    }
+}
