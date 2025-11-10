@@ -141,17 +141,11 @@ class DramaFull : AnimeHttpSource() {
                 ?.takeIf(String::isNotBlank)
             val altName = document.selectFirst("h2.fst-italic")?.text()
 
-            description = buildString {
-                if (!descriptionText.isNullOrBlank()) {
-                    append(descriptionText)
-                }
-                if (releaseDate != null) {
-                    append("\n\n**Released at:** $releaseDate")
-                }
-                if (!altName.isNullOrBlank()) {
-                    append("\n\n**Alternative Name(s):**\n$altName")
-                }
-            }.trim()
+            description = listOfNotNull(
+                descriptionText?.takeIf(String::isNotBlank),
+                releaseDate?.let { "**Released at:** $it" },
+                altName?.takeIf(String::isNotBlank)?.let { "**Alternative Name(s):**\n$it" },
+            ).joinToString("\n\n")
         }
     }
 
@@ -269,9 +263,7 @@ class DramaFull : AnimeHttpSource() {
         val keyword: String? = null,
     )
 
-    private inline fun <reified T> AnimeFilterList.firstInstanceOrNull(): T? {
-        return firstOrNull { it is T } as? T
-    }
+    private inline fun <reified T> AnimeFilterList.firstInstanceOrNull(): T? = filterIsInstance<T>().firstOrNull()
 
     companion object {
         private val SIGNED_URL_REGEX = Regex("""window\.signedUrl\s*=\s*"([^"]+)"""")

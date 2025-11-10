@@ -37,7 +37,6 @@ object DramaFullFilters {
         Pair("All", -1),
         Pair("TV-Show", 1),
         Pair("Movie", 2),
-        Pair("Music", 3),
     )
 
     private val SORT_LIST = arrayOf(
