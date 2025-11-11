@@ -197,9 +197,9 @@ class DramaFull : AnimeHttpSource() {
         val backendPage = client.newCall(GET(backendUrl, headers)).awaitSuccess().body.string()
 
         // Get signed API URL (and clean it)
-        val signedUrl = SIGNED_URL_REGEX.find(backendPage)?.groupValues?.get(1)
-            ?.replace("\\/", "/") // Fix escaped slashes
-            ?: throw Exception("Could not find signed URL. Cloudflare?")
+        val signedUrl = SIGNED_URL_REGEX.find(backendPage)?.destructured?.let { (url) ->
+            url.replace("\\/", "/") // Fix escaped slashes
+        } ?: throw Exception("Could not find signed URL. Cloudflare?")
 
         // Get video JSON (use the cleaned, absolute signedUrl)
         val videoData = client.newCall(GET(signedUrl, headers)).awaitSuccess()
