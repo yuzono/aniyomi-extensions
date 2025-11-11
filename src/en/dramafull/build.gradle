@@ -2,7 +2,7 @@ ext {
     extName = 'DramaFull'
     extClass = '.DramaFull'
     extVersionCode = 1
-    isNSFW = true
+    isNsfw = true
 }
 
 apply from: "$rootDir/common.gradle"
