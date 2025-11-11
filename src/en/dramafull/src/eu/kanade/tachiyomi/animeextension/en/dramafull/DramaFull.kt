@@ -12,15 +12,14 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
-import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.UrlUtils
+import extensions.utils.parseAs
+import extensions.utils.toRequestBody
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.jsoup.nodes.Element
 import uy.kohesive.injekt.injectLazy
@@ -42,18 +41,16 @@ class DramaFull : AnimeHttpSource() {
         explicitNulls = false
     }
 
-    private val jsonMime = "application/json".toMediaType()
-
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
         val payload = FilterPayload(page = page, sort = 5, country = -1)
-        val body = apiJson.encodeToString(payload).toRequestBody(jsonMime)
+        val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
 
     override fun popularAnimeParse(response: Response): AnimesPage {
-        val parsed = response.parseAs<FilterResponse>()
-        val animes = parsed.data.map(::searchAnimeFromDto)
+        val parsed = response.parseAs<FilterResponse>(json)
+        val animes = parsed.data.map { it.toSAnime(baseUrl) }
         val hasNextPage = parsed.nextPageUrl != null
         return AnimesPage(animes, hasNextPage)
     }
@@ -74,11 +71,11 @@ class DramaFull : AnimeHttpSource() {
     private fun latestAnimeFromElement(element: Element): SAnime {
         return SAnime.create().apply {
             val a = element.selectFirst("a.film-poster-ahref")!!
-            setUrlWithoutDomain(a.attr("href"))
+            url = a.attr("href")
             title = a.attr("title")
             thumbnail_url = element.selectFirst("img.film-poster-img")?.let {
                 it.attr("data-src").ifBlank { it.attr("src") }
-            }?.let(::absUrl)
+            }?.let { UrlUtils.fixUrl(it, baseUrl) }
         }
     }
 
@@ -100,20 +97,12 @@ class DramaFull : AnimeHttpSource() {
             adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultOnlyFilter>()
                 ?.let { it.state == AnimeFilter.TriState.STATE_INCLUDE } ?: false,
         )
-        val body = apiJson.encodeToString(payload).toRequestBody(jsonMime)
+        val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
 
     override fun searchAnimeParse(response: Response): AnimesPage {
         return popularAnimeParse(response)
-    }
-
-    private fun searchAnimeFromDto(dto: DramaDto): SAnime {
-        return SAnime.create().apply {
-            setUrlWithoutDomain("/film/${dto.slug}")
-            title = dto.name
-            thumbnail_url = dto.thumbnail?.let(::absUrl) // Handle nullable thumbnail
-        }
     }
 
     // ============================== Details ===============================
@@ -125,7 +114,7 @@ class DramaFull : AnimeHttpSource() {
                 ?.attr("style")
                 ?.substringAfter("url('", "")
                 ?.substringBefore("')", "")
-                ?.let(::absUrl)
+                ?.let { UrlUtils.fixUrl(it, baseUrl) }
 
             genre = document.select("div.genre-list a.genre").joinToString { it.text() }
 
@@ -214,7 +203,7 @@ class DramaFull : AnimeHttpSource() {
 
         // Get video JSON (use the cleaned, absolute signedUrl)
         val videoData = client.newCall(GET(signedUrl, headers)).awaitSuccess()
-            .parseAs<VideoResponse>()
+            .parseAs<VideoResponse>(json)
 
         // Extract subtitles
         val subtitles = videoData.sub?.let { subElement ->
@@ -222,7 +211,7 @@ class DramaFull : AnimeHttpSource() {
                 try {
                     val subtitleMap = json.decodeFromJsonElement<Map<String, List<String>>>(subElement)
                     subtitleMap.values.flatten().distinct().map { subUrl ->
-                        Track(absUrl(subUrl), "English")
+                        Track(UrlUtils.fixUrl(subUrl, baseUrl), "English")
                     }
                 } catch (_: Exception) {
                     emptyList() // Failed to parse, treat as no subs
@@ -238,17 +227,12 @@ class DramaFull : AnimeHttpSource() {
             Video(videoUrl, "DramaFull ${quality}p", videoUrl, subtitleTracks = subtitles)
         }
 
-        return videoList.sortedByDescending { QUALITY_REGEX.find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0 }
+        return videoList.sortedByDescending {
+            QUALITY_REGEX.find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        }
     }
 
     // ============================= Utilities ==============================
-    private fun absUrl(url: String): String {
-        return when {
-            url.startsWith("http") -> url
-            url.startsWith("//") -> "https:$url"
-            else -> "$baseUrl$url"
-        }
-    }
 
     @Serializable
     private data class FilterPayload(
