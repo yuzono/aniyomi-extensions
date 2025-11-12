@@ -68,10 +68,10 @@ class DramaFull : AnimeHttpSource() {
         return AnimesPage(animes, hasNextPage)
     }
 
-    private fun latestAnimeFromElement(element: Element): SAnime {
+    private fun latestAnimeFromElement(element: Element): SAnime? {
+        val a = element.selectFirst("a.film-poster-ahref") ?: return null
         return SAnime.create().apply {
-            val a = element.selectFirst("a.film-poster-ahref")!!
-            url = a.attr("href")
+            setUrlWithoutDomain(a.attr("href"))
             title = a.attr("title")
             thumbnail_url = element.selectFirst("img.film-poster-img")?.let {
                 it.attr("data-src").ifBlank { it.attr("src") }
