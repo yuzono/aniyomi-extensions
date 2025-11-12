@@ -43,7 +43,7 @@ class DramaFull : AnimeHttpSource() {
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
-        val payload = FilterPayload(page = page, sort = 5, country = -1)
+        val payload = getFilterPayload(page).copy(sort = 5) // 5 = Most Watched
         val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
@@ -62,7 +62,7 @@ class DramaFull : AnimeHttpSource() {
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val document = response.asJsoup()
-        val animes = document.select("div.flw-item").map(::latestAnimeFromElement)
+        val animes = document.select("div.flw-item").mapNotNull(::latestAnimeFromElement)
         val hasNextPage =
             document.selectFirst("ul.pagination li.page-item a[href*=\"recently-updated?page=\"]:has(i.fa-angle-right)") != null
         return AnimesPage(animes, hasNextPage)
@@ -80,8 +80,12 @@ class DramaFull : AnimeHttpSource() {
     }
 
     // =============================== Search ===============================
-    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val payload = FilterPayload(
+    private fun getFilterPayload(
+        page: Int,
+        query: String = "",
+        filters: AnimeFilterList = AnimeFilterList(),
+    ): FilterPayload {
+        return FilterPayload(
             page = page,
             keyword = query.takeIf(String::isNotBlank),
             type = filters.firstInstanceOrNull<DramaFullFilters.TypeFilter>()?.getValue() ?: -1,
@@ -97,6 +101,10 @@ class DramaFull : AnimeHttpSource() {
             adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultOnlyFilter>()
                 ?.let { it.state == AnimeFilter.TriState.STATE_INCLUDE } ?: false,
         )
+    }
+
+    override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
+        val payload = getFilterPayload(page, query, filters)
         val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
@@ -109,7 +117,7 @@ class DramaFull : AnimeHttpSource() {
     override fun animeDetailsParse(response: Response): SAnime {
         val document = response.asJsoup()
         return SAnime.create().apply {
-            title = document.selectFirst("h1.film-name")!!.text()
+            title = document.selectFirst("h1.film-name")?.text().orEmpty()
             thumbnail_url = document.selectFirst("div.cover-image")
                 ?.attr("style")
                 ?.substringAfter("url('", "")
@@ -141,7 +149,7 @@ class DramaFull : AnimeHttpSource() {
     override fun relatedAnimeListParse(response: Response): List<SAnime> {
         val document = response.asJsoup()
         return document.select("div#latest-release div.flw-item")
-            .map(::latestAnimeFromElement)
+            .mapNotNull(::latestAnimeFromElement)
     }
 
     // ============================== Filters ===============================
