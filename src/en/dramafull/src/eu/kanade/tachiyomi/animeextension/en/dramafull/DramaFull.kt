@@ -117,7 +117,7 @@ class DramaFull : AnimeHttpSource() {
     override fun animeDetailsParse(response: Response): SAnime {
         val document = response.asJsoup()
         return SAnime.create().apply {
-            title = document.selectFirst("h1.film-name")?.text().orEmpty()
+            title = document.selectFirst("h1.film-name")?.text()!!
             thumbnail_url = document.selectFirst("div.cover-image")
                 ?.attr("style")
                 ?.substringAfter("url('", "")
@@ -165,12 +165,12 @@ class DramaFull : AnimeHttpSource() {
             return episodeList.mapNotNull { element ->
                 val epText = element.text()
                 val epNumStr = epText.substringBefore("(").trim()
-                val epNum = epNumStr.toFloatOrNull() ?: return@mapNotNull null
+                val epNum = epNumStr.toFloatOrNull()
 
                 SEpisode.create().apply {
                     url = element.attr("href")
                     name = "Episode $epNumStr"
-                    episode_number = epNum
+                    epNum?.let { episode_number = it }
                     scanlator = epText.substringAfter("(").substringBefore(")").trim() // "SUB" or "RAW"
                 }
             }.reversed()
