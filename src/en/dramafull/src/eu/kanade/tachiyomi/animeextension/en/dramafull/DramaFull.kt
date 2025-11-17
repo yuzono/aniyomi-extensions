@@ -168,7 +168,7 @@ class DramaFull : AnimeHttpSource() {
                 val epNum = epNumStr.toFloatOrNull()
 
                 SEpisode.create().apply {
-                    url = element.attr("href")
+                    setUrlWithoutDomain(element.attr("href"))
                     name = "Episode $epNumStr"
                     epNum?.let { episode_number = it }
                     scanlator = epText.substringAfter("(").substringBefore(")").trim() // "SUB" or "RAW"
@@ -183,7 +183,7 @@ class DramaFull : AnimeHttpSource() {
         if (movieLink != null) {
             return listOf(
                 SEpisode.create().apply {
-                    url = movieLink.attr("href")
+                    setUrlWithoutDomain(movieLink.attr("href"))
                     name = "Movie"
                     episode_number = 1f
                 },
