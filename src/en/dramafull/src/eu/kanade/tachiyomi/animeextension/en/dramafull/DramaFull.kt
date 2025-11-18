@@ -20,7 +20,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.Request
 import okhttp3.Response
-import org.jsoup.nodes.Element
 import uy.kohesive.injekt.injectLazy
 
 class DramaFull : AnimeHttpSource() {
@@ -42,7 +41,7 @@ class DramaFull : AnimeHttpSource() {
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
-        val payload = getFilterPayload(page).copy(sort = 5) // 5 = Most Watched
+        val payload = getFilterPayload(page = page, sort = 5) // 5 = Most Watched
         val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
@@ -56,51 +55,14 @@ class DramaFull : AnimeHttpSource() {
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int): Request {
-        return GET("$baseUrl/recently-updated?page=$page", headers)
+        val payload = getFilterPayload(page = page, sort = 2) // 2 = Recently Updated
+        val body = payload.toRequestBody(apiJson)
+        return POST("$baseUrl/api/filter", headers, body)
     }
 
-    override fun latestUpdatesParse(response: Response): AnimesPage {
-        val document = response.asJsoup()
-        val animes = document.select("div.flw-item").mapNotNull(::latestAnimeFromElement)
-        val hasNextPage =
-            document.selectFirst("ul.pagination li.page-item a[href*=\"recently-updated?page=\"]:has(i.fa-angle-right)") != null
-        return AnimesPage(animes, hasNextPage)
-    }
-
-    private fun latestAnimeFromElement(element: Element): SAnime? {
-        val a = element.selectFirst("a.film-poster-ahref") ?: return null
-        return SAnime.create().apply {
-            setUrlWithoutDomain(a.attr("href"))
-            title = a.attr("title")
-            thumbnail_url = element.selectFirst("img.film-poster-img")?.let {
-                it.attr("data-src").ifBlank { it.attr("src") }
-            }?.let { UrlUtils.fixUrl(it, baseUrl) }
-        }
-    }
+    override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
 
     // =============================== Search ===============================
-    private fun getFilterPayload(
-        page: Int,
-        query: String = "",
-        filters: AnimeFilterList = AnimeFilterList(),
-    ): FilterPayload {
-        return FilterPayload(
-            page = page,
-            keyword = query.takeIf(String::isNotBlank),
-            type = filters.firstInstanceOrNull<DramaFullFilters.TypeFilter>()?.getValue() ?: -1,
-            country = filters.firstInstanceOrNull<DramaFullFilters.CountryFilter>()?.getValue() ?: -1,
-            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue() ?: 4, // "4" is Name A-Z site default
-            genres = filters.firstInstanceOrNull<DramaFullFilters.GenreFilter>()
-                ?.state
-                ?.filter { it.state }
-                ?.map { it.id }
-                ?: emptyList(),
-            adult = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
-                ?.let { it.getValue() != -1 } ?: true,
-            adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
-                ?.let { it.getValue() == 1 } ?: false,
-        )
-    }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val payload = getFilterPayload(page, query, filters)
@@ -108,8 +70,32 @@ class DramaFull : AnimeHttpSource() {
         return POST("$baseUrl/api/filter", headers, body)
     }
 
-    override fun searchAnimeParse(response: Response): AnimesPage {
-        return popularAnimeParse(response)
+    override fun searchAnimeParse(response: Response) = popularAnimeParse(response)
+
+    private fun getFilterPayload(
+        page: Int,
+        query: String = "",
+        filters: AnimeFilterList = AnimeFilterList(),
+        sort: Int = 4, // "4" is Name A-Z site default
+    ): FilterPayload {
+        return FilterPayload(
+            page = page,
+            keyword = query.trim(),
+            type = filters.firstInstanceOrNull<DramaFullFilters.TypeFilter>()?.getValue() ?: -1,
+            country = filters.firstInstanceOrNull<DramaFullFilters.CountryFilter>()?.getValue() ?: -1,
+            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue() ?: sort,
+            genres = listOf(0) + (
+                filters.firstInstanceOrNull<DramaFullFilters.GenreFilter>()
+                    ?.state
+                    ?.filter { it.state }
+                    ?.map { it.id }
+                    ?: emptyList()
+                ),
+            adult = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
+                ?.let { it.getValue() != -1 } ?: true,
+            adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
+                ?.let { it.getValue() == 1 } ?: false,
+        )
     }
 
     // ============================== Details ===============================
@@ -148,7 +134,16 @@ class DramaFull : AnimeHttpSource() {
     override fun relatedAnimeListParse(response: Response): List<SAnime> {
         val document = response.asJsoup()
         return document.select("div#latest-release div.flw-item")
-            .mapNotNull(::latestAnimeFromElement)
+            .mapNotNull { element ->
+                val a = element.selectFirst("a.film-poster-ahref") ?: return@mapNotNull null
+                SAnime.create().apply {
+                    setUrlWithoutDomain(a.attr("href"))
+                    title = a.attr("title")
+                    thumbnail_url = element.selectFirst("img.film-poster-img")?.let {
+                        it.attr("data-src").ifBlank { it.attr("src") }
+                    }?.let { UrlUtils.fixUrl(it, baseUrl) }
+                }
+            }
     }
 
     // ============================== Filters ===============================
@@ -250,8 +245,8 @@ class DramaFull : AnimeHttpSource() {
         val adult: Boolean = true,
         val adultOnly: Boolean = false,
         val ignoreWatched: Boolean = false,
-        val genres: List<Int> = emptyList(),
-        val keyword: String? = null,
+        val genres: List<Int> = listOf(0),
+        val keyword: String = "",
     )
 
     private inline fun <reified T> AnimeFilterList.firstInstanceOrNull(): T? = filterIsInstance<T>().firstOrNull()
