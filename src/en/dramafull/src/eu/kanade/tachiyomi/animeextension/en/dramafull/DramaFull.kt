@@ -195,7 +195,7 @@ class DramaFull : AnimeHttpSource() {
     // ============================ Video Links =============================
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         // Get watch page
-        val watchPage = client.newCall(GET(episode.url, headers)).awaitSuccess().asJsoup()
+        val watchPage = client.newCall(videoListRequest(episode)).awaitSuccess().asJsoup()
 
         // Get backend player URL
         val backendUrl = watchPage.selectFirst("div#base-url[baseUrl]")
