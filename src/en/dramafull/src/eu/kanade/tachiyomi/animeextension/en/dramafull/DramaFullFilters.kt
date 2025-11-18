@@ -5,8 +5,8 @@ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 
 object DramaFullFilters {
 
-    open class SelectFilter(displayName: String, val vals: Array<Pair<String, Int>>) :
-        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
+    open class SelectFilter(displayName: String, val vals: Array<Pair<String, Int>>, state: Int = 0) :
+        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray(), state) {
         fun getValue() = vals[state].second
     }
 
@@ -14,10 +14,7 @@ object DramaFullFilters {
     class CountryFilter : SelectFilter("Country", COUNTRY_LIST)
     class SortFilter : SelectFilter("Sort", SORT_LIST)
 
-    open class TriStateFilter(name: String, state: Int = STATE_IGNORE) : AnimeFilter.TriState(name, state)
-
-    class AdultFilter : TriStateFilter("18+ Included", STATE_INCLUDE)
-    class AdultOnlyFilter : TriStateFilter("18+ Only")
+    class AdultFilter : SelectFilter("Adult filter", ADULT_FILTER, 1)
 
     class Genre(name: String, val id: Int) : AnimeFilter.CheckBox(name, false)
     class GenreFilter(genres: List<Genre>) : AnimeFilter.Group<Genre>("Genres", genres)
@@ -26,11 +23,16 @@ object DramaFullFilters {
         TypeFilter(),
         CountryFilter(),
         SortFilter(),
-        AnimeFilter.Separator(),
         AdultFilter(),
-        AdultOnlyFilter(),
         AnimeFilter.Separator(),
         GenreFilter(GENRE_LIST),
+        AnimeFilter.Separator(),
+    )
+
+    internal val ADULT_FILTER = arrayOf(
+        Pair("Non 18+", -1),
+        Pair("18+ included", 0),
+        Pair("18+ Only", 1),
     )
 
     private val TYPE_LIST = arrayOf(

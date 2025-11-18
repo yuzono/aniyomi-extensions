@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.en.dramafull
 
-import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -97,9 +96,9 @@ class DramaFull : AnimeHttpSource() {
                 ?.map { it.id }
                 ?: emptyList(),
             adult = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
-                ?.let { it.state != AnimeFilter.TriState.STATE_EXCLUDE } ?: true,
-            adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultOnlyFilter>()
-                ?.let { it.state == AnimeFilter.TriState.STATE_INCLUDE } ?: false,
+                ?.let { it.getValue() != -1 } ?: true,
+            adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
+                ?.let { it.getValue() == 1 } ?: false,
         )
     }
 
