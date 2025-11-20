@@ -65,7 +65,16 @@ class DramaFull : AnimeHttpSource() {
     // =============================== Search ===============================
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val payload = getFilterPayload(page, query, filters)
+        val payload = getFilterPayload(
+            page = page,
+            query = query,
+            filters = filters,
+            sort = if (query.isNotBlank()) {
+                4 // 4 = Name A-Z
+            } else {
+                1 // 1 = Recently Added
+            },
+        )
         val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
@@ -76,14 +85,14 @@ class DramaFull : AnimeHttpSource() {
         page: Int,
         query: String = "",
         filters: AnimeFilterList = AnimeFilterList(),
-        sort: Int = 4, // "4" is Name A-Z site default
+        sort: Int,
     ): FilterPayload {
         return FilterPayload(
             page = page,
             keyword = query.trim(),
             type = filters.firstInstanceOrNull<DramaFullFilters.TypeFilter>()?.getValue() ?: -1,
             country = filters.firstInstanceOrNull<DramaFullFilters.CountryFilter>()?.getValue() ?: -1,
-            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue() ?: sort,
+            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue().takeIf { it != 0 } ?: sort,
             genres = listOf(0) + (
                 filters.firstInstanceOrNull<DramaFullFilters.GenreFilter>()
                     ?.state

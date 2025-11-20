@@ -42,6 +42,7 @@ object DramaFullFilters {
     )
 
     private val SORT_LIST = arrayOf(
+        Pair("<Default sort>", 0),
         Pair("Recently Added", 1),
         Pair("Recently Updated", 2),
         Pair("Score", 3),
