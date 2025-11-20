@@ -131,11 +131,23 @@ class DramaFull : AnimeHttpSource() {
                 ?.trim()
                 ?.takeIf(String::isNotBlank)
             val altName = document.selectFirst("h2.fst-italic")?.text()
+                ?.replace(",", ", ")
+            val countries = document.select(".info-wrapper .country-list img")
+                .mapNotNull { elm ->
+                    elm.attr("alt")
+                        .let {
+                            it.split("-")
+                                .joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
+                        }
+                        .takeIf(String::isNotBlank)
+                }
+                .joinToString()
 
             description = listOfNotNull(
                 descriptionText?.takeIf(String::isNotBlank),
                 releaseDate?.let { "**Released at:** $it" },
                 altName?.takeIf(String::isNotBlank)?.let { "**Alternative Name(s):**\n$it" },
+                countries.takeIf(String::isNotBlank)?.let { "**Country(s):** $it" },
             ).joinToString("\n\n")
         }
     }
