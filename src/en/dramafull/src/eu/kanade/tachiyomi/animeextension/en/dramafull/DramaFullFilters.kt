@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.en.dramafull
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
-import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 
 object DramaFullFilters {
 
@@ -14,25 +13,15 @@ object DramaFullFilters {
     class CountryFilter : SelectFilter("Country", COUNTRY_LIST)
     class SortFilter : SelectFilter("Sort", SORT_LIST)
 
-    class AdultFilter : SelectFilter("Adult filter", ADULT_FILTER, 1)
+    class AdultFilter(default: Int = 1) : SelectFilter("Adult filter", ADULT_FILTER.toList().toTypedArray(), default)
 
     class Genre(name: String, val id: Int) : AnimeFilter.CheckBox(name, false)
-    class GenreFilter(genres: List<Genre>) : AnimeFilter.Group<Genre>("Genres", genres)
+    class GenreFilter(genres: List<Genre> = GENRE_LIST) : AnimeFilter.Group<Genre>("Genres", genres)
 
-    val FILTER_LIST get() = AnimeFilterList(
-        TypeFilter(),
-        CountryFilter(),
-        SortFilter(),
-        AdultFilter(),
-        AnimeFilter.Separator(),
-        GenreFilter(GENRE_LIST),
-        AnimeFilter.Separator(),
-    )
-
-    internal val ADULT_FILTER = arrayOf(
-        Pair("Non 18+", -1),
-        Pair("18+ included", 0),
-        Pair("18+ Only", 1),
+    internal val ADULT_FILTER = mapOf(
+        "Non 18+" to -1,
+        "18+ included" to 0,
+        "18+ Only" to 1,
     )
 
     private val TYPE_LIST = arrayOf(

@@ -1,5 +1,9 @@
 package eu.kanade.tachiyomi.animeextension.en.dramafull
 
+import android.content.SharedPreferences
+import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
+import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -12,6 +16,8 @@ import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.UrlUtils
+import extensions.utils.addListPreference
+import extensions.utils.getPreferencesLazy
 import extensions.utils.parseAs
 import extensions.utils.toRequestBody
 import kotlinx.serialization.Serializable
@@ -22,7 +28,7 @@ import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
 
-class DramaFull : AnimeHttpSource() {
+class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val name = "DramaFull"
 
@@ -38,6 +44,8 @@ class DramaFull : AnimeHttpSource() {
         encodeDefaults = true
         explicitNulls = false
     }
+
+    private val preferences by getPreferencesLazy()
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
@@ -100,10 +108,8 @@ class DramaFull : AnimeHttpSource() {
                     ?.map { it.id }
                     ?: emptyList()
                 ),
-            adult = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
-                ?.let { it.getValue() != -1 } ?: true,
-            adultOnly = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()
-                ?.let { it.getValue() == 1 } ?: false,
+            adult = (filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()?.getValue() ?: preferences.defaultAdultRating) != -1,
+            adultOnly = (filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()?.getValue() ?: preferences.defaultAdultRating) == 1,
         )
     }
 
@@ -168,7 +174,15 @@ class DramaFull : AnimeHttpSource() {
     }
 
     // ============================== Filters ===============================
-    override fun getFilterList(): AnimeFilterList = DramaFullFilters.FILTER_LIST
+    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+        DramaFullFilters.TypeFilter(),
+        DramaFullFilters.CountryFilter(),
+        DramaFullFilters.SortFilter(),
+        DramaFullFilters.AdultFilter(DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating)),
+        AnimeFilter.Separator(),
+        DramaFullFilters.GenreFilter(),
+        AnimeFilter.Separator(),
+    )
 
     // ============================== Episodes ==============================
     override fun episodeListParse(response: Response): List<SEpisode> {
@@ -257,6 +271,20 @@ class DramaFull : AnimeHttpSource() {
 
     // ============================= Utilities ==============================
 
+    private val SharedPreferences.defaultAdultRating
+        get() = getString(PREF_DEFAULT_RATING, "0")?.toIntOrNull() ?: 0
+
+    override fun setupPreferenceScreen(screen: PreferenceScreen) {
+        screen.addListPreference(
+            key = PREF_DEFAULT_RATING,
+            title = "Preferred server",
+            entries = DramaFullFilters.ADULT_FILTER.keys.toList(),
+            entryValues = DramaFullFilters.ADULT_FILTER.values.map { it.toString() },
+            default = "0", // 18+ included
+            summary = "%s",
+        )
+    }
+
     @Serializable
     private data class FilterPayload(
         val page: Int,
@@ -275,5 +303,7 @@ class DramaFull : AnimeHttpSource() {
     companion object {
         private val SIGNED_URL_REGEX = Regex("""window\.signedUrl\s*=\s*"([^"]+)"""")
         private val QUALITY_REGEX = Regex("""(\d+)p""")
+
+        private const val PREF_DEFAULT_RATING = "pref_default_rating"
     }
 }
