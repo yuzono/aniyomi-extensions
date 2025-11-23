@@ -142,6 +142,5 @@ data class VideoDataDto(
 data class SubtitleDto(
     val url: String,
     val language: String,
-    val display: String? = null,
-    val isHearingImpaired: Boolean = false,
+    @SerialName("isHearingImpaired") val isHearingImpaired: Boolean = false,
 )

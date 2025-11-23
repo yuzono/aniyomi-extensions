@@ -491,21 +491,17 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
 
         return try {
             val subLimit = preferences.subLimitPref.toIntOrNull() ?: PREF_SUB_LIMIT_DEFAULT.toInt()
-            val preferredLang = preferences.subLangPref
+            val preferredSubLang = preferences.subLangPref
 
-            client.newCall(GET(url)).awaitSuccess()
-                .parseAs<List<SubtitleDto>>()
+            val subtitles = client.newCall(GET(url, headers))
+                .awaitSuccess().use { it.parseAs<List<SubtitleDto>>() }
+            subtitles
                 .take(subLimit)
                 .map { sub ->
-                    // Convert code to display name (e.g. "en" -> "English")
-                    val displayLang = SUB_LANGS[sub.language] ?: Locale(sub.language).displayLanguage
-                    val finalLang = displayLang.ifEmpty { sub.language }
-
-                    val langLabel = if (sub.isHearingImpaired) "$finalLang (CC)" else finalLang
-
+                    val langLabel = if (sub.isHearingImpaired) "${sub.language} (CC)" else sub.language
                     Track(sub.url, langLabel)
                 }
-                .sortedByDescending { it.lang.startsWith(preferredLang, true) }
+                .sortedByDescending { preferredSubLang.let(it.lang::startsWith) }
         } catch (_: Exception) {
             emptyList()
         }
@@ -573,8 +569,8 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
         screen.addListPreference(
             key = PREF_SUB_KEY,
             title = "Preferred Subtitle Language",
-            entries = SUB_LANGS.values.toList(),
-            entryValues = SUB_LANGS.keys.toList(),
+            entries = SUB_LANGS.map { it.second },
+            entryValues = SUB_LANGS.map { it.first },
             default = PREF_SUB_DEFAULT,
             summary = "%s",
         )
@@ -665,7 +661,7 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
         private val QUALITY_VALUES = listOf("2160", "1080", "720", "480", "360")
 
         private const val PREF_SUB_KEY = "pref_sub"
-        private const val PREF_SUB_DEFAULT = "English"
+        private const val PREF_SUB_DEFAULT = "en"
 
         private const val PREF_SUB_LIMIT_KEY = "pref_sub_limit"
         private const val PREF_SUB_LIMIT_DEFAULT = "35"
@@ -688,25 +684,25 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_HOSTERS_KEY = "hoster_selection"
 
-        private val SUB_LANGS = mapOf(
-            "ar" to "Arabic",
-            "bn" to "Bengali",
-            "zh" to "Chinese",
-            "en" to "English",
-            "fr" to "French",
-            "de" to "German",
-            "hi" to "Hindi",
-            "id" to "Indonesian",
-            "it" to "Italian",
-            "ja" to "Japanese",
-            "ko" to "Korean",
-            "fa" to "Persian",
-            "pt" to "Portuguese",
-            "ru" to "Russian",
-            "es" to "Spanish",
-            "tr" to "Turkish",
-            "ur" to "Urdu",
-            "vi" to "Vietnamese",
+        private val SUB_LANGS = listOf(
+            Pair("ar", "Arabic"),
+            Pair("bn", "Bengali"),
+            Pair("zh", "Chinese"),
+            Pair("en", "English"),
+            Pair("fr", "French"),
+            Pair("de", "German"),
+            Pair("hi", "Hindi"),
+            Pair("id", "Indonesian"),
+            Pair("it", "Italian"),
+            Pair("ja", "Japanese"),
+            Pair("ko", "Korean"),
+            Pair("fa", "Persian"),
+            Pair("pt", "Portuguese"),
+            Pair("ru", "Russian"),
+            Pair("es", "Spanish"),
+            Pair("tr", "Turkish"),
+            Pair("ur", "Urdu"),
+            Pair("vi", "Vietnamese"),
         )
     }
 }
