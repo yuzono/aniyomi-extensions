@@ -645,7 +645,7 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val TMDB_API_KEY = BuildConfig.TMDB_API
 
-        private const val NEXT_ACTION_KEY = "40c2896f5f22d9d6342e5a6d8f4d8c58d69654bacd"
+        private const val NEXT_ACTION_KEY = "40770771b1e06bb7435ca5d311ed845d4fd406dca2"
 
         private const val PREF_DOMAIN_KEY = "pref_domain"
         private const val PREF_DOMAIN_DEFAULT = "https://mapple.mov"
