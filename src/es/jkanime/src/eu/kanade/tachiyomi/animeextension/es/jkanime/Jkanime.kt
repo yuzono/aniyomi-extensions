@@ -361,11 +361,7 @@ class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
         Pair(4, "[CHIN]"),
     )
 
-    private fun Int.getLang(): String {
-        return languages.firstOrNull { it.first == this }?.second ?: ""
-    }
-
-    private fun Int?.getLang(): String = languages.firstOrNull { it.first == this }?.second ?: ""
+    private fun Int?.getLang() = languages.firstOrNull { it.first == this }?.second ?: ""
 
     private fun getVideoLinks(document: Document): List<Triple<String, String, String>> {
         val scriptServers = document.selectFirst("script:containsData(var video = [];)")?.data() ?: return emptyList()
