@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class JsLinks(
     val remote: String? = null,
-    val server: String? = null,
-    val lang: Long? = null,
     val slug: String? = null,
+    val server: String? = null,
+    val lang: Int? = null,
 )
 
 @Serializable

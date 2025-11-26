@@ -109,19 +109,20 @@ class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private val SERVER_LIST = listOf(
-            "Desu",
             "Okru",
             "Voe",
             "Filemoon",
             "StreamTape",
             "Mp4Upload",
             "Mixdrop",
+            "Streamwish",
             "DoodStream",
             "VidHide",
             "Mediafire",
             "Desuka",
-            "Magi",
             "Nozomi",
+            "Desu",
+            "Magi",
         )
         private val PREF_SERVER_DEFAULT = SERVER_LIST.first()
 
@@ -355,16 +356,18 @@ class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
         .let { jsonStr -> json.decodeFromString<EpisodesPageDto>(jsonStr) }
 
     private val languages = arrayOf(
-        Pair("1", "[JAP]"),
-        Pair("3", "[LAT]"),
-        Pair("4", "[CHIN]"),
+        Pair(1, "[JAP]"),
+        Pair(3, "[LAT]"),
+        Pair(4, "[CHIN]"),
     )
 
-    private fun String.getLang(): String {
+    private fun Int.getLang(): String {
         return languages.firstOrNull { it.first == this }?.second ?: ""
     }
 
-    private fun getVideoLinks(document: Document): List<Pair<String, String>> {
+    private fun Int?.getLang(): String = languages.firstOrNull { it.first == this }?.second ?: ""
+
+    private fun getVideoLinks(document: Document): List<Triple<String, String, String>> {
         val scriptServers = document.selectFirst("script:containsData(var video = [];)")?.data() ?: return emptyList()
         val isRemote = scriptServers.contains("= remote+'", true)
         val jsServer = scriptServers.substringAfter("var remote = '").substringBefore("'")
@@ -373,14 +376,16 @@ class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
         val jsLinks = if (isRemote && jsServer.isNotEmpty()) {
             client.newCall(GET(jsServer + jsPath)).execute().body.string()
         } else {
-            scriptServers.substringAfter("var servers = ").substringBefore(";").substringBefore("var")
-        }.parseAs<Array<JsLinks>>().map {
-            Pair(String(Base64.decode(it.remote, Base64.DEFAULT)), "${it.lang}".getLang())
-        }
+            val regex = Regex("""var servers\s*=\s*(\[.*]);""", RegexOption.UNIX_LINES)
+            regex.find(scriptServers)?.groupValues?.get(1)
+        }?.parseAs<Array<JsLinks>>()?.map {
+            Triple(String(Base64.decode(it.remote, Base64.DEFAULT)), it.lang.getLang(), it.server ?: "")
+        } ?: emptyList()
 
         val htmlLinks = document.select("div.bg-servers a").map {
             val serverId = it.attr("data-id")
-            val lang = it.attr("class").substringAfter("lg_").substringBefore(" ").getLang()
+            val lang = it.attr("class").substringAfter("lg_").substringBefore(" ").toIntOrNull()?.getLang() ?: ""
+            val name = it.text().ifBlank { "" } ?: ""
             val url = scriptServers
                 .substringAfter("video[$serverId] = '<iframe class=\"player_conte\" src=\"")
                 .substringBefore("\"")
@@ -388,7 +393,7 @@ class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
                 .replace("/jkvmixdrop.php?u=", "https://mixdrop.ag/e/")
                 .replace("/jksw.php?u=", "https://sfastwish.com/e/")
                 .replace("/jk.php?u=", "$baseUrl/")
-            Pair(url, lang)
+            Triple(url, lang, name)
         }
 
         return jsLinks + htmlLinks
@@ -402,44 +407,51 @@ class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
 
-    // Removed StreamWish extractor because it is causing timeout errors and significantly increasing load times.
-    // private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }
     private val jkanimeExtractor by lazy { JkanimeExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
 
-    private fun String.containsAny(vararg substrings: String): Boolean = substrings.any { it in this }
-
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        return getVideoLinks(document).parallelCatchingFlatMapBlocking { (url, lang) ->
-            when {
-                url.containsAny("mega.nz") -> emptyList() // Skip mega server
-                url.containsAny("ok.ru") -> okruExtractor.videosFromUrl(url, "$lang ")
-                url.containsAny("voe") -> voeExtractor.videosFromUrl(url, "$lang ")
-                url.containsAny("filemoon", "moonplayer") -> filemoonExtractor.videosFromUrl(url, "$lang Filemoon:")
-                url.containsAny("streamtape", "stp", "stape")
-                -> streamTapeExtractor.videosFromUrl(url, quality = "$lang StreamTape")
-                url.containsAny("mp4upload") -> mp4uploadExtractor.videosFromUrl(url, prefix = "$lang ", headers = headers)
-                url.containsAny("mixdrop", "mdbekjwqa") -> mixDropExtractor.videosFromUrl(url, prefix = "$lang ")
-                url.containsAny("sfastwish", "wishembed", "streamwish", "strwish", "wish") -> emptyList()
-                url.containsAny("d-s.io", "dsvplay")
-                -> doodExtractor.videosFromUrl(url.replace("d-s.io", "dsvplay.com"), "$lang ")
-                url.containsAny("vidhide") -> vidHideExtractor.videosFromUrl(url, videoNameGen = { "$lang VidHide:$it" })
-                url.containsAny("mediafire") -> jkanimeExtractor.getMediafireFromUrl(url, "$lang ")
-                url.containsAny("stream/jkmedia") -> jkanimeExtractor.getDesukaFromUrl(url, "$lang ")
-                url.containsAny("jkplayer/um2?") -> jkanimeExtractor.getNozomiFromUrl(url, "$lang ")
-                url.containsAny("jkplayer/um?") -> jkanimeExtractor.getDesuFromUrl(url, "$lang ")
-                url.containsAny("jkplayer/umv?") -> jkanimeExtractor.getMagiFromUrl(url, "$lang ")
-                else -> universalExtractor.videosFromUrl(url, headers, prefix = lang)
+        return getVideoLinks(document).parallelCatchingFlatMapBlocking { (url, lang, name) ->
+            val matched = serverMatching.firstOrNull { (_, names) -> names.any { it.lowercase() in url.lowercase() } }?.first ?: name.lowercase()
+            when (matched) {
+                // "mega" -> emptyList() // Skip mega server
+                "okru" -> okruExtractor.videosFromUrl(url, lang)
+                "voe" -> voeExtractor.videosFromUrl(url, "$lang ")
+                "filemoon" -> filemoonExtractor.videosFromUrl(url, prefix = "$lang Filemoon:")
+                "streamtape" -> streamTapeExtractor.videosFromUrl(url, quality = "$lang StreamTape")
+                "mp4upload" -> mp4uploadExtractor.videosFromUrl(url, prefix = "$lang ", headers = headers)
+                "mixdrop" -> mixDropExtractor.videoFromUrl(url, prefix = "$lang ")
+                // Removed StreamWish extractor because it is causing timeout errors and significantly increasing load times.
+                // "streamwish" -> streamWishExtractor.videosFromUrl(url, videoNameGen = { "$lang StreamWish:$it" }) // Use UniversalExtractor
+                "doostream" -> doodExtractor.videosFromUrl(url.replace("d-s.io", "dsvplay.com"), "$lang ${name.ifBlank { "Doodstream" }}")
+                "vidhide" -> vidHideExtractor.videosFromUrl(url, videoNameGen = { "$lang VidHide:$it" })
+                "mediafire" -> jkanimeExtractor.getMediafireFromUrl(url, "$lang ")
+                "desuka" -> jkanimeExtractor.getDesukaFromUrl(url, "$lang ")
+                "nozomi" -> jkanimeExtractor.getNozomiFromUrl(url, "$lang ")
+                "desu" -> jkanimeExtractor.getDesuFromUrl(url, "$lang ")
+                "magi" -> jkanimeExtractor.getMagiFromUrl(url, "$lang ")
+                else -> universalExtractor.videosFromUrl(url, headers, prefix = "$lang $name")
             }
         }
     }
 
-    override fun videoListSelector() = throw UnsupportedOperationException()
-    override fun videoUrlParse(document: Document) = throw UnsupportedOperationException()
-    override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
+    private val serverMatching = listOf(
+        "voe" to listOf("voe", "tubelessceliolymph", "simpulumlamerop", "urochsunloath", "nathanfromsubject", "yip.", "metagnathtuggers", "donaldlineelse"),
+        "okru" to listOf("ok.ru", "okru"),
+        "filemoon" to listOf("filemoon", "moonplayer", "moviesm4u", "files.im"),
+        "streamtape" to listOf("streamtape", "stp", "stape", "shavetape"),
+        "mixdrop" to listOf("mixdrop", "mxdrop", "mdbekjwqa"),
+        "streamwish" to listOf("sfastwish", "wishembed", "streamwish", "strwish", "wish", "Kswplayer", "Swhoi", "Multimovies", "Uqloads", "neko-stream", "swdyu", "iplayerhls", "streamgg"),
+        "doostream" to listOf("d-s.io", "dsvplay"),
+        "desuka" to listOf("stream/jkmedia"),
+        "nozomi" to listOf("jkplayer/um2?", "um2.php", "nozomi"),
+        "desu" to listOf("jkplayer/um?", "um.php"),
+        "magi" to listOf("jkplayer/umv?"),
+        "mega" to listOf("mega.nz"),
+    )
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.qualityPref
