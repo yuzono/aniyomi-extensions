@@ -199,7 +199,10 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     override fun animeDetailsRequest(anime: SAnime): Request {
-        return GET(apiUrl + anime.url, headers)
+        val url = (apiUrl + anime.url).toHttpUrl().newBuilder().apply {
+            addQueryParameter("append_to_response", "external_ids")
+        }.build()
+        return GET(url, headers)
     }
 
     override fun relatedAnimeListRequest(anime: SAnime): Request {
@@ -239,7 +242,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
                 val details = listOfNotNull(
                     "**Type:** Movie",
-                    movie.voteAverage.takeIf { it > 0f }?.let { "**Score:** ${String.format(Locale.US, "%.1f", it)}" },
+                    movie.voteAverage.takeIf { it > 0f }?.let { "**Score:** ★ ${String.format(Locale.US, "%.1f", it)}" },
                     movie.tagline?.takeIf(String::isNotBlank)?.let { "**Tag Line**: *$it*" },
                     movie.releaseDate?.takeIf(String::isNotBlank)?.let { "**Release Date:** $it" },
                     movie.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
@@ -283,7 +286,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
 
                 val details = listOfNotNull(
                     "**Type:** TV Show",
-                    tv.voteAverage.takeIf { it > 0f }?.let { "**Score:** ${String.format(Locale.US, "%.1f", it)}" },
+                    tv.voteAverage.takeIf { it > 0f }?.let { "**Score:** ★ $${String.format(Locale.US, "%.1f", it)}" },
                     tv.tagline?.takeIf(String::isNotBlank)?.let { "**Tag Line**: *$it*" },
                     tv.firstAirDate?.takeIf(String::isNotBlank)?.let { "**First Air Date:** $it" },
                     tv.lastAirDate?.takeIf(String::isNotBlank)?.let { "**Last Air Date:** $it" },
