@@ -250,7 +250,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                         "**Runtime:** ${if (hours > 0) "$hours hr " else ""}$minutes min"
                     },
                     movie.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
-                    movie.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
+                    movie.externalIds?.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
                 )
 
                 if (details.isNotEmpty()) {
@@ -290,6 +290,7 @@ class HexaWatch : ConfigurableAnimeSource, AnimeHttpSource() {
                     tv.countries?.takeIf { it.isNotEmpty() }?.let { "**Country:** ${it.joinToString()}" },
                     tv.originalName?.takeIf { it.isNotBlank() && it.trim() != tv.name.trim() }?.let { "**Original Name:** $it" },
                     tv.homepage?.takeIf(String::isNotBlank)?.let { "**[Official Site]($it)**" },
+                    tv.externalIds?.imdbId?.let { "**[IMDB](https://www.imdb.com/title/$it)**" },
                 )
 
                 if (details.isNotEmpty()) {
