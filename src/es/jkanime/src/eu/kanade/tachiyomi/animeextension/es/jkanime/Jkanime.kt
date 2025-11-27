@@ -11,7 +11,7 @@ import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
-import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
 import eu.kanade.tachiyomi.lib.filemoonextractor.FilemoonExtractor
 import eu.kanade.tachiyomi.lib.mixdropextractor.MixDropExtractor
@@ -31,13 +31,16 @@ import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import okhttp3.FormBody
+import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
+class Jkanime : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Jkanime"
 
@@ -92,6 +95,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val json = Json {
         isLenient = true
         ignoreUnknownKeys = true
+        explicitNulls = false
     }
 
     companion object {
@@ -105,29 +109,31 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         private const val PREF_SERVER_KEY = "preferred_server"
         private val SERVER_LIST = listOf(
-            "Desu",
             "Okru",
             "Voe",
             "Filemoon",
             "StreamTape",
             "Mp4Upload",
             "Mixdrop",
+            "Streamwish",
             "DoodStream",
             "VidHide",
             "Mediafire",
             "Desuka",
-            "Magi",
             "Nozomi",
+            "Desu",
+            "Magi",
         )
         private val PREF_SERVER_DEFAULT = SERVER_LIST.first()
-    }
 
-    private fun parseAnimeItem(element: Element): SAnime? {
-        val itemText = element.selectFirst("div.anime__item__text a") ?: return null
-        return SAnime.create().apply {
-            title = itemText.text()
-            thumbnail_url = element.selectFirst("div.g-0")?.attr("abs:data-setbg")
-            setUrlWithoutDomain(itemText.attr("href"))
+        private const val PREF_EPISODES_INFO = "pref_episodes_info"
+        private val EPISODES_INFO = mapOf(
+            "Población rápida" to "0",
+            "Solicitar información de la fuente" to "1",
+        )
+
+        private val DATE_FORMATTER by lazy {
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH)
         }
     }
 
@@ -135,15 +141,17 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeParse(response: Response) = searchAnimeParse(response)
 
-    override fun popularAnimeSelector() = throw UnsupportedOperationException()
-    override fun popularAnimeFromElement(element: Element) = throw UnsupportedOperationException()
-    override fun popularAnimeNextPageSelector() = throw UnsupportedOperationException()
+    override fun latestUpdatesRequest(page: Int): Request {
+        return if (page == 1) {
+            GET(baseUrl, headers)
+        } else {
+            GET("$baseUrl/directorio?p=${page - 1}", headers)
+        }
+    }
 
-    override fun latestUpdatesSelector(): String = "div.trending_div div.custom_thumb_home a"
+    private fun homepageAnimesSelector(): String = "div.trending_div div.custom_thumb_home a"
 
-    override fun latestUpdatesRequest(page: Int): Request = GET(baseUrl, headers)
-
-    override fun latestUpdatesFromElement(element: Element): SAnime {
+    private fun homepageAnimesFromElement(element: Element): SAnime {
         return SAnime.create().apply {
             setUrlWithoutDomain(element.select("a").attr("abs:href").trim('/'))
             title = element.select("img").attr("alt")
@@ -151,7 +159,17 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    override fun latestUpdatesNextPageSelector(): String? = null
+    override fun latestUpdatesParse(response: Response): AnimesPage {
+        val location = response.request.url.encodedPath
+        return when {
+            location.startsWith("/directorio") -> searchAnimeParse(response)
+            else -> {
+                val document = response.asJsoup()
+                val animes = document.select(homepageAnimesSelector()).map(::homepageAnimesFromElement)
+                AnimesPage(animes, true)
+            }
+        }
+    }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val filterList = if (filters.isEmpty()) getFilterList() else filters
@@ -180,20 +198,20 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return GET(url.build(), headers)
     }
 
-    private fun parseAnimeJsonString(script: String): String? {
-        // Try to capture a JSON object assigned to `var animes = {...};` using a DOTALL regex.
-        // Use non-greedy matching to get until the first closing brace followed by a semicolon.
-        // Exclude possible closing braces followed by semicolons inside strings quoted by " or '.
-        val pattern = Regex(
-            """var\s+animes\s*=\s*(\{(?:[^"']|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*?\})\s*;""",
-            RegexOption.DOT_MATCHES_ALL,
-        )
-        return pattern.find(script)?.groups[1]?.value
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        val document = response.asJsoup()
+        val location = document.location().toHttpUrl().encodedPath
+        return when {
+            location.startsWith("/directorio") -> searchAnimeParseDirectory(document)
+            location.startsWith("/buscar") -> searchAnimeParseSearch(document)
+            location.startsWith("/horario") -> searchAnimeParseSchedule(document)
+            else -> AnimesPage(emptyList(), false)
+        }
     }
 
     private fun searchAnimeParseDirectory(document: Document): AnimesPage {
         val animePageJson = document.selectFirst("script:containsData(var animes = )")?.data()
-            ?.let(::parseAnimeJsonString)
+            ?.let { script -> pattern.find(script)?.groups[1]?.value }
             ?.takeIf { it.isNotBlank() }
             ?.let { jsonStr -> json.decodeFromString<AnimePageDto>(jsonStr) }
             ?: return AnimesPage(emptyList(), false)
@@ -202,18 +220,35 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             SAnime.create().apply {
                 setUrlWithoutDomain(animeDto.url)
                 title = animeDto.title
-                description = animeDto.description
+                description = animeDto.synopsis
                 thumbnail_url = animeDto.thumbnailUrl
-                author = animeDto.author
-                status = parseStatus(animeDto.status)
+                author = animeDto.studios
+                status = animeDto.status?.let(::parseStatus) ?: SAnime.UNKNOWN
             }
         }
         return AnimesPage(animeList, !animePageJson.nextPageUrl.isNullOrBlank())
     }
 
+    // Try to capture a JSON object assigned to `var animes = {...};` using a DOTALL regex.
+    // Use non-greedy matching to get until the first closing brace followed by a semicolon.
+    // Exclude possible closing braces followed by semicolons inside strings quoted by " or '.
+    val pattern by lazy {
+        Regex(
+            """var\s+animes\s*=\s*(\{(?:[^"']|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')*?\})\s*;""",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+    }
+
     private fun searchAnimeParseSearch(document: Document): AnimesPage {
         val animes = document.select("div.row div.row.page_directorio div.anime__item")
-            .mapNotNull(::parseAnimeItem)
+            .mapNotNull { element ->
+                val itemText = element.selectFirst("div.anime__item__text a") ?: return@mapNotNull null
+                SAnime.create().apply {
+                    title = itemText.text()
+                    thumbnail_url = element.selectFirst("div.g-0")?.attr("abs:data-setbg")
+                    setUrlWithoutDomain(itemText.attr("href"))
+                }
+            }
         return AnimesPage(animes, false)
     }
 
@@ -233,29 +268,15 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return AnimesPage(animeList, false)
     }
 
-    override fun searchAnimeParse(response: Response): AnimesPage {
+    override fun animeDetailsParse(response: Response): SAnime {
         val document = response.asJsoup()
-        val location = document.location().toHttpUrl().encodedPath
-        return when {
-            location.startsWith("/directorio") -> searchAnimeParseDirectory(document)
-            location.startsWith("/buscar") -> searchAnimeParseSearch(document)
-            location.startsWith("/horario") -> searchAnimeParseSchedule(document)
-            else -> AnimesPage(emptyList(), false)
-        }
-    }
-
-    override fun searchAnimeFromElement(element: Element): SAnime = throw UnsupportedOperationException()
-    override fun searchAnimeNextPageSelector(): String = throw UnsupportedOperationException()
-    override fun searchAnimeSelector(): String = throw UnsupportedOperationException()
-
-    override fun animeDetailsParse(document: Document): SAnime {
         val anime = SAnime.create()
         document.selectFirst("div.anime__details__content div.anime_pic img")?.attr("abs:src")?.let { anime.thumbnail_url = it }
         document.selectFirst("div.anime__details__content div.anime_info h3")?.text()?.let { anime.title = it }
-        document.selectFirst("div.anime__details__content div.anime_info p")?.text()?.let { anime.description = it }
+        document.selectFirst("div.anime__details__content div.anime_info p.scroll")?.text()?.let { anime.description = it }
         document.select("div.anime__details__content div.anime_data.pc li").forEach { animeData ->
             val data = animeData.select("span").text()
-            if (data.contains("Genero:")) {
+            if (data.contains("Generos:")) {
                 anime.genre = animeData.select("a").joinToString { it.text() }
             }
             if (data.contains("Estado")) {
@@ -269,50 +290,80 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return anime
     }
 
+    private fun List<EpisodeDto>.toEpisodeList(animeUrl: String): List<SEpisode> = map { ep ->
+        SEpisode.create().apply {
+            episode_number = ep.number.toFloat()
+            name = "Episodio ${ep.number}"
+            date_upload = ep.timestamp?.toDate() ?: 0L
+            setUrlWithoutDomain("$animeUrl/${ep.number}")
+        }
+    }
+
     override fun episodeListParse(response: Response): List<SEpisode> {
         val animeUrl = response.request.url.toString().trim('/')
         val pageBody = response.asJsoup()
         val token = pageBody.selectFirst("meta[name=csrf-token]")?.attr("content") ?: return emptyList()
+        val xsrfToken = response.headers.filter { it.first == "set-cookie" }
         val formData = FormBody.Builder().add("_token", token).build()
         val animeId = pageBody.selectFirst("div.anime__details__content div.pc div#guardar-anime")
             ?.attr("data-anime")
             ?.takeIf { it.isNotBlank() } ?: return emptyList()
 
-        val episodesPage = client.newCall(POST("$baseUrl/ajax/episodes/$animeId/1", headers, formData))
-            .execute().body.string()
-            .let { jsonStr -> json.decodeFromString<EpisodesPageDto>(jsonStr) }
-
-        val firstEp = episodesPage.data.firstOrNull()?.number ?: 1
-        val lastEp = if (firstEp == 0) (episodesPage.total - 1) else episodesPage.total
-
         val episodes = mutableListOf<SEpisode>()
-        for (i in firstEp..lastEp) {
-            val episode = SEpisode.create().apply {
-                setUrlWithoutDomain("$animeUrl/$i")
-                name = "Episodio $i"
-                episode_number = i.toFloat()
-            }
-            episodes.add(episode)
-        }
+        val cookieHeaders = headers.newBuilder().apply {
+            add(
+                "Cookie",
+                xsrfToken.joinToString(" ") { "${it.second.substringBeforeLast(";")};" },
+            )
+        }.build()
+        val episodesPage = fetchAnimeEpisodes(animeId, 1, cookieHeaders, formData)
+        episodesPage.data.toEpisodeList(animeUrl).let(episodes::addAll)
 
+        if (preferences.episodeInfoPref == "0") {
+            val firstEp = episodesPage.from
+            val lastEp = episodesPage.total + firstEp - 1
+
+            for (i in episodesPage.to + 1..lastEp) {
+                val episode = SEpisode.create().apply {
+                    setUrlWithoutDomain("$animeUrl/$i")
+                    name = "Episodio $i"
+                    episode_number = i.toFloat()
+                }
+                episodes.add(episode)
+            }
+        } else {
+            for (currentPage in 2..episodesPage.lastPage) {
+                if (currentPage % 10 == 0) {
+                    Thread.sleep(1000)
+                }
+
+                runCatching {
+                    fetchAnimeEpisodes(animeId, currentPage, cookieHeaders, formData)
+                }.getOrNull()
+                    ?.data?.toEpisodeList(animeUrl)?.let(episodes::addAll)
+            }
+        }
         return episodes.reversed()
     }
 
-    override fun episodeListSelector() = throw UnsupportedOperationException()
-
-    override fun episodeFromElement(element: Element) = throw UnsupportedOperationException()
+    private fun fetchAnimeEpisodes(
+        animeId: String,
+        currentPage: Int,
+        cookieHeaders: Headers,
+        formData: FormBody,
+    ) = client.newCall(POST("$baseUrl/ajax/episodes/$animeId/$currentPage", headers = cookieHeaders, body = formData))
+        .execute().body.string()
+        .let { jsonStr -> json.decodeFromString<EpisodesPageDto>(jsonStr) }
 
     private val languages = arrayOf(
-        Pair("1", "[JAP]"),
-        Pair("3", "[LAT]"),
-        Pair("4", "[CHIN]"),
+        Pair(1, "[JAP]"),
+        Pair(3, "[LAT]"),
+        Pair(4, "[CHIN]"),
     )
 
-    private fun String.getLang(): String {
-        return languages.firstOrNull { it.first == this }?.second ?: ""
-    }
+    private fun Int?.getLang() = languages.firstOrNull { it.first == this }?.second ?: ""
 
-    private fun getVideoLinks(document: Document): List<Pair<String, String>> {
+    private fun getVideoLinks(document: Document): List<Triple<String, String, String>> {
         val scriptServers = document.selectFirst("script:containsData(var video = [];)")?.data() ?: return emptyList()
         val isRemote = scriptServers.contains("= remote+'", true)
         val jsServer = scriptServers.substringAfter("var remote = '").substringBefore("'")
@@ -321,14 +372,16 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val jsLinks = if (isRemote && jsServer.isNotEmpty()) {
             client.newCall(GET(jsServer + jsPath)).execute().body.string()
         } else {
-            scriptServers.substringAfter("var servers = ").substringBefore(";").substringBefore("var")
-        }.parseAs<Array<JsLinks>>().map {
-            Pair(String(Base64.decode(it.remote, Base64.DEFAULT)), "${it.lang}".getLang())
-        }
+            val regex = Regex("""var servers\s*=\s*(\[.*]);""", RegexOption.UNIX_LINES)
+            regex.find(scriptServers)?.groupValues?.get(1)
+        }?.parseAs<Array<JsLinks>>()?.map {
+            Triple(String(Base64.decode(it.remote, Base64.DEFAULT)), it.lang.getLang(), it.server ?: "")
+        } ?: emptyList()
 
         val htmlLinks = document.select("div.bg-servers a").map {
             val serverId = it.attr("data-id")
-            val lang = it.attr("class").substringAfter("lg_").substringBefore(" ").getLang()
+            val lang = it.attr("class").substringAfter("lg_").substringBefore(" ").toIntOrNull()?.getLang() ?: ""
+            val name = it.text().ifBlank { "" } ?: ""
             val url = scriptServers
                 .substringAfter("video[$serverId] = '<iframe class=\"player_conte\" src=\"")
                 .substringBefore("\"")
@@ -336,7 +389,7 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 .replace("/jkvmixdrop.php?u=", "https://mixdrop.ag/e/")
                 .replace("/jksw.php?u=", "https://sfastwish.com/e/")
                 .replace("/jk.php?u=", "$baseUrl/")
-            Pair(url, lang)
+            Triple(url, lang, name)
         }
 
         return jsLinks + htmlLinks
@@ -350,44 +403,51 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val mp4uploadExtractor by lazy { Mp4uploadExtractor(client) }
     private val mixDropExtractor by lazy { MixDropExtractor(client) }
 
-    // Removed StreamWish extractor because it is causing timeout errors and significantly increasing load times.
-    // private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val vidHideExtractor by lazy { VidHideExtractor(client, headers) }
     private val jkanimeExtractor by lazy { JkanimeExtractor(client) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
 
-    private fun String.containsAny(vararg substrings: String): Boolean = substrings.any { it in this }
-
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        return getVideoLinks(document).parallelCatchingFlatMapBlocking { (url, lang) ->
-            when {
-                url.containsAny("mega.nz") -> emptyList() // Skip mega server
-                url.containsAny("ok.ru") -> okruExtractor.videosFromUrl(url, "$lang ")
-                url.containsAny("voe") -> voeExtractor.videosFromUrl(url, "$lang ")
-                url.containsAny("filemoon", "moonplayer") -> filemoonExtractor.videosFromUrl(url, "$lang Filemoon:")
-                url.containsAny("streamtape", "stp", "stape")
-                -> streamTapeExtractor.videosFromUrl(url, quality = "$lang StreamTape")
-                url.containsAny("mp4upload") -> mp4uploadExtractor.videosFromUrl(url, prefix = "$lang ", headers = headers)
-                url.containsAny("mixdrop", "mdbekjwqa") -> mixDropExtractor.videosFromUrl(url, prefix = "$lang ")
-                url.containsAny("sfastwish", "wishembed", "streamwish", "strwish", "wish") -> emptyList()
-                url.containsAny("d-s.io", "dsvplay")
-                -> doodExtractor.videosFromUrl(url.replace("d-s.io", "dsvplay.com"), "$lang ")
-                url.containsAny("vidhide") -> vidHideExtractor.videosFromUrl(url, videoNameGen = { "$lang VidHide:$it" })
-                url.containsAny("mediafire") -> jkanimeExtractor.getMediafireFromUrl(url, "$lang ")
-                url.containsAny("stream/jkmedia") -> jkanimeExtractor.getDesukaFromUrl(url, "$lang ")
-                url.containsAny("jkplayer/um2?") -> jkanimeExtractor.getNozomiFromUrl(url, "$lang ")
-                url.containsAny("jkplayer/um?") -> jkanimeExtractor.getDesuFromUrl(url, "$lang ")
-                url.containsAny("jkplayer/umv?") -> jkanimeExtractor.getMagiFromUrl(url, "$lang ")
-                else -> universalExtractor.videosFromUrl(url, headers, prefix = lang)
+        return getVideoLinks(document).parallelCatchingFlatMapBlocking { (url, lang, name) ->
+            val matched = serverMatching.firstOrNull { (_, names) -> names.any { it.lowercase() in url.lowercase() } }?.first ?: name.lowercase()
+            when (matched) {
+                // "mega" -> emptyList() // Skip mega server
+                "okru" -> okruExtractor.videosFromUrl(url, lang)
+                "voe" -> voeExtractor.videosFromUrl(url, "$lang ")
+                "filemoon" -> filemoonExtractor.videosFromUrl(url, prefix = "$lang Filemoon:")
+                "streamtape" -> streamTapeExtractor.videosFromUrl(url, quality = "$lang StreamTape")
+                "mp4upload" -> mp4uploadExtractor.videosFromUrl(url, prefix = "$lang ", headers = headers)
+                "mixdrop" -> mixDropExtractor.videoFromUrl(url, prefix = "$lang ")
+                // Removed StreamWish extractor because it is causing timeout errors and significantly increasing load times.
+                // "streamwish" -> streamWishExtractor.videosFromUrl(url, videoNameGen = { "$lang StreamWish:$it" }) // Use UniversalExtractor
+                "doostream" -> doodExtractor.videosFromUrl(url.replace("d-s.io", "dsvplay.com"), "$lang ${name.ifBlank { "Doodstream" }}")
+                "vidhide" -> vidHideExtractor.videosFromUrl(url, videoNameGen = { "$lang VidHide:$it" })
+                "mediafire" -> jkanimeExtractor.getMediafireFromUrl(url, "$lang ")
+                "desuka" -> jkanimeExtractor.getDesukaFromUrl(url, "$lang ")
+                "nozomi" -> jkanimeExtractor.getNozomiFromUrl(url, "$lang ")
+                "desu" -> jkanimeExtractor.getDesuFromUrl(url, "$lang ")
+                "magi" -> jkanimeExtractor.getMagiFromUrl(url, "$lang ")
+                else -> universalExtractor.videosFromUrl(url, headers, prefix = "$lang $name")
             }
         }
     }
 
-    override fun videoListSelector() = throw UnsupportedOperationException()
-    override fun videoUrlParse(document: Document) = throw UnsupportedOperationException()
-    override fun videoFromElement(element: Element) = throw UnsupportedOperationException()
+    private val serverMatching = listOf(
+        "voe" to listOf("voe", "tubelessceliolymph", "simpulumlamerop", "urochsunloath", "nathanfromsubject", "yip.", "metagnathtuggers", "donaldlineelse"),
+        "okru" to listOf("ok.ru", "okru"),
+        "filemoon" to listOf("filemoon", "moonplayer", "moviesm4u", "files.im"),
+        "streamtape" to listOf("streamtape", "stp", "stape", "shavetape"),
+        "mixdrop" to listOf("mixdrop", "mxdrop", "mdbekjwqa"),
+        "streamwish" to listOf("sfastwish", "wishembed", "streamwish", "strwish", "wish", "Kswplayer", "Swhoi", "Multimovies", "Uqloads", "neko-stream", "swdyu", "iplayerhls", "streamgg"),
+        "doostream" to listOf("d-s.io", "dsvplay"),
+        "desuka" to listOf("stream/jkmedia"),
+        "nozomi" to listOf("jkplayer/um2?", "um2.php", "nozomi"),
+        "desu" to listOf("jkplayer/um?", "um.php"),
+        "magi" to listOf("jkplayer/umv?"),
+        "mega" to listOf("mega.nz"),
+    )
 
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.qualityPref
@@ -412,23 +472,28 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
     }
 
-    override fun getFilterList(): AnimeFilterList = AnimeFilterList(
+    override fun getFilterList() = AnimeFilterList(
         AnimeFilter.Header("La busqueda por texto no incluye filtros"),
-        DayFilter(),
         GenreFilter(),
+        LetterFilter(),
+        DemographyFilter(),
+        CategoryFilter(),
         TypeFilter(),
         StateFilter(),
-        SeasonFilter(),
         AnimeFilter.Header("Busqueda por año"),
         YearFilter(),
+        SeasonFilter(),
         AnimeFilter.Header("Filtros de ordenamiento"),
         OrderByFilter(),
         SortModifiers(),
+        AnimeFilter.Separator(),
+        DayFilter(),
     )
 
     private val SharedPreferences.qualityPref by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
     private val SharedPreferences.serverPref by preferences.delegate(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)
     private val SharedPreferences.langPref by preferences.delegate(PREF_LANGUAGE_KEY, PREF_LANGUAGE_DEFAULT)
+    private val SharedPreferences.episodeInfoPref by preferences.delegate(PREF_EPISODES_INFO, "0")
 
     private fun SharedPreferences.clearOldPrefs(): SharedPreferences {
         val server = getString(PREF_SERVER_KEY, PREF_SERVER_DEFAULT)!!
@@ -467,5 +532,16 @@ class Jkanime : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             default = PREF_SERVER_DEFAULT,
             summary = "%s",
         )
+
+        screen.addListPreference(
+            key = PREF_EPISODES_INFO,
+            title = "Episode info",
+            entries = EPISODES_INFO.keys.toList(),
+            entryValues = EPISODES_INFO.values.toList(),
+            default = "0",
+            summary = "%s",
+        )
     }
+
+    private fun String.toDate(): Long = runCatching { DATE_FORMATTER.parse(trim())?.time }.getOrNull() ?: 0L
 }
