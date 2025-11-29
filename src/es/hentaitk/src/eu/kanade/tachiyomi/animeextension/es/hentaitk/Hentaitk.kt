@@ -115,17 +115,12 @@ class Hentaitk : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override fun videoListParse(response: Response): List<Video> {
         val document = response.asJsoup()
-        return if (document.select(".post-tape .page-link").any()) {
-            document.select(".post-tape .page-link").parallelCatchingFlatMapBlocking {
-                val urlPage = it.attr("abs:href")
-                val videoDoc = client.newCall(GET(urlPage)).execute().asJsoup()
-                val videoUrl = videoDoc.select(".embed-responsive-item iframe").attr("src")
-                serverVideoResolver(videoUrl)
-            }
-        } else {
-            document.select(".embed-responsive-item iframe").parallelCatchingFlatMapBlocking {
-                serverVideoResolver(it.attr("src"))
-            }
+        val iframeUrls = document.select("iframe[src]")
+            .mapNotNull { it.attr("abs:src") }
+            .filter { it.isNotBlank() }
+
+        return iframeUrls.parallelCatchingFlatMapBlocking { url ->
+            serverVideoResolver(url)
         }
     }
 
