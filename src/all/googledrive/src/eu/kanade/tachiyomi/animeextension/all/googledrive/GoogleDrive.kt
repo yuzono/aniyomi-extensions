@@ -22,7 +22,6 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
-import extensions.utils.commonEmptyRequestBody
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,6 +31,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okio.ProtocolException
+import org.json.JSONObject
 import org.jsoup.nodes.Document
 import uy.kohesive.injekt.injectLazy
 import java.net.URLEncoder
@@ -45,7 +45,6 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override var baseUrl = "https://drive.google.com"
 
-    // Hack to manipulate what gets opened in webview
     private val baseUrlInternal by lazy {
         preferences.domainList.split(";").firstOrNull()
     }
@@ -58,7 +57,6 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val preferences by getPreferencesLazy()
 
-    // Overriding headersBuilder() seems to cause issues with webview
     private val getHeaders = headers.newBuilder().apply {
         add("Accept", "*/*")
         add("Connection", "keep-alive")
@@ -185,7 +183,8 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
 
         if (parsed.type == "single") return anime
 
-        val folderId = DRIVE_FOLDER_REGEX.matchEntire(parsed.url)!!.groups["id"]!!.value
+        val match = DRIVE_FOLDER_REGEX.matchEntire(parsed.url)
+        val folderId = match?.groups?.get("id")?.value ?: return anime
 
         val driveDocument = try {
             client.newCall(GET(parsed.url, headers = getHeaders)).execute().asJsoup()
@@ -193,54 +192,73 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
             null
         } ?: return anime
 
-        // Get cover
-
+        val coverQuery = "'$folderId' in parents and title contains 'cover' and mimeType contains 'image/' and trashed = false"
         val coverResponse = client.newCall(
-            createPost(driveDocument, folderId, nextPageToken, searchReqWithType(folderId, "cover", IMAGE_MIMETYPE)),
+            createPost(driveDocument, folderId, nextPageToken) { _, _, _ ->
+                val q = URLEncoder.encode(coverQuery, "UTF-8")
+                "/drive/v2internal/files?q=$q&maxResults=1&projection=FULL"
+            },
         ).execute().parseAs<PostResponse> { JSON_REGEX.find(it)!!.groupValues[1] }
 
         coverResponse.items?.firstOrNull()?.let {
             anime.thumbnail_url = "https://drive.google.com/uc?id=${it.id}"
         }
 
-        // Get details
+        val detailsQuery = "'$folderId' in parents and title = 'details.json' and trashed = false"
 
-        val detailsResponse = client.newCall(
-            createPost(driveDocument, folderId, nextPageToken, searchReqWithType(folderId, "details.json", "")),
+        val detailsSearchResponse = client.newCall(
+            createPost(driveDocument, folderId, nextPageToken) { _, _, _ ->
+                val q = URLEncoder.encode(detailsQuery, "UTF-8")
+                "/drive/v2internal/files?q=$q&maxResults=1&projection=FULL"
+            },
         ).execute().parseAs<PostResponse> { JSON_REGEX.find(it)!!.groupValues[1] }
 
-        detailsResponse.items?.firstOrNull()?.let {
-            val newPostHeaders = getHeaders.newBuilder().apply {
-                add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
-                set("Host", "drive.usercontent.google.com")
-                add("Origin", "https://drive.google.com")
-                add("Referer", "https://drive.google.com/")
-                add("X-Drive-First-Party", "DriveWebUi")
-                add("X-Json-Requested", "true")
-            }.build()
-
-            val newPostUrl = "https://drive.usercontent.google.com/uc?id=${it.id}&authuser=0&export=download"
-
-            val newResponse = client.newCall(
-                POST(newPostUrl, headers = newPostHeaders, body = commonEmptyRequestBody),
-            ).execute().parseAs<DownloadResponse> { JSON_REGEX.find(it)!!.groupValues[1] }
+        detailsSearchResponse.items?.firstOrNull()?.let { item ->
+            val downloadUrl = "https://drive.google.com/uc?id=${item.id}&export=download"
 
             val downloadHeaders = headers.newBuilder().apply {
-                add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-                add("Connection", "keep-alive")
-                add("Cookie", getCookie("https://drive.usercontent.google.com"))
-                add("Host", "drive.usercontent.google.com")
+                add("Cookie", getCookie("https://drive.google.com"))
+                add("User-Agent", "Mozilla/5.0")
             }.build()
 
-            client.newCall(
-                GET(newResponse.downloadUrl, headers = downloadHeaders),
-            ).execute().parseAs<DetailsJson>().let { t ->
-                t.title?.let { anime.title = it }
-                t.author?.let { anime.author = it }
-                t.artist?.let { anime.artist = it }
-                t.description?.let { anime.description = it }
-                t.genre?.let { anime.genre = it.joinToString(", ") }
-                t.status?.let { anime.status = it.toIntOrNull() ?: SAnime.UNKNOWN }
+            try {
+                val jsonString = client.newCall(GET(downloadUrl, headers = downloadHeaders))
+                    .execute()
+                    .body.string()
+
+                if (jsonString.trim().startsWith("{")) {
+                    val jsonObj = JSONObject(jsonString)
+
+                    if (jsonObj.has("title")) anime.title = jsonObj.getString("title")
+                    if (jsonObj.has("author")) anime.author = jsonObj.getString("author")
+                    if (jsonObj.has("artist")) anime.artist = jsonObj.getString("artist")
+                    if (jsonObj.has("description")) anime.description = jsonObj.getString("description")
+
+                    if (jsonObj.has("genre")) {
+                        val genreData = jsonObj.optJSONArray("genre")
+                        if (genreData != null) {
+                            val genreList = mutableListOf<String>()
+                            for (i in 0 until genreData.length()) {
+                                genreList.add(genreData.getString(i))
+                            }
+                            anime.genre = genreList.joinToString(", ")
+                        } else {
+                            anime.genre = jsonObj.optString("genre")
+                        }
+                    }
+
+                    if (jsonObj.has("status")) {
+                        val statusVal = jsonObj.optString("status").lowercase()
+                        anime.status = when {
+                            statusVal == "1" || statusVal.contains("ongoing") -> SAnime.ONGOING
+                            statusVal == "2" || statusVal.contains("completed") -> SAnime.COMPLETED
+                            statusVal == "3" || statusVal.contains("licensed") -> SAnime.LICENSED
+                            else -> SAnime.UNKNOWN
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
 
@@ -267,7 +285,7 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
             )
         }
 
-        val match = DRIVE_FOLDER_REGEX.matchEntire(parsed.url)!! // .groups["id"]!!.value
+        val match = DRIVE_FOLDER_REGEX.matchEntire(parsed.url)!!
         val maxRecursionDepth = match.groups["depth"]?.let {
             it.value.substringAfter("#").substringBefore(",").toInt()
         } ?: 2
@@ -289,7 +307,7 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
             if (driveDocument.selectFirst("title:contains(Error 404 \\(Not found\\))") != null) return
 
             var pageToken: String? = ""
-            var counter = 1
+            var videoCounter = 1
 
             while (pageToken != null) {
                 val response = client.newCall(
@@ -301,25 +319,36 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
                 }
 
                 if (parsed.items == null) throw Exception("Failed to load items, please log in through webview")
-                parsed.items.forEachIndexed { index, it ->
-                    if (it.mimeType.startsWith("video")) {
+                
+                parsed.items.forEach { it ->
+                    val isVideo = it.mimeType.startsWith("video")
+                    val isFolder = it.mimeType.endsWith(".folder")
+                    val isJunk = it.mimeType.startsWith("image/") || 
+                                 it.title.equals("details.json", ignoreCase = true) || 
+                                 it.mimeType.contains("json")
+
+                    if (isJunk) {
+                        return@forEach
+                    }
+
+                    if (isVideo) {
                         val size = it.fileSize?.toLongOrNull()?.let { formatBytes(it) } ?: ""
                         val pathName = if (preferences.trimEpisodeInfo) path.trimInfo() else path
 
-                        if (start != null && maxRecursionDepth == 1 && counter < start) {
-                            counter++
-                            return@forEachIndexed
+                        if (start != null && maxRecursionDepth == 1 && videoCounter < start) {
+                            videoCounter++
+                            return@forEach
                         }
-                        if (stop != null && maxRecursionDepth == 1 && counter > stop) return
+                        if (stop != null && maxRecursionDepth == 1 && videoCounter > stop) return
+
+                        val epNum = ITEM_NUMBER_REGEX.find(it.title.trimInfo())?.groupValues?.get(1)?.toFloatOrNull()
+                            ?: videoCounter.toFloat()
 
                         episodeList.add(
                             SEpisode.create().apply {
-                                name =
-                                    if (preferences.trimEpisodeName) it.title.trimInfo() else it.title
+                                name = if (preferences.trimEpisodeName) it.title.trimInfo() else it.title
                                 url = "https://drive.google.com/uc?id=${it.id}"
-                                episode_number =
-                                    ITEM_NUMBER_REGEX.find(it.title.trimInfo())?.groupValues?.get(1)
-                                        ?.toFloatOrNull() ?: (index + 1).toFloat()
+                                episode_number = epNum
                                 date_upload = -1L
                                 scanlator = if (preferences.scanlatorOrder) {
                                     "/$pathName • $size"
@@ -328,9 +357,10 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
                                 }
                             },
                         )
-                        counter++
+                        videoCounter++
                     }
-                    if (it.mimeType.endsWith(".folder")) {
+                    
+                    if (isFolder) {
                         traverseFolder(
                             "https://drive.google.com/drive/folders/${it.id}",
                             if (path.isEmpty()) it.title else "$path/${it.title}",
@@ -499,13 +529,11 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
         return AnimesPage(animeList, nextPageToken != null)
     }
 
-    // https://github.com/yt-dlp/yt-dlp/blob/8f0be90ecb3b8d862397177bb226f17b245ef933/yt_dlp/extractor/youtube.py#L573
     private fun generateSapisidhashHeader(
         SAPISID: String,
         origin: String = "https://drive.google.com",
     ): String {
         val timeNow = System.currentTimeMillis() / 1000
-        // SAPISIDHASH algorithm from https://stackoverflow.com/a/32065323
         val sapisidhash = MessageDigest
             .getInstance("SHA-1")
             .digest("$timeNow $SAPISID $origin".toByteArray())
@@ -552,12 +580,6 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private fun isFolder(text: String) = DRIVE_FOLDER_REGEX matches text
 
-    /*
-     * Stolen from the MangaDex manga extension
-     *
-     * This will likely need to be removed or revisited when the app migrates the
-     * extension preferences screen to Compose.
-     */
     private fun setupEditTextFolderValidator(editText: EditText) {
         editText.addTextChangedListener(
             object : TextWatcher {
@@ -568,11 +590,9 @@ class GoogleDrive : ConfigurableAnimeSource, AnimeHttpSource() {
                     count: Int,
                     after: Int,
                 ) {
-                    // Do nothing.
                 }
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    // Do nothing.
                 }
 
                 override fun afterTextChanged(editable: Editable?) {
