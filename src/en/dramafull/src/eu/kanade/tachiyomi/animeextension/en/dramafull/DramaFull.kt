@@ -178,7 +178,9 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
         DramaFullFilters.TypeFilter(),
         DramaFullFilters.CountryFilter(),
         DramaFullFilters.SortFilter(),
-        DramaFullFilters.AdultFilter(DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating)),
+        DramaFullFilters.AdultFilter(
+            DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1
+        ),
         AnimeFilter.Separator(),
         DramaFullFilters.GenreFilter(),
         AnimeFilter.Separator(),
@@ -277,7 +279,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
             key = PREF_DEFAULT_RATING,
-            title = "Preferred server",
+            title = "Default Adult Content Filter",
             entries = DramaFullFilters.ADULT_FILTER.keys.toList(),
             entryValues = DramaFullFilters.ADULT_FILTER.values.map { it.toString() },
             default = "0", // 18+ included
