@@ -95,6 +95,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
         filters: AnimeFilterList = AnimeFilterList(),
         sort: Int,
     ): FilterPayload {
+        val rating = filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()?.getValue() ?: preferences.defaultAdultRating
         return FilterPayload(
             page = page,
             keyword = query.trim(),
@@ -108,8 +109,8 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
                     ?.map { it.id }
                     ?: emptyList()
                 ),
-            adult = (filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()?.getValue() ?: preferences.defaultAdultRating) != -1,
-            adultOnly = (filters.firstInstanceOrNull<DramaFullFilters.AdultFilter>()?.getValue() ?: preferences.defaultAdultRating) == 1,
+            adult = rating != -1,
+            adultOnly = rating == 1,
         )
     }
 
@@ -139,12 +140,10 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
             val altName = document.selectFirst("h2.fst-italic")?.text()
                 ?.replace(",", ", ")
             val countries = document.select(".info-wrapper .country-list img")
-                .mapNotNull { elm ->
-                    elm.attr("alt")
-                        .let {
-                            it.split("-")
-                                .joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
-                        }
+                .mapNotNull {
+                    it.attr("alt")
+                        .split("-")
+                        .joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercase() } }
                         .takeIf(String::isNotBlank)
                 }
                 .joinToString()
