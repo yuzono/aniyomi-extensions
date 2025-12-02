@@ -13,6 +13,7 @@ object DramaFullFilters {
     class CountryFilter : SelectFilter("Country", COUNTRY_LIST)
     class SortFilter : SelectFilter("Sort", SORT_LIST)
 
+    // Default to "18+ included" (index 1 of the list)
     class AdultFilter(default: Int = 1) : SelectFilter("Adult filter", ADULT_FILTER.toList().toTypedArray(), default)
 
     class Genre(name: String, val id: Int) : AnimeFilter.CheckBox(name, false)
@@ -30,13 +31,20 @@ object DramaFullFilters {
         Pair("Movie", 2),
     )
 
+    internal const val SORT_DEFAULT = 0
+    internal const val SORT_RECENTLY_ADDED = 1
+    internal const val SORT_RECENTLY_UPDATED = 2
+    internal const val SORT_SCORE = 3
+    internal const val SORT_NAME_AZ = 4
+    internal const val SORT_MOST_WATCHED = 5
+
     private val SORT_LIST = arrayOf(
-        Pair("<Default sort>", 0),
-        Pair("Recently Added", 1),
-        Pair("Recently Updated", 2),
-        Pair("Score", 3),
-        Pair("Name A-Z", 4),
-        Pair("Most Watched", 5),
+        Pair("<Default sort>", SORT_DEFAULT),
+        Pair("Recently Added", SORT_RECENTLY_ADDED),
+        Pair("Recently Updated", SORT_RECENTLY_UPDATED),
+        Pair("Score", SORT_SCORE),
+        Pair("Name A-Z", SORT_NAME_AZ),
+        Pair("Most Watched", SORT_MOST_WATCHED),
     )
 
     private val COUNTRY_LIST = arrayOf(

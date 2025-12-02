@@ -49,7 +49,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
-        val payload = getFilterPayload(page = page, sort = 5) // 5 = Most Watched
+        val payload = getFilterPayload(page = page, sort = DramaFullFilters.SORT_MOST_WATCHED)
         val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
@@ -63,7 +63,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int): Request {
-        val payload = getFilterPayload(page = page, sort = 2) // 2 = Recently Updated
+        val payload = getFilterPayload(page = page, sort = DramaFullFilters.SORT_RECENTLY_UPDATED)
         val body = payload.toRequestBody(apiJson)
         return POST("$baseUrl/api/filter", headers, body)
     }
@@ -78,9 +78,9 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
             query = query,
             filters = filters,
             sort = if (query.isNotBlank()) {
-                4 // 4 = Name A-Z
+                DramaFullFilters.SORT_NAME_AZ
             } else {
-                1 // 1 = Recently Added
+                DramaFullFilters.SORT_RECENTLY_ADDED
             },
         )
         val body = payload.toRequestBody(apiJson)
@@ -100,7 +100,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
             keyword = query.trim(),
             type = filters.firstInstanceOrNull<DramaFullFilters.TypeFilter>()?.getValue() ?: -1,
             country = filters.firstInstanceOrNull<DramaFullFilters.CountryFilter>()?.getValue() ?: -1,
-            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue().takeIf { it != 0 } ?: sort,
+            sort = filters.firstInstanceOrNull<DramaFullFilters.SortFilter>()?.getValue().takeIf { it != DramaFullFilters.SORT_DEFAULT } ?: sort,
             genres = listOf(0) + (
                 filters.firstInstanceOrNull<DramaFullFilters.GenreFilter>()
                     ?.state
@@ -179,7 +179,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
         DramaFullFilters.CountryFilter(),
         DramaFullFilters.SortFilter(),
         DramaFullFilters.AdultFilter(
-            DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1,
+            DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1, // Default: 18+ included
         ),
         AnimeFilter.Separator(),
         DramaFullFilters.GenreFilter(),
@@ -273,8 +273,9 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // ============================= Utilities ==============================
 
+    /** Value of the adult rating filter, not the index. */
     private val SharedPreferences.defaultAdultRating
-        get() = getString(PREF_DEFAULT_RATING, "0")?.toIntOrNull() ?: 0
+        get() = getString(PREF_DEFAULT_RATING, "0")?.toIntOrNull() ?: 0 // Default: 18+ included
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
