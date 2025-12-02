@@ -1,12 +1,11 @@
 package eu.kanade.tachiyomi.animeextension.en.dramafull
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
-import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 
 object DramaFullFilters {
 
-    open class SelectFilter(displayName: String, val vals: Array<Pair<String, Int>>) :
-        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
+    open class SelectFilter(displayName: String, val vals: Array<Pair<String, Int>>, state: Int = 0) :
+        AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray(), state) {
         fun getValue() = vals[state].second
     }
 
@@ -14,23 +13,20 @@ object DramaFullFilters {
     class CountryFilter : SelectFilter("Country", COUNTRY_LIST)
     class SortFilter : SelectFilter("Sort", SORT_LIST)
 
-    open class TriStateFilter(name: String, state: Int = STATE_IGNORE) : AnimeFilter.TriState(name, state)
-
-    class AdultFilter : TriStateFilter("18+ Included", STATE_INCLUDE)
-    class AdultOnlyFilter : TriStateFilter("18+ Only")
+    // Default to "18+ included" (index 1 of the list)
+    class AdultFilter(default: Int = 1) : SelectFilter("Adult filter", ADULT_FILTER.toList().toTypedArray(), default)
 
     class Genre(name: String, val id: Int) : AnimeFilter.CheckBox(name, false)
-    class GenreFilter(genres: List<Genre>) : AnimeFilter.Group<Genre>("Genres", genres)
+    class GenreFilter(genres: List<Genre> = GENRE_LIST) : AnimeFilter.Group<Genre>("Genres", genres)
 
-    val FILTER_LIST get() = AnimeFilterList(
-        TypeFilter(),
-        CountryFilter(),
-        SortFilter(),
-        AnimeFilter.Separator(),
-        AdultFilter(),
-        AdultOnlyFilter(),
-        AnimeFilter.Separator(),
-        GenreFilter(GENRE_LIST),
+    internal const val RATING_NON_ADULT = 0
+    internal const val RATING_ADULT_INCLUDED = 1
+    internal const val RATING_ADULT_ONLY = 2
+
+    internal val ADULT_FILTER = listOf(
+        "Non 18+" to RATING_NON_ADULT,
+        "18+ included" to RATING_ADULT_INCLUDED,
+        "18+ Only" to RATING_ADULT_ONLY,
     )
 
     private val TYPE_LIST = arrayOf(
@@ -39,12 +35,20 @@ object DramaFullFilters {
         Pair("Movie", 2),
     )
 
+    internal const val SORT_DEFAULT = 0
+    internal const val SORT_RECENTLY_ADDED = 1
+    internal const val SORT_RECENTLY_UPDATED = 2
+    internal const val SORT_SCORE = 3
+    internal const val SORT_NAME_AZ = 4
+    internal const val SORT_MOST_WATCHED = 5
+
     private val SORT_LIST = arrayOf(
-        Pair("Recently Added", 1),
-        Pair("Recently Updated", 2),
-        Pair("Score", 3),
-        Pair("Name A-Z", 4),
-        Pair("Most Watched", 5),
+        Pair("<Default sort>", SORT_DEFAULT),
+        Pair("Recently Added", SORT_RECENTLY_ADDED),
+        Pair("Recently Updated", SORT_RECENTLY_UPDATED),
+        Pair("Score", SORT_SCORE),
+        Pair("Name A-Z", SORT_NAME_AZ),
+        Pair("Most Watched", SORT_MOST_WATCHED),
     )
 
     private val COUNTRY_LIST = arrayOf(
