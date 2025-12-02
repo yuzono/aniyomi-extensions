@@ -109,8 +109,8 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
                     ?.map { it.id }
                     ?: emptyList()
                 ),
-            adult = rating != -1,
-            adultOnly = rating == 1,
+            adult = rating != DramaFullFilters.RATING_NON_ADULT,
+            adultOnly = rating == DramaFullFilters.RATING_ADULT_ONLY,
         )
     }
 
@@ -178,7 +178,8 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
         DramaFullFilters.CountryFilter(),
         DramaFullFilters.SortFilter(),
         DramaFullFilters.AdultFilter(
-            DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1, // Default: 18+ included
+            DramaFullFilters.ADULT_FILTER.map { it.second }
+                .indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1, // Default: 18+ included
         ),
         AnimeFilter.Separator(),
         DramaFullFilters.GenreFilter(),
@@ -274,15 +275,16 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
 
     /** Value of the adult rating filter, not the index. */
     private val SharedPreferences.defaultAdultRating
-        get() = getString(PREF_DEFAULT_RATING, "0")?.toIntOrNull() ?: 0 // Default: 18+ included
+        get() = getString(PREF_DEFAULT_RATING, DramaFullFilters.RATING_ADULT_INCLUDED.toString())
+            ?.toIntOrNull() ?: DramaFullFilters.RATING_ADULT_INCLUDED
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
             key = PREF_DEFAULT_RATING,
             title = "Default Adult Content Filter",
-            entries = DramaFullFilters.ADULT_FILTER.keys.toList(),
-            entryValues = DramaFullFilters.ADULT_FILTER.values.map { it.toString() },
-            default = "0", // 18+ included
+            entries = DramaFullFilters.ADULT_FILTER.map { it.first },
+            entryValues = DramaFullFilters.ADULT_FILTER.map { it.second.toString() },
+            default = DramaFullFilters.RATING_ADULT_INCLUDED.toString(),
             summary = "%s",
         )
     }

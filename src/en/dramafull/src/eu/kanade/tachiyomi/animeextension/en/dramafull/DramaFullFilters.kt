@@ -19,10 +19,14 @@ object DramaFullFilters {
     class Genre(name: String, val id: Int) : AnimeFilter.CheckBox(name, false)
     class GenreFilter(genres: List<Genre> = GENRE_LIST) : AnimeFilter.Group<Genre>("Genres", genres)
 
-    internal val ADULT_FILTER = mapOf(
-        "Non 18+" to -1,
-        "18+ included" to 0,
-        "18+ Only" to 1,
+    internal const val RATING_NON_ADULT = 0
+    internal const val RATING_ADULT_INCLUDED = 1
+    internal const val RATING_ADULT_ONLY = 2
+
+    internal val ADULT_FILTER = listOf(
+        "Non 18+" to RATING_NON_ADULT,
+        "18+ included" to RATING_ADULT_INCLUDED,
+        "18+ Only" to RATING_ADULT_ONLY,
     )
 
     private val TYPE_LIST = arrayOf(
