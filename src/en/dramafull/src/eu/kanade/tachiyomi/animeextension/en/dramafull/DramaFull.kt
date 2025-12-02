@@ -179,7 +179,7 @@ class DramaFull : AnimeHttpSource(), ConfigurableAnimeSource {
         DramaFullFilters.CountryFilter(),
         DramaFullFilters.SortFilter(),
         DramaFullFilters.AdultFilter(
-            DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1
+            DramaFullFilters.ADULT_FILTER.values.indexOf(preferences.defaultAdultRating).takeIf { it != -1 } ?: 1,
         ),
         AnimeFilter.Separator(),
         DramaFullFilters.GenreFilter(),
