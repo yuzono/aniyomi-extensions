@@ -176,8 +176,8 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             // fancy score
             val scorePosition = preferences.scorePosition
             val fancyScore = when (scorePosition) {
-                "none" -> ""
-                else -> getFancyScore(document.selectFirst("#anime-rating")?.attr("data-score"))
+                SCORE_POS_TOP, SCORE_POS_BOTTOM -> getFancyScore(document.selectFirst("#anime-rating")?.attr("data-score"))
+                else -> ""
             }
 
             document.selectFirst("div#main-entity")?.let { info ->
@@ -207,7 +207,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     genre = detail.getInfo("Genres:", isList = true)
 
                     description = buildString {
-                        if (scorePosition == "top" && fancyScore.isNotEmpty()) {
+                        if (scorePosition == SCORE_POS_TOP && fancyScore.isNotEmpty()) {
                             append(fancyScore)
                             append("\n\n")
                         }
@@ -226,7 +226,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                         }
                         document.getCover()?.let { append("\n\n![Cover]($it)") }
 
-                        if (scorePosition == "bottom" && fancyScore.isNotEmpty()) {
+                        if (scorePosition == SCORE_POS_BOTTOM && fancyScore.isNotEmpty()) {
                             if (isNotEmpty()) append("\n\n")
                             append(fancyScore)
                         }
@@ -237,19 +237,25 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     private fun getFancyScore(score: String?): String {
-        val scoreDouble = score?.toDoubleOrNull() ?: return ""
-        if (scoreDouble == 0.0) return ""
+        return try {
+            val scoreDouble = score?.toDoubleOrNull() ?: return ""
+            if (scoreDouble == 0.0) return ""
 
-        val scoreBig = BigDecimal(score)
-        val stars = scoreBig.divide(BigDecimal(2))
-            .setScale(0, RoundingMode.HALF_UP).toInt()
+            val scoreBig = BigDecimal(score)
+            val stars = scoreBig.divide(BigDecimal(2))
+                .setScale(0, RoundingMode.HALF_UP)
+                .toInt()
+                .coerceIn(0, 5)
 
-        val scoreString = scoreBig.stripTrailingZeros().toPlainString()
+            val scoreString = scoreBig.stripTrailingZeros().toPlainString()
 
-        return buildString {
-            append("★".repeat(stars))
-            if (stars < 5) append("☆".repeat(5 - stars))
-            append(" $scoreString")
+            buildString {
+                append("★".repeat(stars))
+                if (stars < 5) append("☆".repeat(5 - stars))
+                append(" $scoreString")
+            }
+        } catch (_: Exception) {
+            ""
         }
     }
 
@@ -501,9 +507,12 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
 
         private const val PREF_SCORE_POSITION_KEY = "score_position"
-        private const val PREF_SCORE_POSITION_DEFAULT = "top"
+        private const val SCORE_POS_TOP = "top"
+        private const val SCORE_POS_BOTTOM = "bottom"
+        private const val SCORE_POS_NONE = "none"
+        private const val PREF_SCORE_POSITION_DEFAULT = SCORE_POS_TOP
         private val PREF_SCORE_POSITION_ENTRIES = listOf("Top of description", "Bottom of description", "Don't show")
-        private val PREF_SCORE_POSITION_VALUES = listOf("top", "bottom", "none")
+        private val PREF_SCORE_POSITION_VALUES = listOf(SCORE_POS_TOP, SCORE_POS_BOTTOM, SCORE_POS_NONE)
 
         private const val RATE_LIMIT = 5
     }
