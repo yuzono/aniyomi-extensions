@@ -175,8 +175,10 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
             // fancy score
             val scorePosition = preferences.scorePosition
-            val scoreVal = document.selectFirst("#anime-rating")?.attr("data-score")
-            val fancyScore = getFancyScore(scoreVal)
+            val fancyScore = when (scorePosition) {
+                "none" -> ""
+                else -> getFancyScore(document.selectFirst("#anime-rating")?.attr("data-score"))
+            }
 
             document.selectFirst("div#main-entity")?.let { info ->
                 val titles = info.selectFirst("h1.title")
@@ -242,11 +244,7 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val stars = scoreBig.divide(BigDecimal(2))
             .setScale(0, RoundingMode.HALF_UP).toInt()
 
-        val scoreString = if (scoreBig.scale() == 0) {
-            scoreBig.toPlainString()
-        } else {
-            scoreBig.stripTrailingZeros().toPlainString()
-        }
+        val scoreString = scoreBig.stripTrailingZeros().toPlainString()
 
         return buildString {
             append("★".repeat(stars))
