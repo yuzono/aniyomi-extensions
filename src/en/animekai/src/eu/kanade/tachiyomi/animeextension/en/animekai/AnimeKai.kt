@@ -42,6 +42,8 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.hours
 
@@ -171,6 +173,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return SAnime.create().apply {
             thumbnail_url = document.select(".poster img").attr("src")
 
+            // fancy score
+            val scorePosition = preferences.scorePosition
+            val scoreVal = document.selectFirst("#anime-rating")?.attr("data-score")
+            val fancyScore = getFancyScore(scoreVal)
+
             document.selectFirst("div#main-entity")?.let { info ->
                 val titles = info.selectFirst("h1.title")
                     ?.also { title = it.getTitle() }
@@ -198,6 +205,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     genre = detail.getInfo("Genres:", isList = true)
 
                     description = buildString {
+                        if (scorePosition == "top" && fancyScore.isNotEmpty()) {
+                            append(fancyScore)
+                            append("\n\n")
+                        }
+
                         info.selectFirst(".desc")?.text()?.let { append(it + "\n") }
                         detail.getInfo("Country:", full = true)?.run(::append)
                         detail.getInfo("Premiered:", full = true)?.run(::append)
@@ -211,9 +223,35 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                             append("\n[${it.text()}](${it.attr("href")})")
                         }
                         document.getCover()?.let { append("\n\n![Cover]($it)") }
+
+                        if (scorePosition == "bottom" && fancyScore.isNotEmpty()) {
+                            if (isNotEmpty()) append("\n\n")
+                            append(fancyScore)
+                        }
                     }
                 }
             } ?: throw IllegalStateException("Invalid anime details page format")
+        }
+    }
+
+    private fun getFancyScore(score: String?): String {
+        val scoreDouble = score?.toDoubleOrNull() ?: return ""
+        if (scoreDouble == 0.0) return ""
+
+        val scoreBig = BigDecimal(score)
+        val stars = scoreBig.divide(BigDecimal(2))
+            .setScale(0, RoundingMode.HALF_UP).toInt()
+
+        val scoreString = if (scoreBig.scale() == 0) {
+            scoreBig.toPlainString()
+        } else {
+            scoreBig.stripTrailingZeros().toPlainString()
+        }
+
+        return buildString {
+            append("★".repeat(stars))
+            if (stars < 5) append("☆".repeat(5 - stars))
+            append(" $scoreString")
         }
     }
 
@@ -464,6 +502,11 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_TYPE_KEY = "preferred_type"
         private const val PREF_TYPE_DEFAULT = "[Soft Sub]"
 
+        private const val PREF_SCORE_POSITION_KEY = "score_position"
+        private const val PREF_SCORE_POSITION_DEFAULT = "top"
+        private val PREF_SCORE_POSITION_ENTRIES = listOf("Top of description", "Bottom of description", "Don't show")
+        private val PREF_SCORE_POSITION_VALUES = listOf("top", "bottom", "none")
+
         private const val RATE_LIMIT = 5
     }
 
@@ -509,6 +552,9 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private val SharedPreferences.typeToggle: Set<String>
         by preferences.delegate(PREF_TYPE_TOGGLE_KEY, DEFAULT_TYPES)
+
+    private val SharedPreferences.scorePosition
+        by preferences.delegate(PREF_SCORE_POSITION_KEY, PREF_SCORE_POSITION_DEFAULT)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
@@ -562,6 +608,15 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entries = TYPES_ENTRIES,
             entryValues = TYPES_ENTRIES, // Using entries directly for parsing Quality string
             default = PREF_TYPE_DEFAULT,
+            summary = "%s",
+        )
+
+        screen.addListPreference(
+            key = PREF_SCORE_POSITION_KEY,
+            title = "Score display position",
+            entries = PREF_SCORE_POSITION_ENTRIES,
+            entryValues = PREF_SCORE_POSITION_VALUES,
+            default = PREF_SCORE_POSITION_DEFAULT,
             summary = "%s",
         )
 
