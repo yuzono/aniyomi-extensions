@@ -111,7 +111,7 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val responseString = jsonString.substringAfter("var videos =").substringBefore(";").trim()
         return json.decodeFromString<ServerModel>(responseString).sub.parallelCatchingFlatMapBlocking { it ->
             when (it.title) {
-                "Stape" -> listOf(streamTapeExtractor.videoFromUrl(it.code)!!)
+                "Stape" -> streamTapeExtractor.videosFromUrl(it.code)
                 "Okru" -> okruExtractor.videosFromUrl(it.code)
                 "YourUpload" -> yourUploadExtractor.videoFromUrl(it.code, headers = headers)
                 "SW" -> streamWishExtractor.videosFromUrl(it.code, videoNameGen = { "StreamWish:$it" })

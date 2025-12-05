@@ -28,30 +28,19 @@ class StreamWishExtractor(private val client: OkHttpClient, private val headers:
         val embedUrl = getEmbedUrl(url).toHttpUrl()
         var doc = client.newCall(GET(embedUrl, headers)).execute().asJsoup()
 
-        if (doc.selectFirst("body > script[src*=/main.js]") != null) {
-            val scriptUrl = doc.selectFirst("body > script[src*=/main.js]")!!.absUrl("src")
+        val scriptElement = doc.selectFirst("body > script[src*=/main.js]")
+        if (scriptElement != null) {
+            val scriptUrl = scriptElement.absUrl("src")
             val scriptContent = client.newCall(GET(scriptUrl, headers)).execute().body.string()
 
             val deobfuscatedScript = runCatching { Deobfuscator.deobfuscateScript(scriptContent) }.getOrNull()
                 ?: return emptyList()
 
-            val dmcaServers = dmcaServersRegex.find(deobfuscatedScript)?.groupValues?.get(1)
-                ?.split(",")
-                ?.map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
-                ?.filter { it.isNotEmpty() }
-                ?: emptyList()
+            val dmcaServers = extractServerList(dmcaServersRegex, deobfuscatedScript)
 
-            val mainServers = mainServersRegex.find(deobfuscatedScript)?.groupValues?.get(1)
-                ?.split(",")
-                ?.map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
-                ?.filter { it.isNotEmpty() }
-                ?: emptyList()
+            val mainServers = extractServerList(mainServersRegex, deobfuscatedScript)
 
-            val rulesServers = rulesServersRegex.find(deobfuscatedScript)?.groupValues?.get(1)
-                ?.split(",")
-                ?.map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
-                ?.filter { it.isNotEmpty() }
-                ?: emptyList()
+            val rulesServers = extractServerList(rulesServersRegex, deobfuscatedScript)
 
             val destination = if (embedUrl.host in rulesServers) {
                 mainServers.randomOrNull()
@@ -88,6 +77,14 @@ class StreamWishExtractor(private val client: OkHttpClient, private val headers:
             videoNameGen = videoNameGen,
             subtitleList = playlistUtils.fixSubtitles(subtitleList),
         )
+    }
+
+    private fun extractServerList(regex: Regex, script: String): List<String> {
+        return regex.find(script)?.groupValues?.get(1)
+            ?.split(",")
+            ?.map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
+            ?.filter { it.isNotEmpty() }
+            ?: emptyList()
     }
 
     private fun getEmbedUrl(url: String): String {
