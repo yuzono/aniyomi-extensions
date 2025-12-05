@@ -19,7 +19,7 @@ class StreamWishExtractor(private val client: OkHttpClient, private val headers:
     private val json = Json { isLenient = true; ignoreUnknownKeys = true }
 
     private val dmcaServersRegex = """dmca\s*=\s*\[(.*?)]""".toRegex(RegexOption.DOT_MATCHES_ALL)
-    private val mainServersRegex = """dmca\s*=\s*\[(.*?)]""".toRegex(RegexOption.DOT_MATCHES_ALL)
+    private val mainServersRegex = """main\s*=\s*\[(.*?)]""".toRegex(RegexOption.DOT_MATCHES_ALL)
     private val rulesServersRegex = """rules\s*=\s*\[(.*?)]""".toRegex(RegexOption.DOT_MATCHES_ALL)
 
     fun videosFromUrl(url: String, prefix: String) = videosFromUrl(url) { "$prefix - $it" }
