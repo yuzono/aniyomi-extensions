@@ -111,11 +111,11 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val responseString = jsonString.substringAfter("var videos =").substringBefore(";").trim()
         return json.decodeFromString<ServerModel>(responseString).sub.parallelCatchingFlatMapBlocking { it ->
             when (it.title) {
-                "Stape" -> listOf(streamTapeExtractor.videoFromUrl(it.url ?: it.code)!!)
-                "Okru" -> okruExtractor.videosFromUrl(it.url ?: it.code)
-                "YourUpload" -> yourUploadExtractor.videoFromUrl(it.url ?: it.code, headers = headers)
-                "SW" -> streamWishExtractor.videosFromUrl(it.url ?: it.code, videoNameGen = { "StreamWish:$it" })
-                else -> universalExtractor.videosFromUrl(it.url ?: it.code, headers)
+                "Stape" -> listOf(streamTapeExtractor.videoFromUrl(it.code)!!)
+                "Okru" -> okruExtractor.videosFromUrl(it.code)
+                "YourUpload" -> yourUploadExtractor.videoFromUrl(it.code, headers = headers)
+                "SW" -> streamWishExtractor.videosFromUrl(it.code, videoNameGen = { "StreamWish:$it" })
+                else -> universalExtractor.videosFromUrl(it.code, headers)
             }
         }
     }
@@ -232,7 +232,6 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val server: String? = "",
         val title: String? = "",
         val ads: Long? = null,
-        val url: String? = null,
         val code: String = "",
         @SerialName("allow_mobile")
         val allowMobile: Boolean? = false,
