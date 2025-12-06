@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.es.animeflv
 
+import android.content.SharedPreferences
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
@@ -16,10 +17,13 @@ import eu.kanade.tachiyomi.lib.youruploadextractor.YourUploadExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import extensions.utils.addEditTextPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
@@ -40,6 +44,13 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     private val preferences by getPreferencesLazy()
 
+    private val SharedPreferences.userAgent by preferences.delegate(PREF_USER_AGENT, DESKTOP_USER_AGENT)
+
+    override fun headersBuilder() = Headers.Builder()
+        .add("Referer", "$baseUrl/")
+        .add("Origin", baseUrl)
+        .add("User-Agent", preferences.userAgent.ifBlank { network.defaultUserAgentProvider() })
+
     companion object {
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "720"
@@ -48,6 +59,9 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_SERVER_KEY = "preferred_server"
         private const val PREF_SERVER_DEFAULT = "StreamWish"
         private val SERVER_LIST = arrayOf("StreamWish", "YourUpload", "Okru", "Streamtape")
+
+        private const val PREF_USER_AGENT = "preferred_user_agent"
+        const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
     }
 
     override fun popularAnimeSelector(): String = "div.Container ul.ListAnimes li article"
@@ -60,7 +74,7 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         anime.title = element.select("a h3").text()
         anime.thumbnail_url = try {
             element.select("a div.Image figure img").attr("src")
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             element.select("a div.Image figure img").attr("data-cfsrc")
         }
         anime.description = element.select("div.Description p:eq(2)").text().removeSurrounding("\"")
@@ -77,11 +91,12 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 val animeInfo = script.data().substringAfter("var anime_info = [").substringBefore("];")
                 val arrInfo = json.decodeFromString<List<String>>("[$animeInfo]")
 
-                val animeUri = arrInfo[2]!!.replace("\"", "")
+                val animeUri = arrInfo[2].replace("\"", "")
                 val episodes = script.data().substringAfter("var episodes = [").substringBefore("];").trim()
                 val arrEpisodes = episodes.split("],[")
-                arrEpisodes!!.forEach { arrEp ->
-                    val noEpisode = arrEp!!.replace("[", "")!!.replace("]", "")!!.split(",")!![0]
+                arrEpisodes.forEach { arrEp ->
+                    val noEpisode = arrEp.replace("[", "").replace("]", "")
+                        .split(",")[0]
                     val ep = SEpisode.create()
                     val url = "$baseUrl/ver/$animeUri-$noEpisode"
                     ep.setUrlWithoutDomain(url)
@@ -102,7 +117,7 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val streamTapeExtractor by lazy { StreamTapeExtractor(client) }
     private val okruExtractor by lazy { OkruExtractor(client) }
     private val yourUploadExtractor by lazy { YourUploadExtractor(client) }
-    private val streamWishExtractor by lazy { StreamWishExtractor(client, headers.newBuilder().add("Referer", "$baseUrl/").build()) }
+    private val streamWishExtractor by lazy { StreamWishExtractor(client, headers) }
     private val universalExtractor by lazy { UniversalExtractor(client) }
 
     override fun videoListParse(response: Response): List<Video> {
@@ -129,8 +144,8 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val params = AnimeFlvFilters.getSearchParameters(filters)
         return when {
-            query.isNotBlank() -> GET("$baseUrl/browse?q=$query&page=$page")
-            params.filter.isNotBlank() -> GET("$baseUrl/browse${params.getQuery()}&page=$page")
+            query.isNotBlank() -> GET("$baseUrl/browse?q=$query&page=$page", headers)
+            params.filter.isNotBlank() -> GET("$baseUrl/browse${params.getQuery()}&page=$page", headers)
             else -> popularAnimeRequest(page)
         }
     }
@@ -195,13 +210,6 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entryValues = SERVER_LIST
             setDefaultValue(PREF_SERVER_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
 
         ListPreference(screen.context).apply {
@@ -211,14 +219,15 @@ class AnimeFlv : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             entryValues = QUALITY_LIST
             setDefaultValue(PREF_QUALITY_DEFAULT)
             summary = "%s"
-
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
         }.also(screen::addPreference)
+
+        screen.addEditTextPreference(
+            key = PREF_USER_AGENT,
+            title = "User-Agent",
+            default = DESKTOP_USER_AGENT,
+            summary = "Leave blank to use the default app user agent.",
+            restartRequired = true,
+        )
     }
 
     @Serializable
