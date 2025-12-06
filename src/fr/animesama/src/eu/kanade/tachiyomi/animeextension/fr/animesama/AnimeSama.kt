@@ -277,7 +277,6 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
             "Préférer VKR" to "vkr",
             "Préférer VQC" to "vqc",
         )
-        
         private val VOICES = voicesMap.keys.toTypedArray()
         private val VOICES_VALUES = voicesMap.values.toTypedArray()
 
