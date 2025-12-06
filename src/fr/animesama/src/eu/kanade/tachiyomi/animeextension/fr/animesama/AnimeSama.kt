@@ -29,7 +29,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Anime-Sama"
 
-    override val baseUrl = "https://anime-sama.org"
+    override val baseUrl = "https://anime-sama.eu"
 
     override val lang = "fr"
 
@@ -266,27 +266,20 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     companion object {
         const val PREFIX_SEARCH = "id:"
 
-        private val VOICES = arrayOf(
-            "Préférer VOSTFR",
-            "Préférer VF",
-            "Préférer VF1",
-            "Préférer VF2",
-            "Préférer VCN",
-            "Préférer VJ",
-            "Préférer VKR",
-            "Préférer VQC",
+        private val voicesMap = linkedMapOf(
+            "Préférer VOSTFR" to "vostfr",
+            "Préférer VF" to "vf",
+            "Préférer VF1" to "vf1",
+            "Préférer VF2" to "vf2",
+            "Préférer VA" to "va",
+            "Préférer VCN" to "vcn",
+            "Préférer VJ" to "vj",
+            "Préférer VKR" to "vkr",
+            "Préférer VQC" to "vqc",
         )
-
-        private val VOICES_VALUES = arrayOf(
-            "vostfr",
-            "vf",
-            "vf1",
-            "vf2",
-            "vcn",
-            "vj",
-            "vkr",
-            "vqc",
-        )
+        
+        private val VOICES = voicesMap.keys.toTypedArray()
+        private val VOICES_VALUES = voicesMap.values.toTypedArray()
 
         private val PLAYERS = arrayOf(
             "Sendvid",
