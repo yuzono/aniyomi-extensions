@@ -1,0 +1,12 @@
+ext {
+    extName = 'Anicore'
+    extClass = '.Anicore'
+    baseUrl = 'https://anicore.tv'
+    extVersionCode = 1
+}
+
+apply from: "$rootDir/common.gradle"
+
+dependencies {
+    api(project(":lib:streamwish-extractor"))
+}
