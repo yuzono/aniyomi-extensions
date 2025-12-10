@@ -176,3 +176,4 @@ jobs:
         run: |
           cd repo
           git status
+[![PR check](https://github.com/yuzono/aniyomi-extensions/actions/workflows/build_pull_request.yml/badge.svg?event=check_run)](https://github.com/yuzono/aniyomi-extensions/actions/workflows/build_pull_request.yml)
