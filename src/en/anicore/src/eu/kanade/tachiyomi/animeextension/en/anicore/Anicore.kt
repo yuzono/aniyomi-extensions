@@ -282,7 +282,7 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         try {
             when (serverName) {
                 "Yuki" -> {
-                    val url = "https://yukiproxy.aniplaynow.live/m3u8-proxy?url=${defaultSource.url}&headers={\"Referer\":\"https://megacloud.club/\"}"
+                    val url = "https://Yukiproxy.anicore.tv/m3u8-proxy?url=${defaultSource.url}&headers={\"Referer\":\"https://megacloud.club/\"}"
                     return playlistUtils.extractFromHls(
                         playlistUrl = url,
                         videoNameGen = { quality -> "$serverName - $quality - $typeName" },
@@ -304,7 +304,7 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
                     )
                 }
                 "Pahe" -> {
-                    val url = "https://paheproxy.aniplaynow.live/proxy?url=${defaultSource.url}&headers={\"Referer\":\"https://kwik.si/\"}"
+                    val url = "https://paheproxy.anicore.tv/proxy?url=${defaultSource.url}&headers={\"Referer\":\"https://kwik.si/\"}"
                     val headers = headers.newBuilder().apply {
                         set("Accept", "*/*")
                         set("Origin", baseUrl)
@@ -521,7 +521,7 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         }.also(screen::addPreference)
     }
 
-    /* =================================== AniPlay Utilities =================================== */
+    /* =================================== Anicore Utilities =================================== */
     private fun parseEpisodeName(number: String, title: String?): String {
         return if (title.isNullOrBlank()) {
             "Episode $number"
@@ -554,13 +554,13 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
 
     companion object {
         private const val PREF_DOMAIN_KEY = "domain"
-        private val PREF_DOMAIN_ENTRIES = arrayOf("aniplaynow.live (default)", "aniplay.lol (backup/experimental)")
-        private val PREF_DOMAIN_ENTRY_VALUES = arrayOf("aniplaynow.live", "aniplay.lol")
-        private const val PREF_DOMAIN_DEFAULT = "aniplaynow.live"
+        private val PREF_DOMAIN_ENTRIES = arrayOf("anicore.tv)
+        private val PREF_DOMAIN_ENTRY_VALUES = arrayOf("anicore.tv")
+        private const val PREF_DOMAIN_DEFAULT = "anicore.tv
 
         private const val PREF_SERVER_KEY = "server"
-        private val PREF_SERVER_ENTRIES = arrayOf("Pahe", "Yuki") // , "Hika")
-        private val PREF_SERVER_ENTRY_VALUES = arrayOf("pahe", "yuki") // , "hika")
+        private val PREF_SERVER_ENTRIES = arrayOf("Pahe", "Yuki") // , "doki,nuri,kami,ozzy,neko")
+        private val PREF_SERVER_ENTRY_VALUES = arrayOf("pahe", "yuki") // , doki,nuri,kami,ozzy,neko")
         private const val PREF_SERVER_DEFAULT = "yuki"
         private const val SERVER_UNKNOWN = "Other"
 
