@@ -105,7 +105,7 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
 
         providers.forEach { provider ->
             provider.episodes.forEach { episode ->
-                val episodeNumber = episode.number.toString().toIntOrNull() ?: episode.number.toInt()
+                val episodeNumber = episode.number.toInt()
                 if (!episodes.containsKey(episodeNumber)) {
                     episodes[episodeNumber] = episode
                 }
