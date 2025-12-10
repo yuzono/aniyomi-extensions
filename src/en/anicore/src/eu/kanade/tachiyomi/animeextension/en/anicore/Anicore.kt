@@ -31,7 +31,7 @@ class Anicore : ParsedAnimeHttpSource() {
 
     companion object {
         private const val PREF_SERVER = "preferred_server"
-        private const val PREF_SERVER_DEFAULT = "StreamWish"
+        private const val PREF_SERVER_DEFAULT = "streamwish"
     }
 
     // =============================== Popular ===============================
@@ -131,7 +131,7 @@ class Anicore : ParsedAnimeHttpSource() {
             if (src.isNotEmpty()) {
                 when {
                     "streamwish" in src -> {
-                        val extractor = StreamWishExtractor(client)
+                        val extractor = StreamWishExtractor(client, headers)
                         videos.addAll(extractor.videosFromUrl(src))
                     }
                     else -> {
