@@ -67,7 +67,7 @@ data class VideoSourceResponse(
 
     @Serializable
     data class Headers(
-        val Referer: String?,
+        @kotlinx.serialization.SerialName("Referer") val referer: String?,
     )
 }
 
