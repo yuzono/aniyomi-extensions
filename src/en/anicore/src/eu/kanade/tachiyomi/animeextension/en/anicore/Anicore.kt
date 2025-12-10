@@ -67,7 +67,7 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         }
     }
 
-    private val baseHost: String get() = "${preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)}"
+    private val baseHost: String get() = preferences.getString(PREF_DOMAIN_KEY, PREF_DOMAIN_DEFAULT)!!
 
     /* ====================================== Episode List ====================================== */
 
@@ -95,13 +95,13 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         val responseString = response.body.string()
         val episodesArrayString = extractEpisodeList(responseString)
         if (episodesArrayString == null) {
-            Log.e("Anicore", "Episode list not found - ${response.request}\nbody:${response.request.body}\n${responseString.substring(0,200)}")
+            Log.e("Anicore", "Episode list not found - ${response.request}\nbody:${response.request.body}\n${responseString.take(200)}")
             throw Exception("Episode list not found")
         }
 
         val providers = episodesArrayString.parseAs<List<EpisodeListResponse>>()
         val episodes = mutableMapOf<Int, EpisodeListResponse.Episode>()
-        val episodeExtras = mutableMapOf<Int, List<EpisodeExtra>>()
+        val episodeExtras = mutableMapOf<Int, MutableList<EpisodeExtra>>()
 
         providers.forEach { provider ->
             provider.episodes.forEach { episode ->
@@ -109,14 +109,14 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
                 if (!episodes.containsKey(episodeNumber)) {
                     episodes[episodeNumber] = episode
                 }
-                val existingEpisodeExtras = episodeExtras.getOrElse(episodeNumber) { emptyList() }
-                val episodeExtra = EpisodeExtra(
-                    source = provider.providerId,
-                    episodeId = episode.id,
-                    episodeNum = episode.number,
-                    hasDub = episode.hasDub ?: false,
+                episodeExtras.getOrPut(episodeNumber) { mutableListOf() }.add(
+                    EpisodeExtra(
+                        source = provider.providerId,
+                        episodeId = episode.id,
+                        episodeNum = episode.number,
+                        hasDub = episode.hasDub ?: false,
+                    ),
                 )
-                episodeExtras[episodeNumber] = existingEpisodeExtras + listOf(episodeExtra)
             }
         }
 
