@@ -17,7 +17,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Element
 
-class Anicore : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
+class Anicore : ParsedAnimeHttpSource() {
 
     override val name = "Anicore.tv"
 
