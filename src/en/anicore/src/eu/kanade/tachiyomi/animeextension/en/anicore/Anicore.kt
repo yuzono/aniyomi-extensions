@@ -559,8 +559,8 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         private const val PREF_DOMAIN_DEFAULT = "anicore.tv
 
         private const val PREF_SERVER_KEY = "server"
-        private val PREF_SERVER_ENTRIES = arrayOf("Pahe", "Yuki") // , "doki,nuri,kami,ozzy,neko")
-        private val PREF_SERVER_ENTRY_VALUES = arrayOf("pahe", "yuki") // , doki,nuri,kami,ozzy,neko")
+        private val PREF_SERVER_ENTRIES = arrayOf("Pahe", "Yuki") // , "doki,nuri,kami,ozzy,neko",zen)
+        private val PREF_SERVER_ENTRY_VALUES = arrayOf("pahe", "yuki") // , doki,nuri,kami,ozzy,neko",zen)
         private const val PREF_SERVER_DEFAULT = "yuki"
         private const val SERVER_UNKNOWN = "Other"
 
