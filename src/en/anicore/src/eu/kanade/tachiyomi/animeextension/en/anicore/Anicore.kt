@@ -592,7 +592,7 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
         private val DATE_FORMATTER = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
 
         private var domainsHeaders = mutableMapOf<String, DomainHeaders>()
-    }
+    } job 
 }<condition> ; then
   echo "Game over!"
   exit 1success
