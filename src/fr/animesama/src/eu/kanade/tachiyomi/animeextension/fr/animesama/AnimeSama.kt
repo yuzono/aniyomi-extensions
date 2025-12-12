@@ -39,11 +39,6 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     private val preferences by getPreferencesLazy()
 
-    private val database by lazy {
-        client.newCall(GET("$baseUrl/catalogue/listing_all.php", headers)).execute()
-            .asJsoup().select(".cardListAnime")
-    }
-
     // ============================== Popular ===============================
     override fun popularAnimeParse(response: Response): AnimesPage {
         val doc = response.asJsoup()
@@ -228,12 +223,6 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         return List(urls[0].size) { i -> urls.mapNotNull { it.getOrNull(i) }.distinct() }
     }
 
-    private fun getPlayers(playerName: String, doc: String): List<String>? {
-        val playerRegex = Regex("$playerName\\s*=\\s*(\\[.*?])", RegexOption.DOT_MATCHES_ALL)
-        val string = playerRegex.find(doc)?.groupValues?.get(1)
-        return if (string != null) json.decodeFromString<List<String>>(string) else null
-    }
-
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         ListPreference(screen.context).apply {
             key = PREF_QUALITY_KEY
@@ -266,7 +255,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     companion object {
         const val PREFIX_SEARCH = "id:"
 
-        private val voicesMap = linkedMapOf(
+        private val voicesMap = mapOf(
             "Préférer VOSTFR" to "vostfr",
             "Préférer VF" to "vf",
             "Préférer VF1" to "vf1",
@@ -280,17 +269,13 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         private val VOICES = voicesMap.keys.toTypedArray()
         private val VOICES_VALUES = voicesMap.values.toTypedArray()
 
-        private val PLAYERS = arrayOf(
-            "Sendvid",
-            "Sibnet",
-            "VK",
+        private val playersMap = mapOf(
+            "Sendvid" to "sendvid",
+            "Sibnet" to "sibnet",
+            "VK" to "vk",
         )
-
-        private val PLAYERS_VALUES = arrayOf(
-            "sendvid",
-            "sibnet",
-            "vk",
-        )
+        private val PLAYERS = playersMap.keys.toTypedArray()
+        private val PLAYERS_VALUES = playersMap.values.toTypedArray()
 
         private const val PREF_VOICES_KEY = "voices_preference"
         private const val PREF_VOICES_DEFAULT = "vostfr"
