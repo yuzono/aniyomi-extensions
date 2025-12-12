@@ -39,7 +39,7 @@ data class AnimeDto(
     val id: String,
     val title: TitleDto,
     val status: String?, // FINISHED
-    val coverImage: String,
+    val coverImage: String?,
     @SerialName("genres")
     val animeGenres: List<String>?,
 ) {
@@ -57,7 +57,7 @@ data class AnimeRelatedDto(
     val id: Int,
     val title: TitleDto,
     val status: String?, // FINISHED
-    val coverImage: String,
+    val coverImage: CoverDto?,
     @SerialName("genres")
     val animeGenres: List<String>?,
 ) {
@@ -65,7 +65,7 @@ data class AnimeRelatedDto(
         url = "/anime/$id"
         title = this@AnimeRelatedDto.title.getTitle(titleLang)
         status = this@AnimeRelatedDto.status?.parseStatus() ?: SAnime.UNKNOWN
-        thumbnail_url = coverImage
+        thumbnail_url = coverImage?.extraLarge
         genre = animeGenres?.joinToString()
     }
 }
@@ -127,7 +127,7 @@ data class AnimeDetailDto(
     @Serializable
     data class AiringDto(
         val ep: Int, // episode number
-        val at: Int, // timestamp
+        val at: Double, // timestamp
     )
 }
 
