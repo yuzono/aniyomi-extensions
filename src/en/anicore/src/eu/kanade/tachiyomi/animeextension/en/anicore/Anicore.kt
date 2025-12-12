@@ -593,4 +593,6 @@ class Anicore : AniListAnimeHttpSource(), ConfigurableAnimeSource {
 
         private var domainsHeaders = mutableMapOf<String, DomainHeaders>()
     }
-}
+}<condition> ; then
+  echo "Game over!"
+  exit 1success
