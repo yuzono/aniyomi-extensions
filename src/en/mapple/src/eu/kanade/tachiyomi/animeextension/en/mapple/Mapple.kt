@@ -435,8 +435,9 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
                 .add("Next-Action", session.nextAction) // Necessary header
                 .build()
 
-            val response = client.newCall(POST(requestUrl, headers, requestBody)).awaitSuccess()
-            val responseText = response.body.string()
+            val responseText = client.newCall(POST(requestUrl, headers, requestBody))
+                .awaitSuccess()
+                .use { it.body.string() }
 
             // Handle JSONP-like response: 1:{...}
             val dataLine = responseText.lines().find { it.startsWith("1:") }?.substringAfter("1:")
