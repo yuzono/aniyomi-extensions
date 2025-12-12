@@ -86,4 +86,7 @@ data class DomainHeaders(
     val episodes: String,
     val sources: String,
     val time: Long,
-)
+) request the Job 
+<condition> ; then
+  echo "Game over!"
+  exit 1success
