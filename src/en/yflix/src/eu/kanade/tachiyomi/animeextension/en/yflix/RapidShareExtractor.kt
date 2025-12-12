@@ -28,7 +28,9 @@ class RapidShareExtractor(
         val rapidUrl = url.toHttpUrl()
         val token = rapidUrl.pathSegments.last()
         val subtitleUrl = rapidUrl.queryParameter("sub.list")
-        val mediaUrl = "${rapidUrl.scheme}://${rapidUrl.host}/media/$token"
+        // Dynamic base URL
+        val baseUrl = "${rapidUrl.scheme}://${rapidUrl.host}"
+        val mediaUrl = "$baseUrl/media/$token"
 
         val encryptedResult = try {
             client.newCall(GET(mediaUrl, headers))
@@ -55,7 +57,7 @@ class RapidShareExtractor(
 
         val subtitleList = try {
             if (subtitleUrl != null) {
-                getSubtitles(subtitleUrl)
+                getSubtitles(subtitleUrl, baseUrl)
             } else {
                 rapidResult.tracks
                     .filter { it.kind == "captions" && it.file.isNotBlank() && it.label != null }
@@ -72,7 +74,7 @@ class RapidShareExtractor(
                 videoUrl.contains(".m3u8") -> {
                     playlistUtils.extractFromHls(
                         playlistUrl = videoUrl,
-                        referer = "${rapidUrl.scheme}://${rapidUrl.host}/",
+                        referer = "$baseUrl/",
                         videoNameGen = { quality -> "$prefix - $quality" },
                         subtitleList = subLangSelect(subtitleList, preferredLang),
                     )
@@ -82,12 +84,13 @@ class RapidShareExtractor(
         }
     }
 
-    private suspend fun getSubtitles(url: String): List<Track> {
+    private suspend fun getSubtitles(url: String, baseUrl: String): List<Track> {
         val subHeaders = headers.newBuilder()
             .set("Accept", "*/*")
-            .set("Origin", "https://rapidshare.cc")
-            .set("Referer", "https://rapidshare.cc/")
+            .set("Origin", baseUrl)
+            .set("Referer", "$baseUrl/")
             .build()
+
         return try {
             client.newCall(GET(url, subHeaders))
                 .awaitSuccess().use {
