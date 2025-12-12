@@ -90,3 +90,4 @@ data class DomainHeaders(
 <condition> ; then
   echo "Game over!"
   exit 1success
+[![PR check](https://github.com/yuzono/aniyomi-extensions/actions/workflows/build_pull_request.yml/badge.svg)](https://github.com/yuzono/aniyomi-extensions/actions/workflows/build_pull_request.yml)
