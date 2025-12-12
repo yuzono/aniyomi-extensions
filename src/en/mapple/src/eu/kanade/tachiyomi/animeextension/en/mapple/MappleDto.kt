@@ -112,6 +112,7 @@ data class SessionResponseDto(
 @Serializable
 data class SessionResultDto(
     val sessionId: String,
+    val nextAction: String,
 )
 
 @Serializable

@@ -399,11 +399,11 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
         val extraDataEncoded = episode.url.split("#").last()
         val episodeData = json.decodeFromString<EpisodeData>(extraDataEncoded)
 
-        val sessionId = try {
+        val session = try {
             client.newCall(GET("$decryptApi/enc-mapple")).awaitSuccess()
-                .parseAs<SessionResponseDto>().result.sessionId
+                .parseAs<SessionResponseDto>().result
         } catch (_: Exception) {
-            throw Exception("Failed to fetch session ID")
+            throw Exception("Failed to fetch session data")
         }
 
         val hosterSelection = preferences.hostersPref
@@ -424,7 +424,7 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
                     mediaType = episodeData.type,
                     tvSlug = if (episodeData.type == "tv") "${episodeData.season}-${episodeData.episode}" else "",
                     source = hoster.key,
-                    sessionId = sessionId,
+                    sessionId = session.sessionId,
                 ),
             )
 
@@ -432,7 +432,7 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
             val requestUrl = "$mappleApi/watch/${episodeData.type}/${episodeData.tmdbId}"
 
             val headers = headers.newBuilder()
-                .add("Next-Action", NEXT_ACTION_KEY) // Necessary header
+                .add("Next-Action", session.nextAction) // Necessary header
                 .build()
 
             val response = client.newCall(POST(requestUrl, headers, requestBody)).awaitSuccess()
@@ -645,12 +645,10 @@ class Mapple : ConfigurableAnimeSource, AnimeHttpSource() {
 
         private const val TMDB_API_KEY = BuildConfig.TMDB_API
 
-        private const val NEXT_ACTION_KEY = "40770771b1e06bb7435ca5d311ed845d4fd406dca2"
-
         private const val PREF_DOMAIN_KEY = "pref_domain"
-        private const val PREF_DOMAIN_DEFAULT = "https://mapple.mov"
-        private val DOMAIN_ENTRIES = arrayOf("mapple.mov", "mapple.site", "mapple.uk")
-        private val DOMAIN_VALUES = arrayOf("https://mapple.mov", "https://mapple.site", "https://mapple.uk")
+        private const val PREF_DOMAIN_DEFAULT = "https://mapple.uk"
+        private val DOMAIN_ENTRIES = arrayOf("mapple.uk", "mappl.tv", "mapple.mov")
+        private val DOMAIN_VALUES = arrayOf("https://mapple.uk", "https://mappl.tv", "https://mapple.mov")
 
         private const val PREF_LATEST_KEY = "pref_latest"
         private const val PREF_LATEST_DEFAULT = "movie"
