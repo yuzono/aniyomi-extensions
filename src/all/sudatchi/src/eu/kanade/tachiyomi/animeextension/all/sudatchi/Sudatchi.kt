@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.all.sudatchi
 
 import android.content.SharedPreferences
-import androidx.preference.CheckBoxPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animeextension.all.sudatchi.dto.AnimeDetailDto
@@ -25,10 +24,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 
-class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
-
-    override val name = "Sudatchi"
-
+class Sudatchi(
+    override val name: String = "Sudatchi",
+    val mature: Boolean = false,
+) : AnimeHttpSource(), ConfigurableAnimeSource {
     override val baseUrl = "https://sudatchi.com"
 
     override val client = network.client.newBuilder()
@@ -49,7 +48,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
             addPathSegment("api")
             addPathSegment("series")
             addQueryParameter("page", page.toString())
-            addQueryParameter("matureMode", preferences.mature.toString())
+            addQueryParameter("matureMode", mature.toString())
             addQueryParameter("sort", "POPULARITY_DESC")
             addQueryParameter("status", "RELEASING")
         }
@@ -69,7 +68,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int) =
-        GET("$baseUrl/api/home?matureMode=${preferences.mature}", headers)
+        GET("$baseUrl/api/home?matureMode=$mature", headers)
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val titleLang = preferences.title
@@ -104,7 +103,7 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
             addPathSegment("api")
             addPathSegment("series")
             addQueryParameter("page", page.toString())
-            addQueryParameter("matureMode", preferences.mature.toString())
+            addQueryParameter("matureMode", mature.toString())
 
             filters.filterIsInstance<SudatchiFilters.QueryParameterFilter>().forEach {
                 val (name, value) = it.toQueryParameter()
@@ -259,20 +258,12 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
             setDefaultValue(PREF_TITLE_DEFAULT)
             summary = "%s"
         }.also(screen::addPreference)
-
-        CheckBoxPreference(screen.context).apply {
-            key = PREF_MATURE_KEY
-            title = PREF_MATURE_TITLE
-            summary = PREF_MATURE_SUMMARY
-            setDefaultValue(PREF_MATURE_DEFAULT)
-        }.also(screen::addPreference)
     }
 
     // ============================= Utilities ==============================
     private val SharedPreferences.quality get() = getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
     private val SharedPreferences.subtitles get() = getString(PREF_SUBTITLES_KEY, PREF_SUBTITLES_DEFAULT)!!
     private val SharedPreferences.title get() = getString(PREF_TITLE_KEY, PREF_TITLE_DEFAULT)!!
-    private val SharedPreferences.mature get() = getBoolean(PREF_MATURE_KEY, PREF_MATURE_DEFAULT)
 
     companion object {
         const val PREFIX_SEARCH = "id:"
@@ -332,10 +323,5 @@ class Sudatchi : AnimeHttpSource(), ConfigurableAnimeSource {
             Pair("Romaji", "romaji"),
             Pair("Japanese", "japanese"),
         )
-
-        private const val PREF_MATURE_KEY = "mature_mode"
-        private const val PREF_MATURE_TITLE = "Mature Content"
-        private const val PREF_MATURE_DEFAULT = false
-        private const val PREF_MATURE_SUMMARY = "Include NSFW or adult material"
     }
 }
