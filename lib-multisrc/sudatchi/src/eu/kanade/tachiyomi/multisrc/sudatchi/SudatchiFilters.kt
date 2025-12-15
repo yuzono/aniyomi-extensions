@@ -22,8 +22,8 @@ object SudatchiFilters {
         )
     }
 
-    private class SelectList(name: String, private val paramName: String, private val pairs: List<Pair<String, String>>) :
-        AnimeFilter.Select<String>(name, pairs.map { it.first }.toTypedArray()), QueryParameterFilter {
+    private class SelectList(name: String, private val paramName: String, private val pairs: List<Pair<String, String>>, state: Int = 0) :
+        AnimeFilter.Select<String>(name, pairs.map { it.first }.toTypedArray(), state = state), QueryParameterFilter {
         override fun toQueryParameter() = Pair(
             paramName,
             pairs[state].second.takeUnless { it.isBlank() },
@@ -46,6 +46,18 @@ object SudatchiFilters {
             SelectList("Format", "format", formatList.toPairList()),
             SelectList("Year", "year", yearList.toPairList()),
             SelectList("Sort", "sort", sortList.toPairList()),
+        )
+    }
+
+    fun getPopularFilterList(): AnimeFilterList {
+        return AnimeFilterList(
+            SelectList("Sort", "sort", sortList.toPairList(), 0),
+        )
+    }
+
+    fun getTrendingFilterList(): AnimeFilterList {
+        return AnimeFilterList(
+            SelectList("Sort", "sort", sortList.toPairList(), 2),
         )
     }
 

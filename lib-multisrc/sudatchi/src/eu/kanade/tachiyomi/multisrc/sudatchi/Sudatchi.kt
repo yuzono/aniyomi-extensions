@@ -44,39 +44,31 @@ open class Sudatchi(
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int): Request {
-        val url = baseUrl.toHttpUrl().newBuilder().apply {
-            addPathSegment("api")
-            addPathSegment("series")
-            addQueryParameter("page", page.toString())
-            addQueryParameter("matureMode", mature.toString())
-            addQueryParameter("sort", "POPULARITY_DESC")
-            addQueryParameter("status", "RELEASING")
-        }
-        return GET(url.build(), headers)
+        return searchAnimeRequest(page, "", SudatchiFilters.getPopularFilterList())
     }
 
-    override fun popularAnimeParse(response: Response): AnimesPage {
-        val titleLang = preferences.title
-        return response.parseAs<SeriesDto>().let { series ->
-            AnimesPage(
-                series.results.map { it.toSAnime(titleLang) }
-                    .filterNot { it.status == SAnime.LICENSED },
-                series.hasNextPage,
-            )
-        }
-    }
+    override fun popularAnimeParse(response: Response) = searchAnimeParse(response)
 
     // =============================== Latest ===============================
-    override fun latestUpdatesRequest(page: Int) =
-        GET("$baseUrl/api/home?matureMode=$mature", headers)
+    override fun latestUpdatesRequest(page: Int): Request {
+        return when (page) {
+            1 -> GET("$baseUrl/api/home?matureMode=$mature", headers)
+            else -> searchAnimeRequest(page - 1, "", SudatchiFilters.getTrendingFilterList())
+        }
+    }
 
     override fun latestUpdatesParse(response: Response): AnimesPage {
-        val titleLang = preferences.title
-        return AnimesPage(
-            response.parseAs<HomePageDto>().latestEpisodes
-                .map { it.toSAnime(titleLang, baseUrl) },
-            false,
-        )
+        val url = response.request.url.toString()
+        if (url.contains("/api/home")) {
+            val titleLang = preferences.title
+            return AnimesPage(
+                response.parseAs<HomePageDto>().latestEpisodes
+                    .map { it.toSAnime(titleLang, baseUrl) },
+                true,
+            )
+        } else {
+            return searchAnimeParse(response)
+        }
     }
 
     // =============================== Search ===============================
