@@ -117,6 +117,11 @@ data class AnimeDetailDto(
                 appendLine("Alternative names:")
                 appendLine(names.joinToString("\n") { "- $it" })
             }
+
+            bannerImage?.takeIf(String::isNotBlank)?.let {
+                if (isNotEmpty()) append("\n\n")
+                append("![Banner]($it)")
+            }
         }.toString()
         status = this@AnimeDetailDto.status.parseStatus()
         thumbnail_url = coverImage?.extraLarge ?: bannerImage
@@ -132,7 +137,7 @@ data class AnimeDetailDto(
 }
 
 private fun String.parseStatus() = when (this) {
-    "LICENSED" -> SAnime.LICENSED // Not Yet Released
+    "LICENSED", "NOT_YET_RELEASED" -> SAnime.LICENSED // Not Yet Released
     "AIRING", "RELEASING" -> SAnime.ONGOING
     "FINISHED" -> SAnime.COMPLETED
     "CANCELLED" -> SAnime.CANCELLED
