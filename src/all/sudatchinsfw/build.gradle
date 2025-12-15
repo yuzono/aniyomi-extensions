@@ -1,9 +1,10 @@
 ext {
-    extName = 'Sudatchi'
+    extName = 'Sudatchi NSFW'
     extClass = '.Sudatchi'
     themePkg = 'sudatchi'
     baseUrl = 'https://sudatchi.com'
     overrideVersionCode = 1
+    isNsfw = true
 }
 
 apply from: "$rootDir/common.gradle"

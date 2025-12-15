@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.animeextension.all.sudatchi.dto
+package eu.kanade.tachiyomi.multisrc.sudatchi.dto
 
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode

@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.animeextension.all.sudatchi
+package eu.kanade.tachiyomi.animeextension.all.sudatchinsfw
 
 import eu.kanade.tachiyomi.multisrc.sudatchi.SudatchiUrlActivity
 

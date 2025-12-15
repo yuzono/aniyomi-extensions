@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.animeextension.all.sudatchi
+package eu.kanade.tachiyomi.multisrc.sudatchi
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
