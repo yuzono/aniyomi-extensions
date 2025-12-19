@@ -175,11 +175,10 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     private fun getFancyScore(score: String?): String {
-        val trimmedScore = score?.trim() ?: return ""
-        if (trimmedScore.isEmpty()) return ""
+        if (score.isNullOrBlank()) return ""
 
         return try {
-            val scoreBig = BigDecimal(trimmedScore)
+            val scoreBig = BigDecimal(score.trim())
             if (scoreBig.compareTo(BigDecimal.ZERO) == 0) return ""
 
             val stars = scoreBig.divide(BigDecimal(2))
@@ -194,7 +193,7 @@ class YFlix : AnimeHttpSource(), ConfigurableAnimeSource {
                 if (stars < 5) append("☆".repeat(5 - stars))
                 append(" $scoreString")
             }
-        } catch (_: Exception) {
+        } catch (_: NumberFormatException) {
             ""
         }
     }
