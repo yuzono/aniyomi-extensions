@@ -316,7 +316,7 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
     }
 
     private fun episodeListParse(response: Response, prefix: String): List<SEpisode> {
-        val itemList = if (response.request.url.toString().contains("Items")) {
+        val itemList = if (response.request.url.pathSegments.contains("Items")) {
             listOf(response.parseAs<ItemDto>(json))
         } else {
             response.parseAs<ItemListDto>(json).items
