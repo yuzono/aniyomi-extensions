@@ -34,11 +34,6 @@ data class CompanyDto(val name: String)
 @Serializable
 data class NetworkDto(val name: String)
 
-@Serializable
-data class ExternalIdsDto(
-    @SerialName("imdb_id") val imdbId: String? = null,
-)
-
 // ============================= Movie Detail =============================
 
 @Serializable
@@ -55,7 +50,7 @@ data class MovieDetailDto(
     @SerialName("production_companies") val productionCompanies: List<CompanyDto> = emptyList(),
     @SerialName("origin_country") val countries: List<String>? = null,
     @SerialName("original_title") val originalTitle: String? = null,
-    @SerialName("external_ids") val externalIds: ExternalIdsDto? = null,
+    @SerialName("imdb_id") val imdbId: String? = null,
     val tagline: String? = null,
     val homepage: String? = null,
     val runtime: Int? = null,
@@ -80,7 +75,6 @@ data class TvDetailDto(
     @SerialName("vote_average") val voteAverage: Float = 0f,
     @SerialName("origin_country") val countries: List<String>? = null,
     @SerialName("original_name") val originalName: String? = null,
-    @SerialName("external_ids") val externalIds: ExternalIdsDto? = null,
     val tagline: String? = null,
     val homepage: String? = null,
 )

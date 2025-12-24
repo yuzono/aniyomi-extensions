@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.es.jkanime
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
-import java.util.Calendar
 
 interface UriPartFilterInterface {
     fun toQueryParam(): Pair<String, String>?
@@ -28,25 +27,20 @@ open class UriPartSelectFilter(
     }
 }
 
-class GenreFilter : UriPartSelectFilter("Género", "genero", VerAnimesFiltersData.GENRES)
-class LetterFilter : UriPartSelectFilter("Letra", "letra", VerAnimesFiltersData.LETTER)
-class DemographyFilter : UriPartSelectFilter("Demografía", "demografia", VerAnimesFiltersData.DEMOGRAPHY)
-class CategoryFilter : UriPartSelectFilter("Categoría", "categoria", VerAnimesFiltersData.CATEGORY)
-class TypeFilter : UriPartSelectFilter("Tipo", "tipo", VerAnimesFiltersData.TYPES)
-class StateFilter : UriPartSelectFilter("Estado", "estado", VerAnimesFiltersData.STATE)
-class YearFilter : UriPartSelectFilter("Año", "fecha", VerAnimesFiltersData.YEARS)
-class SeasonFilter : UriPartSelectFilter("Temporada", "temporada", VerAnimesFiltersData.SEASONS)
-class OrderByFilter : UriPartSelectFilter("Ordenar Por", "filtro", VerAnimesFiltersData.SORT_BY)
-class SortModifiers : UriPartSelectFilter("Orden", "orden", VerAnimesFiltersData.SORT, includeZero = true)
+open class UriPartTextFilter(
+    displayName: String,
+    val keyName: String,
+) : UriPartFilterInterface,
+    AnimeFilter.Text(displayName) {
+    override fun toQueryParam() = state.takeIf { it.isNotBlank() }?.let { keyName to it }
+}
 
-class DayFilter : SelectFilter(
-    "Dia de emisión",
-    VerAnimesFiltersData.DAYS,
-)
-
-private object VerAnimesFiltersData {
-    val GENRES = arrayOf(
-        Pair("<Seleccionar>", ""),
+class GenreFilter : UriPartSelectFilter(
+    "Géneros",
+    "genero",
+    arrayOf(
+        Pair("<Seleccionar>", "none"),
+        Pair("Español Latino", "espaol-latino"),
         Pair("Accion", "accion"),
         Pair("Aventura", "aventura"),
         Pair("Autos", "autos"),
@@ -56,7 +50,7 @@ private object VerAnimesFiltersData {
         Pair("Misterio", "misterio"),
         Pair("Drama", "drama"),
         Pair("Ecchi", "ecchi"),
-        Pair("Fantasia", "fantasia"),
+        Pair("Fantasia", "fantasa"),
         Pair("Juegos", "juegos"),
         Pair("Hentai", "hentai"),
         Pair("Historico", "historico"),
@@ -90,11 +84,13 @@ private object VerAnimesFiltersData {
         Pair("Thriller", "thriller"),
         Pair("Seinen", "seinen"),
         Pair("Josei", "josei"),
-        Pair("Español Latino", "latino"),
         Pair("Isekai", "isekai"),
-    )
+    ),
+)
 
-    val DAYS = arrayOf(
+class DayFilter : SelectFilter(
+    "Dia de emisión",
+    arrayOf(
         Pair("<Seleccionar>", ""),
         Pair("Lunes", "Lunes"),
         Pair("Martes", "Martes"),
@@ -103,59 +99,63 @@ private object VerAnimesFiltersData {
         Pair("Viernes", "Viernes"),
         Pair("Sábado", "Sábado"),
         Pair("Domingo", "Domingo"),
-    )
+    ),
+)
 
-    val LETTER = arrayOf(Pair("Todos", "")) + ('A'..'Z').map { Pair("$it", "$it") }.toTypedArray()
-
-    val DEMOGRAPHY = arrayOf(
-        Pair("Todos", ""),
-        Pair("Niños", "nios"),
-        Pair("Shoujo", "shoujo"),
-        Pair("Shounen", "shounen"),
-        Pair("Seinen", "seinen"),
-        Pair("Josei", "josei"),
-    )
-
-    val CATEGORY = arrayOf(
-        Pair("Todos", ""),
-        Pair("Donghua", "donghua"),
-        Pair("Latino", "latino"),
-    )
-
-    val TYPES = arrayOf(
+class TypeFilter : UriPartSelectFilter(
+    "Tipo",
+    "tipo",
+    arrayOf(
         Pair("<Seleccionar>", ""),
         Pair("Animes", "animes"),
         Pair("Películas", "peliculas"),
         Pair("Especiales", "especiales"),
         Pair("OVAS", "ovas"),
         Pair("ONAS", "onas"),
-    )
+    ),
+)
 
-    val STATE = arrayOf(
+class StateFilter : UriPartSelectFilter(
+    "Estado",
+    "estado",
+    arrayOf(
         Pair("<Cualquiera>", ""),
-        Pair("En Emisión", "emision"),
+        Pair("En emisión", "emision"),
         Pair("Finalizado", "finalizados"),
         Pair("Por Estrenar", "estrenos"),
-    )
+    ),
+)
 
-    val YEARS = arrayOf(Pair("Todos", "")) + (1981..Calendar.getInstance().get(Calendar.YEAR)).map { Pair("$it", "$it") }.reversed().toTypedArray()
-
-    val SEASONS = arrayOf(
+class SeasonFilter : UriPartSelectFilter(
+    "Temporada",
+    "temporada",
+    arrayOf(
         Pair("<Cualquiera>", ""),
         Pair("Primavera", "primavera"),
         Pair("Verano", "verano"),
         Pair("Otoño", "otoño"),
         Pair("Invierno", "invierno"),
-    )
+    ),
+)
 
-    val SORT_BY = arrayOf(
-        Pair("Por fecha", ""),
+class OrderByFilter : UriPartSelectFilter(
+    "Ordenar por",
+    "filtro",
+    arrayOf(
+        Pair("Por fecha", ""), // Por fecha no
         Pair("Por nombre", "nombre"),
         Pair("Por popularidad", "popularidad"),
-    )
+    ),
+)
 
-    val SORT = arrayOf(
-        Pair("Descendente", ""),
+class SortModifiers : UriPartSelectFilter(
+    "De forma",
+    "orden",
+    arrayOf(
+        Pair("Descendente", "desc"),
         Pair("Ascendente", "asc"),
-    )
-}
+    ),
+    includeZero = true,
+)
+
+class YearFilter : UriPartTextFilter("Año", "fecha")
