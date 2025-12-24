@@ -47,11 +47,23 @@ object HexaWatchFilters {
     class WatchProviderFilter : AnimeFilter.Group<WatchProviderCheckBox>(
         "Streaming Platforms",
         listOf(
-            WatchProviderCheckBox("Netflix", "8"),
             WatchProviderCheckBox("Amazon Prime Video", "9"),
-            WatchProviderCheckBox("Disney+", "337"),
-            WatchProviderCheckBox("HBO Max", "384"),
             WatchProviderCheckBox("Apple TV+", "350"),
+            WatchProviderCheckBox("Crunchyroll", "283"),
+            WatchProviderCheckBox("Disney+", "337"),
+            WatchProviderCheckBox("fuboTV", "257"),
+            WatchProviderCheckBox("HBO Max", "1899"),
+            WatchProviderCheckBox("HiDive", "430"),
+            WatchProviderCheckBox("Hulu", "15"),
+            WatchProviderCheckBox("Netflix", "8"),
+            WatchProviderCheckBox("Paramount+", "531"),
+            WatchProviderCheckBox("Peacock", "386"),
+            WatchProviderCheckBox("Pluto TV", "300"),
+            WatchProviderCheckBox("Starz", "43"),
+            WatchProviderCheckBox("The Roku Channel", "207"),
+            WatchProviderCheckBox("Tubi TV", "73"),
+            WatchProviderCheckBox("VIX", "457"),
+            WatchProviderCheckBox("YouTube", "192"),
         ),
     )
 
