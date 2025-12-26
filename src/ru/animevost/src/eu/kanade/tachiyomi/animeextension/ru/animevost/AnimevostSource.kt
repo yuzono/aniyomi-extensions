@@ -149,22 +149,40 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
     override fun episodeListSelector() = throw UnsupportedOperationException()
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        val animePage = response.asJsoup()
-        var episodeScript = animePage.select(".shortstoryContent > script:nth-of-type(2)").html()
-        episodeScript = episodeScript.substring(episodeScript.indexOf("var data = {") + 12)
-        val episodes = episodeScript.substring(0, episodeScript.indexOf(",};")).replace("\"", "").split(",")
+        val document = response.asJsoup()
+
+        val startMarker = "var data = {"
+        val endMarker = "};"
+
+        val script = document.select("script").find { it.html().contains(startMarker) }
+            ?: return emptyList()
+        val scriptContent = script.html()
+
+        val startIndex = scriptContent.indexOf(startMarker)
+        val endIndex = scriptContent.indexOf(endMarker)
+
+        if (startIndex == -1 || endIndex == -1) {
+            return emptyList()
+        }
+
+        val data = scriptContent.substring(startIndex + startMarker.length, endIndex)
+        val episodes = data.replace("\"", "").split(",")
 
         val episodeList = mutableListOf<SEpisode>()
 
         episodes.forEachIndexed { index, entry ->
-            episodeList.add(
-                SEpisode.create().apply {
-                    val id = entry.split(":")[1]
-                    name = entry.split(":")[0]
-                    episode_number = index.toFloat()
-                    url = "/frame5.php?play=$id&old=1"
-                },
-            )
+            val parts = entry.split(":")
+
+            if (parts.size == 2) {
+                episodeList.add(
+                    SEpisode.create().apply {
+                        val id = parts[1]
+                        name = parts[0]
+                        episode_number = index.toFloat()
+                        url = "/frame5.php?play=$id&old=1"
+                    },
+                )
+            }
         }
 
         return episodeList.reversed()
