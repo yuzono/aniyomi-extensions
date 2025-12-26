@@ -156,18 +156,14 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
 
         val script = document.select("script").find { it.html().contains(startMarker) }
             ?: return emptyList()
+
         val scriptContent = script.html()
-
-        val startIndex = scriptContent.indexOf(startMarker)
-        val endIndex = scriptContent.indexOf(endMarker)
-
-        if (startIndex == -1 || endIndex == -1) {
-            return emptyList()
-        }
+        val dataString = scriptContent
+            .substringAfter(startMarker, "")
+            .substringBefore(endMarker, "")
+            .takeIf { it.isNotEmpty() } ?: return emptyList()
 
         val episodeList = mutableListOf<SEpisode>()
-
-        val dataString = scriptContent.substring(startIndex + startMarker.length, endIndex)
 
         val entries = dataString.replace("\"", "")
             .split(",")
