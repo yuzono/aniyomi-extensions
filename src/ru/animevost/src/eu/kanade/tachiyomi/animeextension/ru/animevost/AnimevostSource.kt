@@ -150,7 +150,6 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
 
     override fun episodeListParse(response: Response): List<SEpisode> {
         val document = response.asJsoup()
-
         val startMarker = "var data = {"
         val endMarker = "};"
 
@@ -163,16 +162,19 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
             .substringBefore(endMarker, "")
             .takeIf { it.isNotEmpty() } ?: return emptyList()
 
+        val cleanedDataString = dataString.trimEnd().removeSuffix(",")
+
+        val json = kotlinx.serialization.json.Json { isLenient = true }
+        val episodeData = try {
+            json.decodeFromString<Map<String, String>>("{$cleanedDataString}")
+        } catch (e: kotlinx.serialization.SerializationException) {
+            return emptyList()
+        }
+
         val episodeList = mutableListOf<SEpisode>()
-
-        val entries = dataString.replace("\"", "")
-            .split(",")
-            .filter { s -> s.isNotEmpty() && s.contains(":") }
-
-        entries.forEachIndexed { index, entry ->
-            val parts = entry.split(":")
-            val name = parts[0].trim()
-            val id = parts[1].trim()
+        episodeData.entries.forEachIndexed { index, entry ->
+            val name = entry.key
+            val id = entry.value
 
             if (name.isNotEmpty() && id.isNotEmpty()) {
                 episodeList.add(
@@ -263,8 +265,9 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
         val videoList = mutableListOf<Video>()
         val document = response.asJsoup()
         val fileData = document.html()
-            .substringAfter("file\":\"")
-            .substringBefore("\",")
+            .substringAfter("file\":\"", "")
+            .substringBefore("\",", "")
+            .takeIf { it.isNotEmpty() } ?: return emptyList()
 
         val qualityPattern = """\[([^]]+)](.+?)(?=,\[|$)""".toRegex()
 
