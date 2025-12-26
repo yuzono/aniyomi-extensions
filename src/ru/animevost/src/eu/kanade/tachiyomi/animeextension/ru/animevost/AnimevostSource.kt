@@ -165,21 +165,25 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
             return emptyList()
         }
 
-        val data = scriptContent.substring(startIndex + startMarker.length, endIndex)
-        val episodes = data.replace("\"", "").split(",")
-
         val episodeList = mutableListOf<SEpisode>()
 
-        episodes.forEachIndexed { index, entry ->
-            val parts = entry.split(":")
+        val dataString = scriptContent.substring(startIndex + startMarker.length, endIndex)
 
-            if (parts.size == 2) {
+        val entries = dataString.replace("\"", "")
+            .split(",")
+            .filter { s -> s.isNotEmpty() && s.contains(":") }
+
+        entries.forEachIndexed { index, entry ->
+            val parts = entry.split(":")
+            val name = parts[0].trim()
+            val id = parts[1].trim()
+
+            if (name.isNotEmpty() && id.isNotEmpty()) {
                 episodeList.add(
                     SEpisode.create().apply {
-                        val id = parts[1]
-                        name = parts[0]
-                        episode_number = index.toFloat()
                         url = "/frame5.php?play=$id&old=1"
+                        this.name = name
+                        episode_number = index.toFloat()
                     },
                 )
             }
@@ -262,14 +266,30 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
     override fun videoListParse(response: Response): List<Video> {
         val videoList = mutableListOf<Video>()
         val document = response.asJsoup()
+        val fileData = document.html()
+            .substringAfter("file\":\"")
+            .substringBefore("\",")
 
-        val videoData = document.html().substringAfter("file\":\"").substringBefore("\",").split(",")
+        val qualityPattern = """\[([^]]+)](.+?)(?=,\[|$)""".toRegex()
 
-        videoData.forEach {
-            val linkData = it.replace("[", "").split("]")
-            val quality = linkData.first()
-            val url = linkData.last().split(" or").first()
-            videoList.add(Video(url, quality, url))
+        qualityPattern.findAll(fileData).forEach { match ->
+            val quality = match.groupValues[1]
+            val urlsString = match.groupValues[2]
+
+            val urls = urlsString
+                .split(" or ")
+                .map { it.trim() }
+                .filter { it.startsWith("http") }
+
+            urls.forEachIndexed { index, url ->
+                val qualityLabel = if (urls.size > 1) {
+                    "$quality - Mirror ${index + 1}"
+                } else {
+                    quality
+                }
+
+                videoList.add(Video(url, qualityLabel, url))
+            }
         }
 
         return videoList
