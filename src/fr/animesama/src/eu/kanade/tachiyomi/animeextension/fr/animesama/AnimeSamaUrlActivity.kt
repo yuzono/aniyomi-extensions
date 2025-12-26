@@ -8,7 +8,7 @@ import android.util.Log
 import kotlin.system.exitProcess
 
 /**
- * Springboard that accepts www.anime-sama.org/anime/<item> intents
+ * Springboard that accepts https://anime-sama.si/catalogue/<item> intents
  * and redirects them to the main Aniyomi process.
  */
 class AnimeSamaUrlActivity : Activity() {
