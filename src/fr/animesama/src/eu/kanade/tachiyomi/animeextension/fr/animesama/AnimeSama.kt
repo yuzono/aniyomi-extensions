@@ -29,7 +29,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Anime-Sama"
 
-    override val baseUrl = "https://anime-sama.si"
+    override val baseUrl = "https://anime-sama.tv"
 
     override val lang = "fr"
 
