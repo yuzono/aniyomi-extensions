@@ -58,7 +58,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         val animes = response.asJsoup()
         val seasons = animes.select("#containerAjoutsAnimes > div").flatMap {
             val anime = it.getElementsByTag("a").attr("href")
-            var animeUrl = "$baseUrl$anime".toHttpUrl()
+            val animeUrl = "$baseUrl$anime".toHttpUrl()
             val url = animeUrl.newBuilder()
                 .removePathSegment(animeUrl.pathSize - 2)
                 .removePathSegment(animeUrl.pathSize - 3)
