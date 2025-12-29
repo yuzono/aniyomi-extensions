@@ -181,7 +181,7 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
                     SEpisode.create().apply {
                         url = "/frame5.php?play=$id&old=1"
                         this.name = name
-                        episode_number = index.toFloat()
+                        episode_number = (index + 1).toFloat()
                     },
                 )
             }
