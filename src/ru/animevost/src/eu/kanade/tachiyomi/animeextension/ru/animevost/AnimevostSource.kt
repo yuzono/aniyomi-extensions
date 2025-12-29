@@ -264,10 +264,13 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
     override fun videoListParse(response: Response): List<Video> {
         val videoList = mutableListOf<Video>()
         val document = response.asJsoup()
-        val fileData = document.html()
-            .substringAfter("file\":\"", "")
-            .substringBefore("\",", "")
-            .takeIf { it.isNotEmpty() } ?: return emptyList()
+        val html = document.html()
+        val fileData = Regex(""""file":"(.+?)"""")
+            .findAll(html)
+            .map { it.groupValues[1] }
+            .filter { it.contains("http") }
+            .maxByOrNull { it.length }
+            ?: return emptyList()
 
         val qualityPattern = """\[([^]]+)](.+?)(?=,\[|$)""".toRegex()
 
