@@ -29,7 +29,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Anime-Sama"
 
-    override val baseUrl = "https://anime-sama.si"
+    override val baseUrl = "https://anime-sama.tv"
 
     override val lang = "fr"
 
@@ -57,7 +57,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val animes = response.asJsoup()
         val seasons = animes.select("#containerAjoutsAnimes > div").flatMap {
-            val animeUrl = it.getElementsByTag("a").attr("href").toHttpUrl()
+            val animeUrl = it.getElementsByTag("a").attr("abs:href").toHttpUrl()
             val url = animeUrl.newBuilder()
                 .removePathSegment(animeUrl.pathSize - 2)
                 .removePathSegment(animeUrl.pathSize - 3)
