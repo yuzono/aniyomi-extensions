@@ -12,6 +12,8 @@ import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import extensions.utils.getPreferencesLazy
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
 import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -126,7 +128,7 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
         if (animeData.rating != null && animeData.votes != null) {
             val rating = 5 * animeData.rating / 100
 
-            description += "Рейтинг: ${"★".repeat(rating)}${"☆".repeat(Math.max(5 - rating, 0))} (Голосов: ${animeData.votes})\n"
+            description += "Рейтинг: ${"★".repeat(rating)}${"☆".repeat((5 - rating).coerceAtLeast(0))} (Голосов: ${animeData.votes})\n"
         }
 
         if (animeData.type != null) {
@@ -164,10 +166,10 @@ class AnimevostSource(override val name: String, override val baseUrl: String) :
 
         val cleanedDataString = dataString.trimEnd().removeSuffix(",")
 
-        val json = kotlinx.serialization.json.Json { isLenient = true }
+        val json = Json { isLenient = true }
         val episodeData = try {
             json.decodeFromString<Map<String, String>>("{$cleanedDataString}")
-        } catch (e: kotlinx.serialization.SerializationException) {
+        } catch (_: SerializationException) {
             return emptyList()
         }
 
