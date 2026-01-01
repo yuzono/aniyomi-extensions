@@ -116,7 +116,7 @@ class Subsplease : ConfigurableAnimeSource, AnimeHttpSource() {
         dateTimeFormat.tryParse(trim())
     } ?: 0L
 
-    private val dateTimeFormat by lazy { SimpleDateFormat("MMMM d, yyyy", Locale.ENGLISH) }
+    private val dateTimeFormat by lazy { SimpleDateFormat("E, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH) }
 
     // Video Extractor
 
