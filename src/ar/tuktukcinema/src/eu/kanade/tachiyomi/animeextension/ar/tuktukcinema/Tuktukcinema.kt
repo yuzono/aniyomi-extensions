@@ -80,15 +80,17 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                 name = "مشاهدة"
             }.let(::listOf)
         } else {
-            val selectedSeason = document.selectFirst("div#mpbreadcrumbs a span:contains(الموسم)")!!.text()
+            val selectedSeason = document.selectFirst("div#mpbreadcrumbs a span:contains(الموسم)")?.text().orEmpty()
             val seasons = document.select(episodeListSelector())
             seasons.reversed().flatMap { season ->
                 val seasonText = season.select("h3").text()
-                var seasonDoc = if (selectedSeason == seasonText) document else
-                    client.newCall(GET(season.selectFirst("a")!!.attr("href"))).execute().asJsoup()
+                val seasonUrl = season.selectFirst("a")?.attr("href") ?: return@flatMap emptyList()
+                val seasonDoc = if (selectedSeason == seasonText) { document } else {
+                    client.newCall(GET(seasonUrl)).execute().asJsoup()
+                }
                 val seasonNum = if (seasons.size == 1) "1" else seasonText.filter { it.isDigit() }
-                seasonDoc.select("section.allepcont a").map { episode ->
-                    val episodeNum = episode.select("div.epnum").text().filter { it.isDigit() }
+                seasonDoc.select("section.allepcont a").mapIndexed { index, episode ->
+                    val episodeNum = episode.select("div.epnum").text().filter { it.isDigit() }.ifEmpty { (index + 1).toString() }
                     SEpisode.create().apply {
                         setUrlWithoutDomain(episode.attr("href"))
                         name = "$seasonText : الحلقة " + episodeNum
@@ -142,13 +144,13 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
 
             "lulustream" in server -> {
-                streamWishExtractor.videosFromUrl(url, server.apply { first().uppercase() })
+                streamWishExtractor.videosFromUrl(url, server.replaceFirstChar(Char::titlecase))
             }
 
             "krakenfiles" in server -> {
                 val page = client.newCall(GET(url, headers)).execute().asJsoup()
                 page.select("source").map {
-                    Video(it.attr("src"), "Kraken: $customQuality", it.attr("src"))
+                    Video(it.attr("src"), "Kraken" + (customQuality?.let { q -> ": $q" } ?: ""), it.attr("src"))
                 }
             }
 
@@ -183,8 +185,8 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             GET("$baseUrl/?s=$query&page=$page", headers)
         } else {
             val filterList = if (filters.isEmpty()) getFilterList() else filters
-            val sectionFilter = filterList.find { it is SectionFilter } as SectionFilter
-            val genreFilter = filterList.find { it is GenreFilter } as GenreFilter
+            val sectionFilter = filterList.filterIsInstance<SectionFilter>().first()
+            val genreFilter = filterList.filterIsInstance<GenreFilter>().first()
             val url = baseUrl.toHttpUrl().newBuilder()
             if (sectionFilter.state != 0) {
                 url.addPathSegment(sectionFilter.toUriPart())
@@ -216,25 +218,21 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     private fun editTitle(title: String, details: Boolean = false): String {
-        return if (Regex("(?:فيلم|عرض)\\s(.*\\s[0-9]+)\\s(.+?)\\s").containsMatchIn(title)) {
-            val titleGroup = Regex("(?:فيلم|عرض)\\s(.*\\s[0-9]+)\\s(.+?)\\s").find(title)!!
-            val movieName = titleGroup.groupValues[1]
-            val type = titleGroup.groupValues[2]
-            movieName + if (details) " ($type)" else ""
-        } else if (Regex("(?:مسلسل|برنامج|انمي)\\s(.+)\\sالحلقة\\s(\\d+)").containsMatchIn(title)) {
-            val titleGroup = Regex("(?:مسلسل|برنامج|انمي)\\s(.+)\\sالحلقة\\s(\\d+)").find(title)!!
-            val seriesName = titleGroup.groupValues[1]
-            val epNum = titleGroup.groupValues[2]
-            if (details) {
-                "$seriesName (ep:$epNum)"
-            } else if (seriesName.contains("الموسم")) {
-                seriesName.split("الموسم")[0].trim()
-            } else {
-                seriesName
+        REGEX_MOVIE.find(title)?.let { match ->
+            val (movieName, type) = match.destructured
+            return if (details) "$movieName ($type)".trim() else movieName.trim()
+        }
+
+        REGEX_SERIES.find(title)?.let { match ->
+            val (seriesName, epNum) = match.destructured
+            return when {
+                details -> "$seriesName (ep:$epNum)".trim()
+                seriesName.contains("الموسم") -> seriesName.substringBefore("الموسم").trim()
+                else -> seriesName.trim()
             }
-        } else {
-            title
-        }.trim()
+        }
+
+        return title.trim()
     }
 
     // =============================== Latest ===============================
@@ -338,5 +336,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_DOMAIN_CUSTOM_KEY = "custom_domain"
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
+        private val REGEX_MOVIE = Regex("""(?:فيلم|عرض)\\s(.*\\s[0-9]+)\\s(.+?)\\s""")
+        private val REGEX_SERIES = Regex("""(?:مسلسل|برنامج|انمي)\\s(.+)\\sالحلقة\\s(\\d+)""")
     }
 }

@@ -54,7 +54,7 @@ class MegaMaxMultiServer(private val client: OkHttpClient, private val headers: 
         return "${result}p"
     }
 
-    private fun  convertSize(bits: Long): String {
+    private fun convertSize(bits: Long): String {
         val bytes = bits / 8
         return when {
             bytes >= 1 shl 30 -> "%.2f GB".format(bytes / (1 shl 30).toDouble())

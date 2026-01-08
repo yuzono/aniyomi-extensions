@@ -4,23 +4,23 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class LeechResponse(
-    val props: Props2,
+    val props: LeechProps,
 )
 
 @Serializable
-data class Props2(
-    val streams: Streams2
+data class LeechProps(
+    val streams: LeechStreams
 )
 
 @Serializable
-data class Streams2(
-    val data: List<Data2>,
+data class LeechStreams(
+    val data: List<LeechData>,
     val msg: String,
     val status: String,
 )
 
 @Serializable
-data class Data2(
+data class LeechData(
     val file: String,
     val label: String,
     val size: Long,
