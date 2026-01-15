@@ -17,7 +17,7 @@ class FrAnimeUrlActivity : Activity() {
         if (pathSegments != null && pathSegments.size == 2) {
             val mainIntent = Intent().apply {
                 action = "eu.kanade.tachiyomi.ANIMESEARCH"
-                putExtra("query", pathSegments[1])
+                putExtra("query", "${FrAnime.PREFIX_SEARCH}${pathSegments[1]}")
                 putExtra("filter", packageName)
             }
             try {

@@ -35,7 +35,10 @@ class FrAnime : AnimeHttpSource() {
 
     override val supportsLatest = true
 
+    override val client = network.cloudflareClient
+
     override fun headersBuilder() = super.headersBuilder()
+        .add("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
         .add("Referer", "$baseUrl/")
         .add("Origin", baseUrl)
 
@@ -124,10 +127,15 @@ class FrAnime : AnimeHttpSource() {
 
         val players = if (episodeLang == "vo") episodeData.languages.vo.players else episodeData.languages.vf.players
 
-        val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
+        val cookies = client.cookieJar.loadForRequest(baseUrl.toHttpUrl()).joinToString("; ") { "${it.name}=${it.value}" }
+        val newHeaders = headers.newBuilder()
+            .add("Cookie", cookies)
+            .build()
+
+        val sendvidExtractor by lazy { SendvidExtractor(client, newHeaders) }
         val sibnetExtractor by lazy { SibnetExtractor(client) }
-        val vkExtractor by lazy { VkExtractor(client, headers) }
-        val vidMolyExtractor by lazy { VidMolyExtractor(client) }
+        val vkExtractor by lazy { VkExtractor(client, newHeaders) }
+        val vidMolyExtractor by lazy { VidMolyExtractor(client, newHeaders) }
 
         val videos = players.withIndex().parallelCatchingFlatMap { (index, playerName) ->
             val apiUrl = "$videoBaseUrl/$episodeLang/$index"
