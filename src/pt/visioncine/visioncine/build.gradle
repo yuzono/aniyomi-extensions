@@ -1,0 +1,10 @@
+ext {
+    extName = 'VisionCine'
+    extClass = '.VisionCine'
+    extVersionCode = 1
+    baseUrl = 'https://www.visioncine.stream'
+    isNsfw = true
+    overrideVersionCode = 0
+}
+
+apply from: "$rootDir/common.gradle"
