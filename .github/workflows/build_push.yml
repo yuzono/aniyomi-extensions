@@ -150,7 +150,6 @@ jobs:
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    if: github.repository == 'yuzono/aniyomi-extensions'
     runs-on: 'ubuntu-24.04'
     steps:
       - name: Download APK artifacts
@@ -179,7 +178,15 @@ jobs:
           java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
           python ./.github/scripts/create-repo.py
 
+      - name: Upload Repo Artifact
+        if: github.repository != 'yuzono/aniyomi-extensions'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: repo
+          path: ${{ github.ref_name }}/repo
+
       - name: Checkout repo branch
+        if: github.repository == 'yuzono/aniyomi-extensions'
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: yuzono/aniyomi-repo
@@ -188,11 +195,13 @@ jobs:
           path: repo
 
       - name: Merge repo
+        if: github.repository == 'yuzono/aniyomi-extensions'
         run: |
           cd repo
           python ../${{ github.ref_name }}/.github/scripts/merge-repo.py '${{ needs.prepare.outputs.delete }}' '${{ github.ref_name }}/repo'
 
       - name: Deploy repo
+        if: github.repository == 'yuzono/aniyomi-extensions'
         uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
         with:
           message: "${{ needs.prepare.outputs.latestCommitMessage }}"
@@ -201,6 +210,7 @@ jobs:
           # committer_email: github-actions[bot]@users.noreply.github.com
 
       - name: Sync repo
+        if: github.repository == 'yuzono/aniyomi-extensions'
         env:
           COMMIT_MESSAGE: ${{ needs.prepare.outputs.latestCommitMessage }}
         run: |
@@ -215,5 +225,6 @@ jobs:
           git push origin HEAD:repo --force
 
       - name: Purge cached index on jsDelivr
+        if: github.repository == 'yuzono/aniyomi-extensions'
         run: |
           curl https://purge.jsdelivr.net/gh/yuzono/anime-repo@repo/index.min.json
