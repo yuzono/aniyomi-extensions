@@ -93,7 +93,7 @@ jobs:
       - id: generate-matrices
         name: Create output matrices
         run: |
-          python ./.github/scripts/generate-build-matrices.py ${{ steps.last_successful_ci_commit.outputs.base }} Release
+          python ./.github/scripts/generate-build-matrices.py ${{ steps.last_successful_ci_commit.outputs.base }} Debug
 
   build:
     name: Build extensions (${{ matrix.chunk.number }})
