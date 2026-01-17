@@ -31,6 +31,7 @@ import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.util.Base64
+import kotlin.text.String
 
 class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -39,7 +40,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private val preferences by getPreferencesLazy()
 
     override val baseUrl
-        get() = preferences.customDomain.ifBlank { "https://www.tuktukcinma.com" }
+        get() = preferences.customDomain.ifBlank { "https://tuktukhd.com" }
 
     override val lang = "ar"
 
