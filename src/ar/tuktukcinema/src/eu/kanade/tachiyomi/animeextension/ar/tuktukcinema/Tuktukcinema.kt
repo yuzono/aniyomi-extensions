@@ -190,7 +190,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val genreFilter = filterList.filterIsInstance<GenreFilter>().first()
             val url = baseUrl.toHttpUrl().newBuilder()
             if (sectionFilter.state != 0) {
-                url.addPathSegment(sectionFilter.toUriPart())
+                url.addPathSegments(sectionFilter.toUriPart())
             } else if (genreFilter.state != 0) {
                 url.addPathSegment("genre")
                 url.addPathSegment(genreFilter.toUriPart())
@@ -261,18 +261,21 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         "اقسام الموقع",
         arrayOf(
             Pair("اختر", ""),
-            Pair("كل الافلام", "category/movies-33/"),
-            Pair("افلام اجنبى", "category/movies-33/افلام-اجنبي/"),
-            Pair("افلام انمى", "category/anime-6/افلام-انمي/"),
-            Pair("افلام تركيه", "category/movies-33/افلام-تركي/"),
-            Pair("افلام اسيويه", "category/movies-33/افلام-اسيوي/"),
-            Pair("افلام هنديه", "category/movies-33/افلام-هندى/"),
-            Pair("كل المسسلسلات", "category/series-9/"),
-            Pair("مسلسلات اجنبى", "category/series-9/مسلسلات-اجنبي/"),
-            Pair("مسلسلات انمى", "category/anime-6/انمي-مترجم/"),
-            Pair("مسلسلات تركى", "category/series-9/مسلسلات-تركي/"),
-            Pair("مسلسلات اسيوى", "category/series-9/مسلسلات-أسيوي/"),
-            Pair("مسلسلات هندى", "category/series-9/مسلسلات-هندي/"),
+            Pair("جميع الافلام", "category/movies-2/"),
+            Pair("افلام نتفليكس", "channel/film-netflix-1/"),
+            Pair("افلام اجنبي", "category/movies-2/افلام-اجنبي/"),
+            Pair("افلام هندي", "category/movies-2/افلام-هندى/"),
+            Pair("افلام اسيوي", "category/movies-2/افلام-اسيوي/"),
+            Pair("افلام انمي", "category/anime-6/افلام-انمي/"),
+            Pair("افلام تركي", "category/movies-2/افلام-تركي/"),
+            Pair("افلام مدبلجة", "category/movies-2/افلام-مدبلجة/"),
+            Pair("أحدث المسلسلات الأجنبي", "sercat/مسلسلات-اجنبي/"),
+            Pair("أحدث المسلسلات التركي", "sercat/مسلسلات-تركي/"),
+            Pair("أحدث المسلسلات الأسيوي", "sercat/مسلسلات-أسيوي/"),
+            Pair("مسلسلات نتفليكس", "channel/series-netflix-2/"),
+            Pair("أحدث الانميات", "sercat/قائمة-الانمي/"),
+            Pair("أحدث البرامج التلفزيونية", "sercat/برامج-تلفزيونية/"),
+            Pair("أحدث المسلسلات الهندي", "sercat/مسلسلات-هندي/"),
         ),
     )
 
