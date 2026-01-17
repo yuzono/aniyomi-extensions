@@ -29,7 +29,8 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Anime-Sama"
 
-    override val baseUrl = "https://anime-sama.tv"
+    // Domain info at: https://anime-sama.pw
+    override val baseUrl = "https://anime-sama.si"
 
     override val lang = "fr"
 
@@ -188,7 +189,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
                 title = it.first
                 thumbnail_url = animeDoc.getElementById("coverOeuvre")?.attr("src")
                 description = animeDoc.select("h2:contains(synopsis) + p").text()
-                genre = animeDoc.select("h2:contains(genres) + a").text()
+                genre = animeDoc.select("h2:contains(genres) + a").text().replace(" - ", ", ")
                 setUrlWithoutDomain(it.second)
                 status = it.third
                 initialized = true
