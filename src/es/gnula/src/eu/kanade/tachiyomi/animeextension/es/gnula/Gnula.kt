@@ -158,7 +158,7 @@ class Gnula : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     private fun serverVideoResolver(url: String, prefix: String = ""): List<Video> {
         val embedUrl = url.lowercase()
         return when {
-            embedUrl.contains("voe") -> VoeExtractor(client).videosFromUrl(url, prefix)
+            embedUrl.contains("voe") -> VoeExtractor(client, headers).videosFromUrl(url, prefix)
             embedUrl.contains("ok.ru") || embedUrl.contains("okru") -> OkruExtractor(client).videosFromUrl(url, prefix)
             embedUrl.contains("filemoon") || embedUrl.contains("moonplayer") -> {
                 val vidHeaders = headers.newBuilder()

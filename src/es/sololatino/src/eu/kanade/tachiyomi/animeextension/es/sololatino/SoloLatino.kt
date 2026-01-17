@@ -246,7 +246,7 @@ class SoloLatino : DooPlay(
     private val vidGuardExtractor by lazy { VidGuardExtractor(client) }
     private val doodExtractor by lazy { DoodExtractor(client) }
     private val streamHideVidExtractor by lazy { StreamHideVidExtractor(client, headers) }
-    private val voeExtractor by lazy { VoeExtractor(client) }
+    private val voeExtractor by lazy { VoeExtractor(client, headers) }
     private val filemoonExtractor by lazy { FilemoonExtractor(client) }
 
     private fun extractVideos(url: String, lang: String): List<Video> {

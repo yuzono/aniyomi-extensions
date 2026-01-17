@@ -3,11 +3,11 @@ ext {
     extClass = '.Kaido'
     themePkg = 'zorotheme'
     baseUrl = 'https://kaido.to'
-    overrideVersionCode = 15
+    overrideVersionCode = 16
 }
 
 apply from: "$rootDir/common.gradle"
 
 dependencies {
-    api(project(":lib:streamtape-extractor"))
+    api(project(":lib:rapidcloud-extractor"))
 }

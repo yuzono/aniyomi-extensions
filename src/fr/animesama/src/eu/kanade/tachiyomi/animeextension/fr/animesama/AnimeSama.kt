@@ -29,7 +29,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
 
     override val name = "Anime-Sama"
 
-    override val baseUrl = "https://anime-sama.fr"
+    override val baseUrl = "https://anime-sama.tv"
 
     override val lang = "fr"
 
@@ -38,11 +38,6 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     private val json: Json by injectLazy()
 
     private val preferences by getPreferencesLazy()
-
-    private val database by lazy {
-        client.newCall(GET("$baseUrl/catalogue/listing_all.php", headers)).execute()
-            .asJsoup().select(".cardListAnime")
-    }
 
     // ============================== Popular ===============================
     override fun popularAnimeParse(response: Response): AnimesPage {
@@ -62,7 +57,7 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesParse(response: Response): AnimesPage {
         val animes = response.asJsoup()
         val seasons = animes.select("#containerAjoutsAnimes > div").flatMap {
-            val animeUrl = it.getElementsByTag("a").attr("href").toHttpUrl()
+            val animeUrl = it.getElementsByTag("a").attr("abs:href").toHttpUrl()
             val url = animeUrl.newBuilder()
                 .removePathSegment(animeUrl.pathSize - 2)
                 .removePathSegment(animeUrl.pathSize - 3)
@@ -228,12 +223,6 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
         return List(urls[0].size) { i -> urls.mapNotNull { it.getOrNull(i) }.distinct() }
     }
 
-    private fun getPlayers(playerName: String, doc: String): List<String>? {
-        val playerRegex = Regex("$playerName\\s*=\\s*(\\[.*?])", RegexOption.DOT_MATCHES_ALL)
-        val string = playerRegex.find(doc)?.groupValues?.get(1)
-        return if (string != null) json.decodeFromString<List<String>>(string) else null
-    }
-
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         ListPreference(screen.context).apply {
             key = PREF_QUALITY_KEY
@@ -266,27 +255,27 @@ class AnimeSama : ConfigurableAnimeSource, AnimeHttpSource() {
     companion object {
         const val PREFIX_SEARCH = "id:"
 
-        private val VOICES = arrayOf(
-            "Préférer VOSTFR",
-            "Préférer VF",
+        private val voicesMap = mapOf(
+            "Préférer VOSTFR" to "vostfr",
+            "Préférer VF" to "vf",
+            "Préférer VF1" to "vf1",
+            "Préférer VF2" to "vf2",
+            "Préférer VA" to "va",
+            "Préférer VCN" to "vcn",
+            "Préférer VJ" to "vj",
+            "Préférer VKR" to "vkr",
+            "Préférer VQC" to "vqc",
         )
+        private val VOICES = voicesMap.keys.toTypedArray()
+        private val VOICES_VALUES = voicesMap.values.toTypedArray()
 
-        private val VOICES_VALUES = arrayOf(
-            "vostfr",
-            "vf",
+        private val playersMap = mapOf(
+            "Sendvid" to "sendvid",
+            "Sibnet" to "sibnet",
+            "VK" to "vk",
         )
-
-        private val PLAYERS = arrayOf(
-            "Sendvid",
-            "Sibnet",
-            "VK",
-        )
-
-        private val PLAYERS_VALUES = arrayOf(
-            "sendvid",
-            "sibnet",
-            "vk",
-        )
+        private val PLAYERS = playersMap.keys.toTypedArray()
+        private val PLAYERS_VALUES = playersMap.values.toTypedArray()
 
         private const val PREF_VOICES_KEY = "voices_preference"
         private const val PREF_VOICES_DEFAULT = "vostfr"

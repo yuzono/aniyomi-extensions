@@ -1,11 +1,12 @@
 ext {
     extName = 'FASELHD'
     extClass = '.FASELHD'
-    extVersionCode = 22
+    extVersionCode = 25
 }
 
 apply from: "$rootDir/common.gradle"
 
 dependencies {
     implementation(project(":lib:playlist-utils"))
+    implementation(project(":lib:synchrony"))
 }

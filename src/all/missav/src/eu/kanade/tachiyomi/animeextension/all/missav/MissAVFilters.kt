@@ -35,7 +35,7 @@ class GenreList : SelectFilter(
 ) {
     companion object {
         val GENRES = listOf(
-            Pair("", ""),
+            Pair("<Select>", ""),
             Pair("Uncensored Leak", "en/uncensored-leak"),
             Pair("Hd", "en/genres/Hd"),
             Pair("Exclusive", "en/genres/Exclusive"),

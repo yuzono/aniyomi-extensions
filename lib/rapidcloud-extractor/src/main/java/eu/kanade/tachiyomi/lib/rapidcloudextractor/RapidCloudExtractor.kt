@@ -15,8 +15,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.CacheControl
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -131,23 +129,26 @@ class RapidCloudExtractor(
     }
 
     fun getVideosFromUrl(url: String, type: String, name: String): List<Video> {
-        val video = getVideoDto(url)
+        val videos = getVideoDto(url)
+        if (videos.isEmpty()) return emptyList()
 
-        val masterUrl = video.sources.first().file
-        val subs2 = video.tracks
+        val subtitles = videos.first().tracks
             ?.filter { it.kind == "captions" }
             ?.map { Track(it.file, it.label) }
             .orEmpty()
-            .let { playlistUtils.fixSubtitles(it) }
-        return playlistUtils.extractFromHls(
-            masterUrl,
-            videoNameGen = { "$name - $it - $type" },
-            subtitleList = subs2,
-            referer = "https://${url.toHttpUrl().host}/",
-        )
+            .let(playlistUtils::fixSubtitles)
+
+        return videos.flatMap { video ->
+            playlistUtils.extractFromHls(
+                video.m3u8,
+                videoNameGen = { "$name - $it - $type" },
+                subtitleList = subtitles,
+                referer = "https://${url.toHttpUrl().host}/",
+            )
+        }
     }
 
-    private fun getVideoDto(url: String): VideoDto {
+    private fun getVideoDto(url: String): List<VideoDto> {
         val type = if (url.contains("rapid-cloud")) 0 else 1
 
         val keyType = SOURCES_KEY[type]
@@ -167,15 +168,18 @@ class RapidCloudExtractor(
 
         val data = json.decodeFromString<SourceResponseDto>(srcRes)
 
-        if (!data.encrypted) return json.decodeFromString<VideoDto>(srcRes)
+        return data.sources.map { source ->
+            val encoded = source.file
 
-        val ciphered = data.sources.jsonPrimitive.content
-        val decrypted = json.decodeFromString<List<VideoLink>>(
-            // tryDecrypting(ciphered, keyType),
-            decryptWithNewKey(ciphered),
-        )
+            val m3u8: String = if (!data.encrypted || ".m3u8" in encoded) {
+                encoded
+            } else {
+                // tryDecrypting(ciphered, keyType)
+                decryptWithNewKey(encoded)
+            }
 
-        return VideoDto(decrypted, data.tracks)
+            VideoDto(m3u8, data.tracks)
+        }
     }
 
     private fun decryptWithNewKey(ciphered: String): String {
@@ -231,19 +235,22 @@ class RapidCloudExtractor(
 
     @Serializable
     data class VideoDto(
-        val sources: List<VideoLink>,
+        val m3u8: String = "",
         val tracks: List<TrackDto>? = null,
     )
 
     @Serializable
     data class SourceResponseDto(
-        val sources: JsonElement,
+        val sources: List<SourceDto>,
         val encrypted: Boolean = true,
         val tracks: List<TrackDto>? = null,
     )
 
     @Serializable
-    data class VideoLink(val file: String = "")
+    data class SourceDto(
+        val file: String,
+        val type: String,   // 'hls'
+    )
 
     @Serializable
     data class TrackDto(val file: String, val kind: String, val label: String = "")

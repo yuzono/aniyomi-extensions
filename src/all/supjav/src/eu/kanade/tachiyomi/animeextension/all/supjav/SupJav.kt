@@ -155,7 +155,7 @@ class SupJav(override val lang: String = "en") : ConfigurableAnimeSource, Parsed
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
     private val streamtapeExtractor by lazy { StreamTapeExtractor(client) }
     private val streamwishExtractor by lazy { StreamWishExtractor(client, headers) }
-    private val voeExtractor by lazy { VoeExtractor(client) }
+    private val voeExtractor by lazy { VoeExtractor(client, headers) }
 
     private val protectorHeaders by lazy {
         super.headersBuilder().set("referer", "$PROTECTOR_URL/").build()
@@ -232,7 +232,7 @@ class SupJav(override val lang: String = "en") : ConfigurableAnimeSource, Parsed
     companion object {
         const val PREFIX_SEARCH = "id:"
 
-        private const val PROTECTOR_URL = "https://lk1.supremejav.com/supjav.php"
+        private const val PROTECTOR_URL = "https://lk1.supremejav.com"
 
         private val SUPPORTED_PLAYERS = setOf("TV", "FST", "VOE", "ST")
 

@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.ar.faselhd
 
-import androidx.preference.ListPreference
+import android.content.SharedPreferences
+import android.text.InputType
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
@@ -10,8 +11,13 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.playlistutils.PlaylistUtils
+import eu.kanade.tachiyomi.lib.synchrony.Deobfuscator
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.util.parallelCatchingFlatMapBlocking
+import extensions.utils.addEditTextPreference
+import extensions.utils.addListPreference
+import extensions.utils.delegate
 import extensions.utils.getPreferencesLazy
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -24,15 +30,14 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override val name = "فاصل اعلاني"
 
-    override val baseUrl = "https://www.faselhd.pro"
+    private val preferences by getPreferencesLazy()
+
+    override val baseUrl
+        get() = preferences.customDomain.ifBlank { "https://www.faselhds.biz" }
 
     override val lang = "ar"
 
     override val supportsLatest = true
-
-    private val preferences by getPreferencesLazy()
-
-    private val webViewResolver by lazy { WebViewResolver() }
 
     private val playlistUtils by lazy { PlaylistUtils(client, headers) }
 
@@ -49,8 +54,10 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun popularAnimeFromElement(element: Element): SAnime {
         val anime = SAnime.create()
         anime.setUrlWithoutDomain(element.attr("href"))
-        anime.title = element.select("div.imgdiv-class img").attr("alt")
-        anime.thumbnail_url = element.select("div.imgdiv-class img").attr("data-src")
+        element.select("div.imgdiv-class img").let {
+            anime.title = it.attr("alt")
+            anime.thumbnail_url = it.attr("data-src")
+        }
         return anime
     }
 
@@ -104,17 +111,24 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     // ============================ Video Links =============================
 
-    override fun videoListSelector() = throw UnsupportedOperationException()
+    override fun videoListSelector(): String = "li:contains(سيرفر)"
+
+    private val videoRegex by lazy { Regex("""(https?:)?//[^"]+\.m3u8""") }
+    private val onClickRegex by lazy { Regex("""['"](https?://[^'"]+)['"]""") }
 
     override fun videoListParse(response: Response): List<Video> {
-        val document = response.asJsoup()
-        val iframe = document.selectFirst("iframe")!!.attr("src").substringBefore("&img")
-        val webViewResult = webViewResolver.getUrl(iframe, headers)
-        return if (webViewResult.isNotBlank()) playlistUtils.extractFromHls(webViewResult) else emptyList()
+        return response.asJsoup().select(videoListSelector()).parallelCatchingFlatMapBlocking { element ->
+            val url = onClickRegex.find(element.attr("onclick"))?.groupValues?.get(1) ?: ""
+            val doc = client.newCall(GET(url, headers)).execute().asJsoup()
+            val script = doc.selectFirst("script:containsData(video), script:containsData(mainPlayer)")?.data()
+                ?.let(Deobfuscator::deobfuscateScript) ?: ""
+            val playlist = videoRegex.find(script)?.value
+            playlist?.let { playlistUtils.extractFromHls(it) } ?: emptyList()
+        }
     }
 
     override fun List<Video>.sort(): List<Video> {
-        val quality = preferences.getString("preferred_quality", "1080")!!
+        val quality = preferences.quality
         return sortedWith(
             compareBy { it.quality.contains(quality) },
         ).reversed()
@@ -261,23 +275,35 @@ class FASELHD : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     }
 
     // preferred quality settings
+    private var SharedPreferences.customDomain by preferences.delegate(PREF_DOMAIN_CUSTOM_KEY, "")
+    private var SharedPreferences.quality by preferences.delegate(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)
 
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
-        val videoQualityPref = ListPreference(screen.context).apply {
-            key = "preferred_quality"
-            title = "Preferred quality"
-            entries = arrayOf("1080p", "720p", "480p", "360p")
-            entryValues = arrayOf("1080", "720", "480", "360")
-            setDefaultValue("1080")
-            summary = "%s"
+        screen.addListPreference(
+            key = PREF_QUALITY_KEY,
+            title = "الجودة المفضلة",
+            entries = listOf("1080p", "720p", "480p", "360p"),
+            entryValues = listOf("1080", "720", "480", "360"),
+            default = PREF_QUALITY_DEFAULT,
+            summary = "%s",
+        )
 
-            setOnPreferenceChangeListener { _, newValue ->
-                val selected = newValue as String
-                val index = findIndexOfValue(selected)
-                val entry = entryValues[index] as String
-                preferences.edit().putString(key, entry).commit()
-            }
-        }
-        screen.addPreference(videoQualityPref)
+        screen.addEditTextPreference(
+            key = PREF_DOMAIN_CUSTOM_KEY,
+            default = "",
+            title = "المجال المخصص",
+            dialogMessage = "أدخل المجال المخصص (على سبيل المثال، https://example.com)",
+            summary = preferences.customDomain,
+            getSummary = { it },
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI,
+            validate = { it.isBlank() || (it.toHttpUrlOrNull() != null && !it.endsWith("/")) },
+            validationMessage = { "عنوان URL غير صالح أو مشوه أو ينتهي بشرطة مائلة" },
+        )
+    }
+
+    companion object {
+        private const val PREF_DOMAIN_CUSTOM_KEY = "custom_domain"
+        private const val PREF_QUALITY_KEY = "preferred_quality"
+        private const val PREF_QUALITY_DEFAULT = "1080"
     }
 }

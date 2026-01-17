@@ -3,10 +3,11 @@ ext {
     extClass = '.NineAnimeTv'
     themePkg = 'zorotheme'
     baseUrl = 'https://9animetv.to'
-    overrideVersionCode = 5
+    overrideVersionCode = 6
 }
 
 apply from: "$rootDir/common.gradle"
 
 dependencies {
+    api(project(":lib:rapidcloud-extractor"))
 }

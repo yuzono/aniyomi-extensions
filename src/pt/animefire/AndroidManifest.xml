@@ -14,7 +14,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="animefire.plus"
+                    android:host="animefire.io"
                     android:pathPattern="/animes/..*"
                     android:scheme="https" />
             </intent-filter>
