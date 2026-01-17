@@ -12,6 +12,7 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.lib.doodextractor.DoodExtractor
+import eu.kanade.tachiyomi.lib.i18n.Intl
 import eu.kanade.tachiyomi.lib.megamaxmultiserver.MegaMaxMultiServer
 import eu.kanade.tachiyomi.lib.mixdropextractor.MixDropExtractor
 import eu.kanade.tachiyomi.lib.streamwishextractor.StreamWishExtractor
@@ -31,6 +32,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.util.Locale
 
 class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -49,6 +51,13 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return super.headersBuilder()
             .add("Referer", "$baseUrl/")
     }
+
+    private val intl = Intl(
+        language = Locale.getDefault().language,
+        baseLanguage = "ar",
+        availableLanguages = setOf("ar", "en"),
+        classLoader = this::class.java.classLoader!!,
+    )
 
     // ============================== Popular ===============================
     override fun popularAnimeSelector(): String = "div.Block--Item, div.Small--Box"
@@ -268,130 +277,126 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // ============================ Filters =============================
 
     override fun getFilterList() = AnimeFilterList(
-        AnimeFilter.Header("يمكنك تصفح اقسام الموقع اذا كان البحث فارغ"),
-        SectionFilter(),
+        AnimeFilter.Header(intl["filter_note"]),
+        SectionFilter(intl),
         AnimeFilter.Separator(),
-        AnimeFilter.Header("التصنيفات تعمل اذا كان 'اقسام الموقع' على 'اختر' فقط"),
-        GenreFilter(),
+        GenreFilter(intl),
         AnimeFilter.Separator(),
-        AnimeFilter.Header("المسلسلات"),
-        AdvancedSection(),
-        AdvancedGenre(),
-        AdvancedRating(),
+        AnimeFilter.Header(intl["advanced_filter"]),
+        AdvancedSection(intl),
+        AdvancedGenre(intl),
+        AdvancedRating(intl),
     )
 
-    private class SectionFilter : PairFilter(
-        "اقسام الموقع",
+    private class SectionFilter(intl: Intl) : PairFilter(
+        intl["section"],
         arrayOf(
-            Pair("اختر", ""),
-            Pair("جميع الافلام", "category/movies-2/"),
-            Pair("افلام نتفليكس", "channel/film-netflix-1/"),
-            Pair("افلام اجنبي", "category/movies-2/افلام-اجنبي/"),
-            Pair("افلام هندي", "category/movies-2/افلام-هندى/"),
-            Pair("افلام اسيوي", "category/movies-2/افلام-اسيوي/"),
-            Pair("افلام انمي", "category/anime-6/افلام-انمي/"),
-            Pair("افلام تركي", "category/movies-2/افلام-تركي/"),
-            Pair("افلام مدبلجة", "category/movies-2/افلام-مدبلجة/"),
-            Pair("أحدث المسلسلات الأجنبي", "sercat/مسلسلات-اجنبي/"),
-            Pair("أحدث المسلسلات التركي", "sercat/مسلسلات-تركي/"),
-            Pair("أحدث المسلسلات الأسيوي", "sercat/مسلسلات-أسيوي/"),
-            Pair("مسلسلات نتفليكس", "channel/series-netflix-2/"),
-            Pair("أحدث الانميات", "sercat/قائمة-الانمي/"),
-            Pair("أحدث البرامج التلفزيونية", "sercat/برامج-تلفزيونية/"),
-            Pair("أحدث المسلسلات الهندي", "sercat/مسلسلات-هندي/"),
+            Pair(intl["choose"], ""),
+            Pair(intl["All_Movies"], "category/movies-2/"),
+            Pair(intl["Netflix_Movies"], "channel/film-netflix-1/"),
+            Pair(intl["Foreign_Movies"], "category/movies-2/افلام-اجنبي/"),
+            Pair(intl["Indian_Movies"], "category/movies-2/افلام-هندى/"),
+            Pair(intl["Asian_Movies"], "category/movies-2/افلام-اسيوي/"),
+            Pair(intl["Anime_Movies"], "category/anime-6/افلام-انمي/"),
+            Pair(intl["Turkish_Movies"], "category/movies-2/افلام-تركي/"),
+            Pair(intl["Dubbed_Movies"], "category/movies-2/افلام-مدبلجة/"),
+            Pair(intl["Latest_Foreign_Series"], "sercat/مسلسلات-اجنبي/"),
+            Pair(intl["Latest_Turkish_Series"], "sercat/مسلسلات-تركي/"),
+            Pair(intl["Latest_Asian_Series"], "sercat/مسلسلات-أسيوي/"),
+            Pair(intl["Netflix_Series"], "channel/series-netflix-2/"),
+            Pair(intl["Latest_Anime"], "sercat/قائمة-الانمي/"),
+            Pair(intl["Latest_TV_Shows"], "sercat/برامج-تلفزيونية/"),
+            Pair(intl["Latest_Indian_Series"], "sercat/مسلسلات-هندي/"),
         ),
     )
 
-    private class GenreFilter : SingleFilter(
-        "التصنيف",
+    private class GenreFilter(intl: Intl) : PairFilter(
+        intl["genre"],
         arrayOf(
-            "اكشن",
-            "مغامرة",
-            "كرتون",
-            "فانتازيا",
-            "خيال-علمي",
-            "رومانسي",
-            "كوميدي",
-            "عائلي",
-            "دراما",
-            "اثارة",
-            "غموض",
-            "جريمة",
-            "رعب",
-            "وثائقي",
-        ).sortedArray(),
-    )
-
-    private class AdvancedSection : PairFilter(
-        "تصفية الاقسام",
-        arrayOf(
-            Pair("اختر", ""),
-            Pair("حلقات أجنبي", "221258"),
-            Pair("حلقات الأنميات", "221271"),
-            Pair("حلقات أسيوي", "225978"),
-            Pair("افلام اجنبي", "3"),
-            Pair("حلقات تركي", "221316"),
-            Pair("افلام هندي", "5"),
-            Pair("برامج تلفزيونية", "238759"),
-            Pair("افلام اسيوي", "6"),
-            Pair("حلقات هندي", "283152"),
-            Pair("افلام انمي", "8"),
-            Pair("افلام تركي", "7"),
-            Pair("افلام مدبلجة", "1521566"),
-            Pair("عروض مصارعة", "1277168"),
-            Pair("الأفلام", "2"),
-            Pair("انميات", "225979"),
+            Pair(intl["choose"], ""),
+            Pair(intl["Action"], "اكشن"),
+            Pair(intl["Adventure"], "مغامرة"),
+            Pair(intl["Animation"], "كرتون"),
+            Pair(intl["Fantasy"], "فانتازيا"),
+            Pair(intl["Sci-Fi"], "خيال-علمي"),
+            Pair(intl["Romance"], "رومانسي"),
+            Pair(intl["Comedy"], "كوميدي"),
+            Pair(intl["Family"], "عائلي"),
+            Pair(intl["Drama"], "دراما"),
+            Pair(intl["Thriller"], "اثارة"),
+            Pair(intl["Mystery"], "غموض"),
+            Pair(intl["Crime"], "جريمة"),
+            Pair(intl["Horror"], "رعب"),
+            Pair(intl["Historical"], "تاريخي"),
+            Pair(intl["Documentary"], "وثائقي"),
         ),
     )
 
-    private class AdvancedGenre : PairFilter(
-        "تصفية الانواع",
+    private class AdvancedSection(intl: Intl) : PairFilter(
+        intl["section"],
         arrayOf(
-            Pair("اختر", ""),
-            Pair("دراما", "24"),
-            Pair("كوميدي", "180"),
-            Pair("اكشن", "49"),
-            Pair("جريمة", "50"),
-            Pair("رومانسي", "26"),
-            Pair("اثارة", "51"),
-            Pair("مغامرة", "293186"),
-            Pair("انمي", "244998"),
-            Pair("غموض", "25"),
-            Pair("فانتازيا", "308"),
-            Pair("خيال علمي", "273"),
-            Pair("رعب", "272"),
-            Pair("تاريخي", "534"),
-            Pair("وثائقي", "97467"),
-            Pair("عائلي", "731"),
+            Pair(intl["all"], ""),
+            Pair(intl["Foreign_Episodes"], "221258"),
+            Pair(intl["Anime_Episodes"], "221271"),
+            Pair(intl["Asian_Episodes"], "225978"),
+            Pair(intl["Foreign_Movies"], "3"),
+            Pair(intl["Turkish_Episodes"], "221316"),
+            Pair(intl["Indian_Movies"], "5"),
+            Pair(intl["TV_Shows"], "238759"),
+            Pair(intl["Asian_Movies"], "6"),
+            Pair(intl["Indian_Episodes"], "283152"),
+            Pair(intl["Anime_Movies"], "8"),
+            Pair(intl["Turkish_Movies"], "7"),
+            Pair(intl["Dubbed_Movies"], "1521566"),
+            Pair(intl["Wrestling_Shows"], "1277168"),
+            Pair(intl["Movies"], "2"),
+            Pair(intl["Anime"], "225979"),
         ),
     )
 
-    private class AdvancedRating : PairFilter(
-        "تصفية الفئة العمرية",
+    private class AdvancedGenre(intl: Intl) : PairFilter(
+        intl["genre"],
         arrayOf(
-            Pair("اختر", ""),
-            Pair("لا يقل عن 14 عام", "240378"),
-            Pair("لا يقل عن 17 عام", "240244"),
-            Pair("غير مناسب للأطفال", "240660"),
-            Pair("TV-+13 بارشاد عائلي لمن هم دون 13 سنه", "294376"),
-            Pair("مناسب للبالغين فقط", "240192"),
-            Pair("للأطفال أكبر من 7 سنوات", "241926"),
-            Pair("+13 بارشاد عائلي لمن هم دون 13 سنه", "293269"),
-            Pair("TV-جميع الاعمار", "297197"),
-            Pair("مناسب للجميع", "240447"),
-            Pair("لا يقل عن 13 عام", "240363"),
-            Pair("اقل من 6 سنوات", "241023"),
+            Pair(intl["all"], ""),
+            Pair(intl["Drama"], "24"),
+            Pair(intl["Comedy"], "180"),
+            Pair(intl["Action"], "49"),
+            Pair(intl["Crime"], "50"),
+            Pair(intl["Romance"], "26"),
+            Pair(intl["Thriller"], "51"),
+            Pair(intl["Adventure"], "293186"),
+            Pair(intl["Anime"], "244998"),
+            Pair(intl["Mystery"], "25"),
+            Pair(intl["Fantasy"], "308"),
+            Pair(intl["Sci-Fi"], "273"),
+            Pair(intl["Horror"], "272"),
+            Pair(intl["Historical"], "534"),
+            Pair(intl["Documentary"], "97467"),
+            Pair(intl["Family"], "731"),
+        ),
+    )
+
+    private class AdvancedRating(intl: Intl) : PairFilter(
+        intl["age_rating_filter"],
+        arrayOf(
+            Pair(intl["all"], ""),
+            Pair(intl["above_14"], "240378"),
+            Pair(intl["above_17"], "240244"),
+            Pair(intl["not_children"], "240660"),
+            Pair(intl["tv_13"], "294376"),
+            Pair(intl["adult_only"], "240192"),
+            Pair(intl["above_7"], "241926"),
+            Pair(intl["parent_13"], "293269"),
+            Pair(intl["tv_all_ages"], "297197"),
+            Pair(intl["all_ages"], "240447"),
+            Pair(intl["above_13"], "240363"),
+            Pair(intl["under_6"], "241023"),
             Pair("PG-13 - Teens 13 or older", "1530745"),
             Pair("N/A", "1530272"),
-            Pair("R - 17+ (violence &amp; profanity)", "1529057"),
+            Pair("R - 17+ (violence & profanity)", "1529057"),
             Pair("G - All Ages", "1531434"),
         ),
     )
-
-    open class SingleFilter(displayName: String, private val vals: Array<String>) :
-        AnimeFilter.Select<String>(displayName, vals) {
-        fun toUriPart() = vals[state]
-    }
 
     open class PairFilter(displayName: String, private val vals: Array<Pair<String, String>>) :
         AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
@@ -405,7 +410,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun setupPreferenceScreen(screen: PreferenceScreen) {
         screen.addListPreference(
             key = PREF_QUALITY_KEY,
-            title = "الجودة المفضلة",
+            title = intl["preferred_quality"],
             entries = listOf("1080p", "720p", "480p", "360p", "240p"),
             entryValues = listOf("1080", "720", "480", "360", "240"),
             default = PREF_QUALITY_DEFAULT,
@@ -415,7 +420,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         screen.addEditTextPreference(
             key = PREF_DOMAIN_CUSTOM_KEY,
             default = "",
-            title = "المجال المخصص",
+            title = intl["custom_domain"],
             dialogMessage = "أدخل المجال المخصص (على سبيل المثال، https://example.com)",
             summary = preferences.customDomain,
             getSummary = { it },
