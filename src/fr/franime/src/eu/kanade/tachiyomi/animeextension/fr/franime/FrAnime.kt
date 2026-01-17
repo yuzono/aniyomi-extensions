@@ -14,7 +14,9 @@ import eu.kanade.tachiyomi.lib.vkextractor.VkExtractor
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
@@ -44,22 +46,28 @@ class FrAnime : AnimeHttpSource() {
 
     private val json: Json by injectLazy()
 
-    private val database by lazy {
-        client.newCall(GET("$baseApiUrl/animes/", headers)).execute()
-            .body.string()
-            .let { json.decodeFromString<List<Anime>>(it) }
+    private var cachedDatabase: List<Anime>? = null
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun getDb(): List<Anime> {
+        return cachedDatabase ?: synchronized(this) {
+            cachedDatabase ?: client.newCall(GET("$baseApiUrl/animes/", headers)).execute().use { response ->
+                if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
+                json.decodeFromStream<List<Anime>>(response.body.source().inputStream()).also { cachedDatabase = it }
+            }
+        }
     }
 
     // ============================== Popular ===============================
     override suspend fun getPopularAnime(page: Int) =
-        pagesToAnimesPage(database.sortedByDescending { it.note }, page)
+        pagesToAnimesPage(getDb().sortedByDescending { it.note }, page)
 
     override fun popularAnimeParse(response: Response) = throw UnsupportedOperationException()
 
     override fun popularAnimeRequest(page: Int) = throw UnsupportedOperationException()
 
     // =============================== Latest ===============================
-    override suspend fun getLatestUpdates(page: Int) = pagesToAnimesPage(database.reversed(), page)
+    override suspend fun getLatestUpdates(page: Int) = pagesToAnimesPage(getDb().reversed(), page)
 
     override fun latestUpdatesParse(response: Response): AnimesPage = throw UnsupportedOperationException()
 
@@ -67,7 +75,7 @@ class FrAnime : AnimeHttpSource() {
 
     // =============================== Search ===============================
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
-        val pages = database.filter {
+        val pages = getDb().filter {
             it.title.contains(query, true) ||
                 it.originalTitle.contains(query, true) ||
                 it.titlesAlt.en?.contains(query, true) == true ||
@@ -93,8 +101,8 @@ class FrAnime : AnimeHttpSource() {
         val stem = url.encodedPathSegments.last()
         val language = url.queryParameter("lang") ?: "vo"
         val season = url.queryParameter("s")?.toIntOrNull() ?: 1
-        val animeData = database.first { titleToUrl(it.originalTitle) == stem }
-        val episodes = animeData.seasons[season - 1].episodes
+        val animeData = getDb().first { titleToUrl(it.originalTitle) == stem }
+        val episodes = (animeData.seasons.getOrNull(season - 1)?.episodes ?: emptyList())
             .mapIndexedNotNull { index, episode ->
                 val players = when (language) {
                     "vo" -> episode.languages.vo
@@ -121,7 +129,7 @@ class FrAnime : AnimeHttpSource() {
         val episodeNumber = url.queryParameter("ep")?.toIntOrNull() ?: 1
         val episodeLang = url.queryParameter("lang") ?: "vo"
         val stem = url.encodedPathSegments.last()
-        val animeData = database.first { titleToUrl(it.originalTitle) == stem }
+        val animeData = getDb().first { titleToUrl(it.originalTitle) == stem }
         val episodeData = animeData.seasons[seasonNumber - 1].episodes[episodeNumber - 1]
         val videoBaseUrl = "$baseApiAnimeUrl/${animeData.id}/${seasonNumber - 1}/${episodeNumber - 1}"
 
@@ -159,34 +167,36 @@ class FrAnime : AnimeHttpSource() {
         return AnimesPage(entries, hasNextPage)
     }
 
-    private val titleRegex by lazy { Regex("[^A-Za-z0-9 ]") }
-    private fun titleToUrl(title: String) = titleRegex.replace(title, "").replace(" ", "-").lowercase()
+    private fun titleToUrl(title: String) = title
+        .lowercase()
+        .replace(Regex("[^a-z0-9\\s]"), "")
+        .trim()
+        .replace(Regex("\\s+"), "-")
 
     private fun pageToSAnimes(page: List<Anime>): List<SAnime> {
         return page.flatMap { anime ->
-            anime.seasons.flatMapIndexed { index, season ->
-                val seasonTitle = anime.title + if (anime.seasons.size > 1) " S${index + 1}" else ""
+            anime.seasons.mapIndexed { index, season ->
                 val hasVostfr = season.episodes.any { ep -> ep.languages.vo.players.isNotEmpty() }
                 val hasVf = season.episodes.any { ep -> ep.languages.vf.players.isNotEmpty() }
 
-                // I want to die for writing this
-                val languages = listOfNotNull(
-                    if (hasVostfr) Triple("VOSTFR", "vo", hasVf) else null,
-                    if (hasVf) Triple("VF", "vf", hasVostfr) else null,
-                )
-
-                languages.map { lang ->
-                    SAnime.create().apply {
-                        title = seasonTitle + if (lang.third) " (${lang.first})" else ""
-                        thumbnail_url = anime.poster
-                        genre = anime.genres.joinToString()
-                        status = parseStatus(anime.status, anime.seasons.size, index + 1)
-                        description = anime.description
-                        setUrlWithoutDomain("/anime/${titleToUrl(anime.originalTitle)}?lang=${lang.second}&s=${index + 1}")
-                        initialized = true
-                    }
+                buildList {
+                    if (hasVostfr) add(createSAnime(anime, index, "VOSTFR", "vo", hasVf))
+                    if (hasVf) add(createSAnime(anime, index, "VF", "vf", hasVostfr))
                 }
-            }
+            }.flatten()
+        }
+    }
+
+    private fun createSAnime(anime: Anime, seasonIndex: Int, langLabel: String, langCode: String, showLangInTitle: Boolean): SAnime {
+        return SAnime.create().apply {
+            val seasonTitle = anime.title + if (anime.seasons.size > 1) " S${seasonIndex + 1}" else ""
+            title = if (showLangInTitle) "$seasonTitle ($langLabel)" else seasonTitle
+            thumbnail_url = anime.poster
+            genre = anime.genres.joinToString()
+            status = parseStatus(anime.status, anime.seasons.size, seasonIndex + 1)
+            description = anime.description
+            setUrlWithoutDomain("/anime/${titleToUrl(anime.originalTitle)}?lang=$langCode&s=${seasonIndex + 1}")
+            initialized = true
         }
     }
 
