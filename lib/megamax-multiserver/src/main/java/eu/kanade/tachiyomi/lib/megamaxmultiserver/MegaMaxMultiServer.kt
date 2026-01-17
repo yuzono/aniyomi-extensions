@@ -4,6 +4,7 @@ import eu.kanade.tachiyomi.lib.megamaxmultiserver.dto.IframeResponse
 import eu.kanade.tachiyomi.lib.megamaxmultiserver.dto.LeechResponse
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.UrlUtils
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import kotlin.math.abs
@@ -26,7 +27,7 @@ class MegaMaxMultiServer(private val client: OkHttpClient, private val headers: 
                 val quality = it.resolution.substringAfter("x").let(::stnQuality)
                 val size = it.size.let(::convertSize)
                 it.mirrors.forEach { mirror ->
-                    val link = if (mirror.link.startsWith("/")) "https:${mirror.link}" else mirror.link
+                    val link = UrlUtils.fixUrl(mirror.link)
                     urls += Provider(link, mirror.driver, quality, size)
                 }
             }

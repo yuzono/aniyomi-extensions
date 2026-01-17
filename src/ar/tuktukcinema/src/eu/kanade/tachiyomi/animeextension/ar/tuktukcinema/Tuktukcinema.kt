@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animeextension.ar.tuktukcinema
 
 import android.content.SharedPreferences
 import android.text.InputType
+import android.util.Base64
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
@@ -30,8 +31,6 @@ import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import java.util.Base64
-import kotlin.text.String
 
 class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
@@ -94,7 +93,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                     val episodeNum = episode.select("div.epnum").text().filter { it.isDigit() }.ifEmpty { (index + 1).toString() }
                     SEpisode.create().apply {
                         setUrlWithoutDomain(episode.attr("href"))
-                        name = "$seasonText : الحلقة " + episodeNum
+                        name = "$seasonText : الحلقة $episodeNum"
                         episode_number = ("$seasonNum.$episodeNum").toFloat()
                     }
                 }
@@ -113,7 +112,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val document = response.asJsoup()
         return document.select(videoListSelector()).parallelCatchingFlatMapBlocking {
             val url = it.attr("data-link").substringBefore("0REL0Y").reversed()
-            extractVideos(String(Base64.getDecoder().decode(url)), it.text())
+            extractVideos(Base64.decode(url, Base64.DEFAULT).let(::String), it.text())
         }
     }
 
@@ -151,7 +150,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "krakenfiles" in server -> {
                 val page = client.newCall(GET(url, headers)).execute().asJsoup()
                 page.select("source").map {
-                    Video(it.attr("src"), "Kraken" + (customQuality?.let { q -> ": $q" } ?: ""), it.attr("src"))
+                    Video(it.attr("src"), "Kraken" + customQuality?.let { q -> ": $q" }.orEmpty(), it.attr("src"))
                 }
             }
 
