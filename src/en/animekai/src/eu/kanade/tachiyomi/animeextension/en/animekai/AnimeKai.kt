@@ -472,6 +472,8 @@ class AnimeKai : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     companion object {
         private const val PREF_DOMAIN_KEY = "preferred_domain"
+
+        // Domain list: https://animekai.ws
         private val DOMAIN_ENTRIES = listOf(
             "animekai.to",
             "animekai.im",
