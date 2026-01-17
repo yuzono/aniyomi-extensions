@@ -59,9 +59,9 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         return SAnime.create().apply {
             title = element.select("a").attr("title").let { editTitle(it, details = true) }
             thumbnail_url = element.select("img").attr(
-                if (element.ownerDocument()!!.location().contains("?s=")) "src" else "data-src",
+                if (element.ownerDocument()!!.location().contains("?s=")) "abs:src" else "abs:data-src",
             )
-            setUrlWithoutDomain(element.select("a").attr("href"))
+            setUrlWithoutDomain(element.select("a").attr("abs:href"))
         }
     }
 
@@ -84,15 +84,16 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val seasons = document.select(episodeListSelector())
             seasons.reversed().flatMap { season ->
                 val seasonText = season.select("h3").text()
-                val seasonUrl = season.selectFirst("a")?.attr("href") ?: return@flatMap emptyList()
+                val seasonUrl = season.selectFirst("a")?.attr("abs:href") ?: return@flatMap emptyList()
                 val seasonDoc = if (selectedSeason == seasonText) { document } else {
                     client.newCall(GET(seasonUrl)).execute().asJsoup()
                 }
                 val seasonNum = if (seasons.size == 1) "1" else seasonText.filter { it.isDigit() }
                 seasonDoc.select("section.allepcont a").mapIndexed { index, episode ->
-                    val episodeNum = episode.select("div.epnum").text().filter { it.isDigit() }.ifEmpty { (index + 1).toString() }
+                    val episodeNum = episode.select("div.epnum").text().filter { it.isDigit() }
+                        .ifEmpty { (index + 1).toString() }
                     SEpisode.create().apply {
-                        setUrlWithoutDomain(episode.attr("href"))
+                        setUrlWithoutDomain(episode.attr("abs:href"))
                         name = "$seasonText : الحلقة $episodeNum"
                         episode_number = ("$seasonNum.$episodeNum").toFloat()
                     }
@@ -213,7 +214,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             author = document.select("ul.RightTaxContent li:contains(دولة) a").text()
             description = document.select("div.story").text().trim()
             status = SAnime.COMPLETED
-            thumbnail_url = document.select("div.left div.image img").attr("data-src")
+            thumbnail_url = document.select("div.left div.image img").attr("abs:data-src")
         }
     }
 
