@@ -57,7 +57,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
     override fun popularAnimeFromElement(element: Element): SAnime {
         return SAnime.create().apply {
-            title = element.select("a").attr("title").let { editTitle(it, true) }
+            title = element.select("a").attr("title").let { editTitle(it, details = true) }
             thumbnail_url = element.select("img").attr(
                 if (element.ownerDocument()!!.location().contains("?s=")) "src" else "data-src",
             )
@@ -336,7 +336,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_DOMAIN_CUSTOM_KEY = "custom_domain"
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
-        private val REGEX_MOVIE = Regex("""(?:فيلم|عرض)\\s(.*\\s[0-9]+)\\s(.+?)\\s""")
-        private val REGEX_SERIES = Regex("""(?:مسلسل|برنامج|انمي)\\s(.+)\\sالحلقة\\s(\\d+)""")
+        private val REGEX_MOVIE = Regex("""(?:فيلم|عرض)\s(.*\s\d+)\s(.+?)\s""")
+        private val REGEX_SERIES = Regex("""(?:مسلسل|برنامج|انمي)\s(.+)\sالحلقة\s(\d+)""")
     }
 }
