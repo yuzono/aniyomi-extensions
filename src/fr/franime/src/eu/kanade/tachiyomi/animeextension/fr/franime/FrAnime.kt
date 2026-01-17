@@ -208,4 +208,8 @@ class FrAnime : AnimeHttpSource() {
             else -> SAnime.UNKNOWN
         }
     }
+
+    companion object {
+        const val PREFIX_SEARCH = "id:"
+    }
 }

@@ -1,32 +1,25 @@
 package eu.kanade.tachiyomi.animeextension.fr.franime
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import kotlin.system.exitProcess
 
 class FrAnimeUrlActivity : Activity() {
-
-    private val tag = "FrAnimeUrlActivity"
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pathSegments = intent?.data?.pathSegments
-        if (pathSegments != null && pathSegments.size == 2) {
+        if (pathSegments != null && pathSegments.size >= 2) {
+            val id = pathSegments[1]
             val mainIntent = Intent().apply {
                 action = "eu.kanade.tachiyomi.ANIMESEARCH"
-                putExtra("query", "${FrAnime.PREFIX_SEARCH}${pathSegments[1]}")
+                putExtra("query", "${FrAnime.PREFIX_SEARCH}$id")
                 putExtra("filter", packageName)
             }
-            try {
-                startActivity(mainIntent)
-            } catch (e: ActivityNotFoundException) {
-                Log.e(tag, e.toString())
-            }
+            startActivity(mainIntent)
         } else {
-            Log.e(tag, "could not parse uri from intent $intent")
+            Log.e("FrAnimeUrlActivity", "Impossible de traiter le lien : ${intent?.data}")
         }
         finish()
         exitProcess(0)
