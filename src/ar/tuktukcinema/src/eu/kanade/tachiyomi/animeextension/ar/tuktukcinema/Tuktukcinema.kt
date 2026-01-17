@@ -188,16 +188,34 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             val filterList = if (filters.isEmpty()) getFilterList() else filters
             val sectionFilter = filterList.filterIsInstance<SectionFilter>().first()
             val genreFilter = filterList.filterIsInstance<GenreFilter>().first()
-            val url = baseUrl.toHttpUrl().newBuilder()
-            if (sectionFilter.state != 0) {
-                url.addPathSegments(sectionFilter.toUriPart())
-            } else if (genreFilter.state != 0) {
-                url.addPathSegment("genre")
-                url.addPathSegment(genreFilter.toUriPart())
-            } else {
-                throw Exception("من فضلك اختر قسم او تصنيف")
+            val advancedSection = filterList.filterIsInstance<AdvancedSection>().first()
+            val advancedGenre = filterList.filterIsInstance<AdvancedGenre>().first()
+            val advancedRating = filterList.filterIsInstance<AdvancedRating>().first()
+            val url = baseUrl.toHttpUrl().newBuilder().apply {
+                if (advancedSection.state != 0 || advancedGenre.state != 0 || advancedRating.state != 0) {
+                    addPathSegments("filtering/")
+                    if (advancedSection.state != 0) {
+                        addQueryParameter("category", advancedSection.toUriPart())
+                    }
+                    if (advancedGenre.state != 0) {
+                        addQueryParameter("genre", advancedGenre.toUriPart())
+                    }
+                    if (advancedRating.state != 0) {
+                        addQueryParameter("mpaa", advancedRating.toUriPart())
+                    }
+                    addQueryParameter("pagenum", page.toString())
+                } else {
+                    if (sectionFilter.state != 0) {
+                        addPathSegments(sectionFilter.toUriPart())
+                    } else if (genreFilter.state != 0) {
+                        addPathSegment("genre")
+                        addPathSegment(genreFilter.toUriPart())
+                    } else {
+                        throw Exception("من فضلك اختر قسم او تصنيف")
+                    }
+                    addQueryParameter("page", page.toString())
+                }
             }
-            url.addQueryParameter("page", page.toString())
             GET(url.toString(), headers)
         }
     }
@@ -255,6 +273,11 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         AnimeFilter.Separator(),
         AnimeFilter.Header("التصنيفات تعمل اذا كان 'اقسام الموقع' على 'اختر' فقط"),
         GenreFilter(),
+        AnimeFilter.Separator(),
+        AnimeFilter.Header("المسلسلات"),
+        AdvancedSection(),
+        AdvancedGenre(),
+        AdvancedRating(),
     )
 
     private class SectionFilter : PairFilter(
@@ -297,6 +320,72 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             "رعب",
             "وثائقي",
         ).sortedArray(),
+    )
+
+    private class AdvancedSection : PairFilter(
+        "تصفية الاقسام",
+        arrayOf(
+            Pair("اختر", ""),
+            Pair("حلقات أجنبي", "221258"),
+            Pair("حلقات الأنميات", "221271"),
+            Pair("حلقات أسيوي", "225978"),
+            Pair("افلام اجنبي", "3"),
+            Pair("حلقات تركي", "221316"),
+            Pair("افلام هندي", "5"),
+            Pair("برامج تلفزيونية", "238759"),
+            Pair("افلام اسيوي", "6"),
+            Pair("حلقات هندي", "283152"),
+            Pair("افلام انمي", "8"),
+            Pair("افلام تركي", "7"),
+            Pair("افلام مدبلجة", "1521566"),
+            Pair("عروض مصارعة", "1277168"),
+            Pair("الأفلام", "2"),
+            Pair("انميات", "225979"),
+        ),
+    )
+
+    private class AdvancedGenre : PairFilter(
+        "تصفية الانواع",
+        arrayOf(
+            Pair("اختر", ""),
+            Pair("دراما", "24"),
+            Pair("كوميدي", "180"),
+            Pair("اكشن", "49"),
+            Pair("جريمة", "50"),
+            Pair("رومانسي", "26"),
+            Pair("اثارة", "51"),
+            Pair("مغامرة", "293186"),
+            Pair("انمي", "244998"),
+            Pair("غموض", "25"),
+            Pair("فانتازيا", "308"),
+            Pair("خيال علمي", "273"),
+            Pair("رعب", "272"),
+            Pair("تاريخي", "534"),
+            Pair("وثائقي", "97467"),
+            Pair("عائلي", "731"),
+        ),
+    )
+
+    private class AdvancedRating : PairFilter(
+        "تصفية الفئة العمرية",
+        arrayOf(
+            Pair("اختر", ""),
+            Pair("لا يقل عن 14 عام", "240378"),
+            Pair("لا يقل عن 17 عام", "240244"),
+            Pair("غير مناسب للأطفال", "240660"),
+            Pair("TV-+13 بارشاد عائلي لمن هم دون 13 سنه", "294376"),
+            Pair("مناسب للبالغين فقط", "240192"),
+            Pair("للأطفال أكبر من 7 سنوات", "241926"),
+            Pair("+13 بارشاد عائلي لمن هم دون 13 سنه", "293269"),
+            Pair("TV-جميع الاعمار", "297197"),
+            Pair("مناسب للجميع", "240447"),
+            Pair("لا يقل عن 13 عام", "240363"),
+            Pair("اقل من 6 سنوات", "241023"),
+            Pair("PG-13 - Teens 13 or older", "1530745"),
+            Pair("N/A", "1530272"),
+            Pair("R - 17+ (violence &amp; profanity)", "1529057"),
+            Pair("G - All Ages", "1531434"),
+        ),
     )
 
     open class SingleFilter(displayName: String, private val vals: Array<String>) :
