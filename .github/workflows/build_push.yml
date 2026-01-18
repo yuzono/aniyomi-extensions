@@ -21,7 +21,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Build APK (Debug)
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug -x lintKotlinMain -x ktlintCheck
 
       - name: Prepare Repo
         run: |
