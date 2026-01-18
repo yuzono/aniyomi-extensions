@@ -471,7 +471,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             hasAttr("srcset") -> attr("abs:srcset").substringBefore(" ")
             else -> attr("abs:src")
         }
-            .substringBeforeLast("?")
+            .substringBefore("?")
             .takeIf(String::isNotBlank)
     }
 
