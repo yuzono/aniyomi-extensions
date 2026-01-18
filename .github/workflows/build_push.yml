@@ -177,13 +177,15 @@ jobs:
           curl -L "$INSPECTOR_LINK" -o ./Inspector.jar
           java -jar ./Inspector.jar "repo/apk" "output.json" "tmp"
           python ./.github/scripts/create-repo.py
+          # Create a single zip file containing everything
+          zip -r ../everything.zip repo
 
       - name: Upload Repo Artifact
         if: github.repository != 'yuzono/aniyomi-extensions'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: repo
-          path: ${{ github.ref_name }}/repo
+          name: repo-everything
+          path: everything.zip
 
       - name: Checkout repo branch
         if: github.repository == 'yuzono/aniyomi-extensions'
