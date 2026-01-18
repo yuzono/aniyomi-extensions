@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.animeextension.fr.franime
 
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
+import eu.kanade.tachiyomi.animeextension.fr.franime.dto.Anime as FrAnimeDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -22,7 +23,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
-import eu.kanade.tachiyomi.animeextension.fr.franime.dto.Anime as FrAnimeDto
 
 class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
 
@@ -40,9 +40,9 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
     private val database by lazy {
-        client.newCall(GET("$baseApiUrl/animes/", headers)).execute()
-            .body.string()
-            .let { json.decodeFromString<List<FrAnimeDto>>(it) }
+        client.newCall(GET("$baseApiUrl/animes/", headers)).execute().use { response ->
+            response.body.string().let { json.decodeFromString<List<FrAnimeDto>>(it) }
+        }
     }
 
     // ============================== Popular / Latest ===============================
@@ -128,7 +128,7 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         return AnimesPage(entries, page < chunks.size)
     }
 
-    private fun titleToUrl(title: String) = title.lowercase().replace(Regex("[^a-z0-9]"), "-").replace(Regex("-+"), "-")
+    private fun titleToUrl(title: String) = title.lowercase().replace(titleRegex, "-").replace(dashRegex, "-")
 
     private fun pageToSAnimes(page: List<FrAnimeDto>): List<SAnime> {
         return page.flatMap { anime ->
@@ -176,5 +176,7 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         private const val PREF_QUALITY_DEFAULT = "1080"
         private const val PREF_PLAYER_KEY = "player_preference"
         private const val PREF_PLAYER_DEFAULT = "sibnet"
+        private val titleRegex = Regex("[^a-z0-9]")
+        private val dashRegex = Regex("-+")
     }
 }
