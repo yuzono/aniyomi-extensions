@@ -11,3 +11,23 @@ dependencies {
     implementation(project(':lib:sendvid-extractor'))
     implementation(project(':lib:sibnet-extractor'))
 }
+
+android {
+    // ... reste de la config
+
+    signingConfigs {
+        release {
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+}
