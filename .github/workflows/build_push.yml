@@ -1,4 +1,4 @@
-name: Build and Push Aniyomi Repo
+name: Build FRAnime Only
 
 on:
   push:
@@ -18,14 +18,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build APK
-        # On utilise -x lint pour ignorer les erreurs de style sans nommer ktlint
-        run: ./gradlew assembleRelease -x lint
+      - name: Build Only FRAnime
+        # On cible uniquement ton dossier pour éviter les erreurs des autres extensions
+        run: ./gradlew :src:fr:franime:assembleDebug -x lint -x check
 
       - name: Prepare Repo
         run: |
           mkdir -p repo-files/apk
-          cp src/fr/franime/build/outputs/apk/release/*.apk repo-files/apk/
+          # On cherche l'APK précisément là où il est généré
+          find src/fr/franime/build/outputs/apk/debug/ -name "*.apk" -exec cp {} repo-files/apk/ \;
           
           cd repo-files
           echo "[" > index.min.json
@@ -39,7 +40,6 @@ jobs:
           echo "]" >> index.min.json
 
       - name: Deploy to Repo Branch
-        uses: s0/git-publish-subdir-action@develop
         env:
           REPO: self
           BRANCH: repo
