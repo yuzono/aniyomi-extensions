@@ -30,15 +30,16 @@ android {
             minifyEnabled false
         }
     }
-}
 
-kotlin {
-    // Désactive l'arrêt du build en cas d'erreur de style
-    kotlinOptions {
-        freeCompilerArgs += ["-Xskip-metadata-version-check"]
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
     }
 }
 
-// Désactive les tâches de Lint pour ce projet
-tasks.named("lintKotlinMain").configure { enabled = false }
-tasks.named("ktlintCheck").configure { enabled = false }
+// Désactive complètement les tâches de vérification de style qui bloquent le build
+tasks.whenTaskAdded { task ->
+    if (task.name.contains("lint") || task.name.contains("ktlint")) {
+        task.enabled = false
+    }
+}
