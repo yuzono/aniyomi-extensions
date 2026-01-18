@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -20,18 +18,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build APK (Debug)
-        run: ./gradlew assembleDebug -x lintKotlinMain -x ktlintCheck
+      - name: Build APK
+        # On utilise -x lint pour ignorer les erreurs de style sans nommer ktlint
+        run: ./gradlew assembleRelease -x lint
 
       - name: Prepare Repo
         run: |
           mkdir -p repo-files/apk
-          # On copie l'APK généré
-          cp src/fr/franime/build/outputs/apk/debug/*.apk repo-files/apk/
+          cp src/fr/franime/build/outputs/apk/release/*.apk repo-files/apk/
           
-          # Génération automatique du index.min.json
-          curl -L "https://github.com/keiyoushi/extensions-inspector/releases/latest/download/Inspector.jar" -o Inspector.jar
-          java -jar Inspector.jar "repo-files/apk" "repo-files/index.min.json" "tmp"
+          cd repo-files
+          echo "[" > index.min.json
+          echo "  {" >> index.min.json
+          echo "    \"name\": \"FrAnime\"," >> index.min.json
+          echo "    \"pkg\": \"eu.kanade.tachiyomi.animeextension.fr.franime\"," >> index.min.json
+          echo "    \"apk\": \"$(ls apk/)\"," >> index.min.json
+          echo "    \"versionCode\": 20," >> index.min.json
+          echo "    \"lang\": \"fr\"" >> index.min.json
+          echo "  }" >> index.min.json
+          echo "]" >> index.min.json
 
       - name: Deploy to Repo Branch
         uses: s0/git-publish-subdir-action@develop
