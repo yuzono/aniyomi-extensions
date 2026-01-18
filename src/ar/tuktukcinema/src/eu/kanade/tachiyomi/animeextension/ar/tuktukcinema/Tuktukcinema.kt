@@ -146,7 +146,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }
 
             "mixdrop" in server -> {
-                mixDropExtractor.videosFromUrl(url, "Ar", customQuality ?: "")
+                mixDropExtractor.videosFromUrl(url, "Ar", customQuality ?: " ")
             }
 
             "dood" in server -> {
@@ -282,7 +282,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         AnimeFilter.Separator(),
         GenreFilter(intl),
         AnimeFilter.Separator(),
-        AnimeFilter.Header(intl["advanced_filter"]),
+        AnimeFilter.Header(intl["advanced_search"]),
         AdvancedSection(intl),
         AdvancedGenre(intl),
         AdvancedRating(intl),
@@ -434,7 +434,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         private const val PREF_DOMAIN_CUSTOM_KEY = "custom_domain"
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
-        private val REGEX_MOVIE = Regex("""(?:فيلم|عرض)\s(.*\s\d+)\s(.+?)\s""")
+        private val REGEX_MOVIE = Regex("""(?:فيلم|عرض)\s(.*\s\d+)\s(\S+)""")
         private val REGEX_SERIES = Regex("""(?:مسلسل|برنامج|انمي)\s(.+)\sالحلقة\s(\d+)""")
     }
 }

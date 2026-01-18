@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.lib.megamaxmultiserver
 
+import android.util.Log
 import eu.kanade.tachiyomi.lib.megamaxmultiserver.dto.IframeResponse
 import eu.kanade.tachiyomi.lib.megamaxmultiserver.dto.LeechResponse
 import eu.kanade.tachiyomi.network.GET
@@ -43,13 +44,15 @@ class MegaMaxMultiServer(private val client: OkHttpClient, private val headers: 
 
     private fun getInertiaVersion(url: String): String {
         val resData = client.newCall(GET(url, headers)).execute().body.string()
-        return VERSION_REGEX.find(resData)?.groupValues?.get(1) ?: ""
+        return VERSION_REGEX.find(resData)?.groupValues?.get(1) ?: return "".also {
+                Log.e("MegaMaxMultiServer", "Inertia version not found for URL: $url")
+            }
     }
 
     data class Provider(val url: String, val name: String, val quality: String, val size: String)
 
     private fun stnQuality(quality: String): String {
-        val intQuality = quality.toInt()
+        val intQuality = quality.toIntOrNull() ?: return quality
         val standardQualities = listOf(144, 240, 360, 480, 720, 1080)
         val result =  standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
         return "${result}p"
