@@ -9,7 +9,7 @@ import okhttp3.OkHttpClient
 
 class VidLandExtractor(private val client: OkHttpClient) {
 
-    private val videoRegex by lazy { Regex("""hls[34]":\s?"([^"]*)""") }
+    private val videoRegex by lazy { Regex("""hls[34]":\s*"([^"]*)"""") }
 
     private val playlistUtils by lazy { PlaylistUtils(client) }
 
