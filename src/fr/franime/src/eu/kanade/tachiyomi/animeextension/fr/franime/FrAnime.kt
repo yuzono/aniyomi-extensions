@@ -148,13 +148,14 @@ class FrAnime : AnimeHttpSource() {
         val videos = players.withIndex().parallelCatchingFlatMap { (index, playerName) ->
             val apiUrl = "$videoBaseUrl/$episodeLang/$index"
             val playerUrl = client.newCall(GET(apiUrl, headers)).await().body.string()
-            when (playerName) {
+            val extractedVideos = when (playerName) {
                 "sendvid" -> sendvidExtractor.videosFromUrl(playerUrl)
-                "sibnet" -> sibnetExtractor.videosFromUrl(playerUrl).map { it.copy(headers = newHeaders) }
+                "sibnet" -> sibnetExtractor.videosFromUrl(playerUrl)
                 "vk" -> vkExtractor.videosFromUrl(playerUrl)
                 "vidmoly" -> vidMolyExtractor.videosFromUrl(playerUrl)
                 else -> emptyList()
             }
+            extractedVideos.map { it.copy(headers = headersBuilder().build()) }
         }
         return videos
     }
