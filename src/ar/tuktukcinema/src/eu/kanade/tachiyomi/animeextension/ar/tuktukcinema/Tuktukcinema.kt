@@ -90,14 +90,13 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             }.let(::listOf)
         } else {
             val selectedSeason = document.selectFirst("div#mpbreadcrumbs a span:contains(الموسم)")?.text().orEmpty()
-            val seasons = document.select(episodeListSelector())
-            seasons.reversed().flatMap { season ->
+            seasonsDOM.reversed().flatMap { season ->
                 val seasonText = season.select("h3").text()
                 val seasonUrl = season.selectFirst("a")?.attr("abs:href") ?: return@flatMap emptyList()
                 val seasonDoc = if (selectedSeason == seasonText) { document } else {
                     client.newCall(GET(seasonUrl)).execute().asJsoup()
                 }
-                val seasonNum = if (seasons.size == 1) "1" else seasonText.filter { it.isDigit() }
+                val seasonNum = if (seasonsDOM.size == 1) "1" else seasonText.filter { it.isDigit() }.ifEmpty { "0" }
                 seasonDoc.select("section.allepcont a").mapIndexed { index, episode ->
                     val episodeNum = episode.select("div.epnum").text().filter { it.isDigit() }
                         .ifEmpty { (index + 1).toString() }
