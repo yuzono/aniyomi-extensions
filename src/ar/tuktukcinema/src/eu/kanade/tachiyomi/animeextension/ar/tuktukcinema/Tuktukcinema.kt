@@ -67,9 +67,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun popularAnimeFromElement(element: Element): SAnime {
         return SAnime.create().apply {
             title = element.select("a").attr("title").let { editTitle(it, details = true) }
-            thumbnail_url = element.select("img").attr(
-                if (element.ownerDocument()!!.location().contains("?s=")) "abs:src" else "abs:data-src",
-            )
+            thumbnail_url = element.selectFirst("img")?.getImageUrl()
             setUrlWithoutDomain(element.select("a").attr("abs:href"))
         }
     }
@@ -242,7 +240,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
             author = document.select("ul.RightTaxContent li:contains(دولة) a").text()
             description = document.select("div.story").text().trim()
             status = SAnime.COMPLETED
-            thumbnail_url = document.select("div.left div.image img").attr("abs:data-src")
+            thumbnail_url = document.selectFirst("div.left div.image img")?.getImageUrl()
         }
     }
 
@@ -464,6 +462,17 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     open class PairFilter(displayName: String, private val vals: Array<Pair<String, String>>) :
         AnimeFilter.Select<String>(displayName, vals.map { it.first }.toTypedArray()) {
         fun toUriPart() = vals[state].second
+    }
+
+    private fun Element.getImageUrl(): String? {
+        return when {
+            hasAttr("data-src") -> attr("abs:data-src")
+            hasAttr("data-lazy-src") -> attr("abs:data-lazy-src")
+            hasAttr("srcset") -> attr("abs:srcset").substringBefore(" ")
+            else -> attr("abs:src")
+        }
+            .substringBeforeLast("?")
+            .takeIf(String::isNotBlank)
     }
 
     // =============================== Settings ===============================
