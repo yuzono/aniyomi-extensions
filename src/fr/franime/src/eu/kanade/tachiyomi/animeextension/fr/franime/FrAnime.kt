@@ -2,7 +2,6 @@ package eu.kanade.tachiyomi.animeextension.fr.franime
 
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
-import eu.kanade.tachiyomi.animeextension.fr.franime.dto.Anime as FrAnimeDto
 import eu.kanade.tachiyomi.animesource.ConfigurableAnimeSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -20,9 +19,9 @@ import eu.kanade.tachiyomi.util.parallelCatchingFlatMap
 import extensions.utils.getPreferencesLazy
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Request
 import okhttp3.Response
 import uy.kohesive.injekt.injectLazy
+import eu.kanade.tachiyomi.animeextension.fr.franime.dto.Anime as FrAnimeDto
 
 class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
 
@@ -40,12 +39,11 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
     private val database by lazy {
-        client.newCall(GET("$baseApiUrl/animes/", headers)).execute().use { response ->
-            response.body.string().let { json.decodeFromString<List<FrAnimeDto>>(it) }
-        }
+        client.newCall(GET("$baseApiUrl/animes/", headers)).execute()
+            .body.string()
+            .let { json.decodeFromString<List<FrAnimeDto>>(it) }
     }
 
-    // ============================== Popular / Latest ===============================
     override suspend fun getPopularAnime(page: Int) = pagesToAnimesPage(database.sortedByDescending { it.note }, page)
     override fun popularAnimeParse(response: Response) = throw UnsupportedOperationException()
     override fun popularAnimeRequest(page: Int) = throw UnsupportedOperationException()
@@ -53,7 +51,6 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun latestUpdatesParse(response: Response) = throw UnsupportedOperationException()
     override fun latestUpdatesRequest(page: Int) = throw UnsupportedOperationException()
 
-    // =============================== Search ===============================
     override suspend fun getSearchAnime(page: Int, query: String, filters: AnimeFilterList): AnimesPage {
         val filtered = database.filter { it.title.contains(query, true) || it.originalTitle.contains(query, true) }
         return pagesToAnimesPage(filtered, page)
@@ -61,13 +58,15 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     override fun searchAnimeParse(response: Response) = throw UnsupportedOperationException()
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList) = throw UnsupportedOperationException()
 
-    // ============================== Episodes ==============================
+    override suspend fun getAnimeDetails(anime: SAnime): SAnime = anime
+    override fun animeDetailsParse(response: Response) = throw UnsupportedOperationException()
+
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> {
         val url = (baseUrl + anime.url).toHttpUrl()
         val stem = url.encodedPathSegments.last()
         val season = url.queryParameter("s")?.toIntOrNull() ?: 1
         val animeData = database.first { titleToUrl(it.originalTitle) == stem }
-        
+
         return animeData.seasons[season - 1].episodes.mapIndexed { index, ep ->
             SEpisode.create().apply {
                 setUrlWithoutDomain(anime.url + "&ep=${index + 1}")
@@ -77,7 +76,8 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         }.reversed()
     }
 
-    // ============================ Video Links (Style Anime-Sama) =============================
+    override fun episodeListParse(response: Response) = throw UnsupportedOperationException()
+
     override suspend fun getVideoList(episode: SEpisode): List<Video> {
         val url = (baseUrl + episode.url).toHttpUrl()
         val stem = url.encodedPathSegments.last()
@@ -85,10 +85,13 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         val seasonIdx = (url.queryParameter("s")?.toInt() ?: 1) - 1
         val epIdx = (url.queryParameter("ep")?.toInt() ?: 1) - 1
         val lang = url.queryParameter("lang") ?: "vo"
-        
+
         val videoBaseUrl = "$baseApiUrl/anime/${animeData.id}/$seasonIdx/$epIdx"
-        val episodeData = animeData.seasons.getOrNull(seasonIdx)?.episodes?.getOrNull(epIdx) ?: return emptyList()
-        val players = if (lang == "vo") episodeData.languages.vo.players else episodeData.languages.vf.players
+        val players = if (lang == "vo") {
+            animeData.seasons[seasonIdx].episodes[epIdx].languages.vo.players
+        } else {
+            animeData.seasons[seasonIdx].episodes[epIdx].languages.vf.players
+        }
 
         val sibnetExtractor by lazy { SibnetExtractor(client) }
         val vkExtractor by lazy { VkExtractor(client, headers) }
@@ -105,20 +108,16 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
                 "vidmoly" -> vidMolyExtractor.videosFromUrl(playerUrl, prefix)
                 else -> emptyList()
             }
-            // Injection des headers comme dans Anime-Sama pour le lecteur interne
             extracted.map { Video(it.url, it.quality, it.videoUrl, headers = headers) }
         }
     }
 
-    // ============================ Utils & Preferences =============================
     override fun List<Video>.sort(): List<Video> {
         val quality = preferences.getString(PREF_QUALITY_KEY, PREF_QUALITY_DEFAULT)!!
-        val player = preferences.getString(PREF_PLAYER_KEY, PREF_PLAYER_DEFAULT)!!
         return this.sortedWith(
             compareBy(
-                { it.quality.contains(player, true) },
-                { it.quality.contains(quality) }
-            )
+                { it.quality.contains(quality) },
+            ),
         ).reversed()
     }
 
@@ -128,23 +127,18 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
         return AnimesPage(entries, page < chunks.size)
     }
 
-    private fun titleToUrl(title: String) = title.lowercase().replace(titleRegex, "-").replace(dashRegex, "-")
+    private fun titleToUrl(title: String) = title.lowercase()
+        .replace(Regex("[^a-z0-9]"), "-")
+        .replace(Regex("-+"), "-")
 
     private fun pageToSAnimes(page: List<FrAnimeDto>): List<SAnime> {
         return page.flatMap { anime ->
-            anime.seasons.flatMapIndexed { index, season ->
-                val hasVostfr = season.episodes.any { it.languages.vo.players.isNotEmpty() }
-                val hasVf = season.episodes.any { it.languages.vf.players.isNotEmpty() }
-                listOfNotNull(
-                    if (hasVostfr) "VOSTFR" to "vo" else null,
-                    if (hasVf) "VF" to "vf" else null
-                ).map { (langName, langKey) ->
-                    SAnime.create().apply {
-                        title = "${anime.title}${if (anime.seasons.size > 1) " S${index + 1}" else ""} ($langName)"
-                        thumbnail_url = anime.poster
-                        setUrlWithoutDomain("/anime/${titleToUrl(anime.originalTitle)}?s=${index + 1}&lang=$langKey")
-                        initialized = true
-                    }
+            anime.seasons.mapIndexed { index, _ ->
+                SAnime.create().apply {
+                    title = anime.title + if (anime.seasons.size > 1) " S${index + 1}" else ""
+                    thumbnail_url = anime.poster
+                    setUrlWithoutDomain("/anime/${titleToUrl(anime.originalTitle)}?s=${index + 1}")
+                    initialized = true
                 }
             }
         }
@@ -159,24 +153,11 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
             setDefaultValue(PREF_QUALITY_DEFAULT)
             summary = "%s"
         }.also(screen::addPreference)
-
-        ListPreference(screen.context).apply {
-            key = PREF_PLAYER_KEY
-            title = "Lecteur préféré"
-            entries = arrayOf("Sibnet", "Sendvid", "Vidmoly", "VK")
-            entryValues = arrayOf("sibnet", "sendvid", "vidmoly", "vk")
-            setDefaultValue(PREF_PLAYER_DEFAULT)
-            summary = "%s"
-        }.also(screen::addPreference)
     }
 
     companion object {
         const val PREFIX_SEARCH = "id:"
         private const val PREF_QUALITY_KEY = "preferred_quality"
         private const val PREF_QUALITY_DEFAULT = "1080"
-        private const val PREF_PLAYER_KEY = "player_preference"
-        private const val PREF_PLAYER_DEFAULT = "sibnet"
-        private val titleRegex = Regex("[^a-z0-9]")
-        private val dashRegex = Regex("-+")
     }
 }
