@@ -101,9 +101,9 @@ class FrAnime : AnimeHttpSource() {
         val lang = data[3]
 
         val animeObj = Json.parseToJsonElement(jsonData).jsonObject
-        val players = animeObj["saisons"]?.jsonArray?.get(sIdx)
-            ?.jsonObject?.get("episodes")?.jsonArray?.get(eIdx)
-            ?.jsonObject?.get(lang)?.jsonObject ?: return emptyList()
+        val seasons = animeObj["saisons"]?.jsonArray ?: return emptyList()
+        val epArray = seasons[sIdx].jsonObject["episodes"]?.jsonArray ?: return emptyList()
+        val players = epArray[eIdx].jsonObject[lang]?.jsonObject ?: return emptyList()
 
         val videos = mutableListOf<Video>()
         
@@ -112,13 +112,18 @@ class FrAnime : AnimeHttpSource() {
             
             try {
                 when {
-                    playerUrl.contains("sibnet") -> videos.addAll(SibnetExtractor(client).videosFromUrl(playerUrl))
-                    playerUrl.contains("sendvid") -> videos.addAll(SendvidExtractor(client).videosFromUrl(playerUrl))
-                    playerUrl.contains("vidmoly") -> videos.addAll(VidmolyExtractor(client, headers).videosFromUrl(playerUrl))
+                    playerUrl.contains("sibnet") -> {
+                        videos.addAll(SibnetExtractor(client).videosFromUrl(playerUrl))
+                    }
+                    playerUrl.contains("sendvid") -> {
+                        videos.addAll(SendvidExtractor(client).videosFromUrl(playerUrl))
+                    }
+                    playerUrl.contains("vidmoly") -> {
+                        // Tente avec headers, si ça échoue au build, retire ", headers"
+                        videos.addAll(VidmolyExtractor(client, headers).videosFromUrl(playerUrl))
+                    }
                 }
-            } catch (e: Exception) {
-                // Ignore errors
-            }
+            } catch (e: Exception) { }
         }
         return videos
     }
