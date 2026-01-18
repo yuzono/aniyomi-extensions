@@ -9,7 +9,6 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.lib.sibnetextractor.SibnetExtractor
 import eu.kanade.tachiyomi.lib.sendvidextractor.SendvidExtractor
-import eu.kanade.tachiyomi.lib.vidmolyextractor.VidmolyExtractor
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -117,10 +116,6 @@ class FrAnime : AnimeHttpSource() {
                     }
                     playerUrl.contains("sendvid") -> {
                         videos.addAll(SendvidExtractor(client).videosFromUrl(playerUrl))
-                    }
-                    playerUrl.contains("vidmoly") -> {
-                        // Tente avec headers, si ça échoue au build, retire ", headers"
-                        videos.addAll(VidmolyExtractor(client, headers).videosFromUrl(playerUrl))
                     }
                 }
             } catch (e: Exception) { }
