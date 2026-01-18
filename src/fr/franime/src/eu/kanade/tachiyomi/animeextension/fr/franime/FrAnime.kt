@@ -129,25 +129,28 @@ class FrAnime : AnimeHttpSource() {
         val episodeNumber = url.queryParameter("ep")?.toIntOrNull() ?: 1
         val episodeLang = url.queryParameter("lang") ?: "vo"
         val stem = url.encodedPathSegments.last()
+        
         val animeData = getDb().first { titleToUrl(it.originalTitle) == stem }
-        val episodeData = animeData.seasons[seasonNumber - 1].episodes[episodeNumber - 1]
+        val episodeData = animeData.seasons.getOrNull(seasonNumber - 1)?.episodes?.getOrNull(episodeNumber - 1)
+            ?: return emptyList()
+            
         val videoBaseUrl = "$baseApiAnimeUrl/${animeData.id}/${seasonNumber - 1}/${episodeNumber - 1}"
-
         val players = if (episodeLang == "vo") episodeData.languages.vo.players else episodeData.languages.vf.players
 
-        val cookies = client.cookieJar.loadForRequest(baseUrl.toHttpUrl()).joinToString("; ") { "${it.name}=${it.value}" }
-        val newHeaders = headers.newBuilder()
-            .add("Cookie", cookies)
-            .build()
-
-        val sendvidExtractor by lazy { SendvidExtractor(client, newHeaders) }
+        // On définit les extracteurs avec les headers de l'extension
+        val sendvidExtractor by lazy { SendvidExtractor(client, headers) }
         val sibnetExtractor by lazy { SibnetExtractor(client) }
-        val vkExtractor by lazy { VkExtractor(client, newHeaders) }
-        val vidMolyExtractor by lazy { VidMolyExtractor(client, newHeaders) }
+        val vkExtractor by lazy { VkExtractor(client, headers) }
+        val vidMolyExtractor by lazy { VidMolyExtractor(client) }
 
-        val videos = players.withIndex().parallelCatchingFlatMap { (index, playerName) ->
+        return players.withIndex().parallelCatchingFlatMap { (index, playerName) ->
             val apiUrl = "$videoBaseUrl/$episodeLang/$index"
+            
+            // On récupère l'URL réelle du lecteur (ex: l'iframe)
             val playerUrl = client.newCall(GET(apiUrl, headers)).await().body.string()
+            
+            if (playerUrl.isEmpty()) return@parallelCatchingFlatMap emptyList<Video>()
+
             val extractedVideos = when (playerName) {
                 "sendvid" -> sendvidExtractor.videosFromUrl(playerUrl)
                 "sibnet" -> sibnetExtractor.videosFromUrl(playerUrl)
@@ -155,9 +158,17 @@ class FrAnime : AnimeHttpSource() {
                 "vidmoly" -> vidMolyExtractor.videosFromUrl(playerUrl)
                 else -> emptyList()
             }
-            extractedVideos.map { it.copy(headers = newHeaders) }
+
+            // CRUCIAL : On ré-injecte les headers dans chaque vidéo pour le lecteur externe
+            extractedVideos.map { video ->
+                Video(
+                    video.url,
+                    "${video.quality} ($playerName)",
+                    video.videoUrl,
+                    headers = headersBuilder().build()
+                )
+            }
         }
-        return videos
     }
 
     // ============================= Utilities ==============================
