@@ -13,7 +13,7 @@ import kotlin.system.exitProcess
  */
 class FrAnimeUrlActivity : Activity() {
 
-    private val tag = javaClass.simpleName
+    private val tag = "FrAnimeUrlActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
