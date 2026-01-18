@@ -54,7 +54,7 @@ class MegaMaxMultiServer(private val client: OkHttpClient, private val headers: 
     private fun stnQuality(quality: String): String {
         val intQuality = quality.toIntOrNull() ?: return quality
         val standardQualities = listOf(144, 240, 360, 480, 720, 1080)
-        val result =  standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
+        val result = standardQualities.minByOrNull { abs(it - intQuality) } ?: quality
         return "${result}p"
     }
 

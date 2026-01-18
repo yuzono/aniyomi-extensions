@@ -8,7 +8,7 @@ import eu.kanade.tachiyomi.util.asJsoup
 import okhttp3.OkHttpClient
 
 class VidLandExtractor(private val client: OkHttpClient) {
-    
+
     private val videoRegex by lazy { Regex("""hls[34]":\s?"([^"]*)""") }
 
     private val playlistUtils by lazy { PlaylistUtils(client) }
@@ -19,8 +19,8 @@ class VidLandExtractor(private val client: OkHttpClient) {
             ?.data()
             ?.let(JsUnpacker::unpackAndCombine)
             ?: return emptyList()
-        
-        return videoRegex.find(script)?.groupValues?.get(1)?.let{
+
+        return videoRegex.find(script)?.groupValues?.get(1)?.let {
             playlistUtils.extractFromHls(it, url, videoNameGen = { quality -> "VidLand: $quality" })
         } ?: emptyList()
     }

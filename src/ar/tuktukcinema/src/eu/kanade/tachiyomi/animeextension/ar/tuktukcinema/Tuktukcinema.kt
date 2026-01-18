@@ -140,13 +140,13 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     ): List<Video> {
         return when {
             "iframe" in url -> {
-                return megaMax.extractUrls(url).parallelCatchingFlatMapBlocking {
+                megaMax.extractUrls(url).parallelCatchingFlatMapBlocking {
                     extractVideos(it.url, it.name, it.quality)
                 }
             }
 
             "mixdrop" in server -> {
-                mixDropExtractor.videosFromUrl(url, "Ar", customQuality ?: " ")
+                mixDropExtractor.videosFromUrl(url, "Ar", customQuality?.let { "$it " } ?: "")
             }
 
             "dood" in server -> {
@@ -236,7 +236,9 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     // =========================== Anime Details ============================
     override fun animeDetailsParse(document: Document): SAnime {
         return SAnime.create().apply {
-            genre = document.select("div.catssection li a").joinToString(", ") { it.text() }
+            genre = document.select("div.catssection li a")
+                .mapNotNull { it.text().translateGenre() }
+                .joinToString()
             title = document.select("h1.post-title").text().let(::editTitle)
             author = document.select("ul.RightTaxContent li:contains(دولة) a").text()
             description = document.select("div.story").text().trim()
@@ -261,6 +263,66 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         }
 
         return title.trim()
+    }
+
+    private fun String.translateGenre(): String {
+        return when (this) {
+            "جميع الافلام" -> intl["All_Movies"]
+            "افلام نتفليكس" -> intl["Netflix_Movies"]
+            "افلام اجنبي" -> intl["Foreign_Movies"]
+            "افلام هندي" -> intl["Indian_Movies"]
+            "افلام اسيوي" -> intl["Asian_Movies"]
+            "افلام انمي" -> intl["Anime_Movies"]
+            "افلام تركي" -> intl["Turkish_Movies"]
+            "افلام مدبلجة" -> intl["Dubbed_Movies"]
+            "أحدث المسلسلات الأجنبي" -> intl["Latest_Foreign_Series"]
+            "أحدث المسلسلات التركي" -> intl["Latest_Turkish_Series"]
+            "أحدث المسلسلات الأسيوي" -> intl["Latest_Asian_Series"]
+            "مسلسلات نتفليكس" -> intl["Netflix_Series"]
+            "أحدث الانميات" -> intl["Latest_Anime"]
+            "أحدث البرامج التلفزيونية" -> intl["Latest_TV_Shows"]
+            "أحدث المسلسلات الهندي" -> intl["Latest_Indian_Series"]
+
+            "اكشن" -> intl["Action"]
+            "مغامرة" -> intl["Adventure"]
+            "كرتون" -> intl["Animation"]
+            "فانتازيا" -> intl["Fantasy"]
+            "خيال-علمي" -> intl["Sci-Fi"]
+            "رومانسي" -> intl["Romance"]
+            "كوميدي" -> intl["Comedy"]
+            "عائلي" -> intl["Family"]
+            "دراما" -> intl["Drama"]
+            "اثارة" -> intl["Thriller"]
+            "غموض" -> intl["Mystery"]
+            "جريمة" -> intl["Crime"]
+            "رعب" -> intl["Horror"]
+            "وثائقي" -> intl["Documentary"]
+            "تاريخي" -> intl["Historical"]
+
+            "حلقات أجنبي" -> intl["Foreign_Episodes"]
+            "حلقات الأنميات" -> intl["Anime_Episodes"]
+            "حلقات أسيوي" -> intl["Asian_Episodes"]
+            "حلقات تركي" -> intl["Turkish_Episodes"]
+            "برامج تلفزيونية" -> intl["TV_Shows"]
+            "حلقات هندي" -> intl["Indian_Episodes"]
+            "عروض مصارعة" -> intl["Wrestling_Shows"]
+            "الأفلام" -> intl["Movies"]
+            "انميات" -> intl["Anime"]
+
+            "تصفية الفئة العمرية" -> intl["age_rating_filter"]
+            "لا يقل عن 14 عام" -> intl["above_14"]
+            "لا يقل عن 17 عام" -> intl["above_17"]
+            "غير مناسب للأطفال" -> intl["not_children"]
+            "TV-+13 بارشاد عائلي لمن هم دون 13 سنه" -> intl["tv_13"]
+            "مناسب للبالغين فقط" -> intl["adult_only"]
+            "للأطفال أكبر من 7 سنوات" -> intl["above_7"]
+            "+13 بارشاد عائلي لمن هم دون 13 سنه" -> intl["parent_13"]
+            "TV-جميع الاعمار" -> intl["tv_all_ages"]
+            "مناسب للجميع" -> intl["all_ages"]
+            "لا يقل عن 13 عام" -> intl["above_13"]
+            "اقل من 6 سنوات" -> intl["under_6"]
+            else -> this
+        }
     }
 
     // =============================== Latest ===============================
