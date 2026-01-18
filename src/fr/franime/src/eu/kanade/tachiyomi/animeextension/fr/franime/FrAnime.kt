@@ -115,7 +115,7 @@ class FrAnime : AnimeHttpSource() {
                         videos.addAll(SibnetExtractor(client).videosFromUrl(playerUrl))
                     }
                     playerUrl.contains("sendvid") -> {
-                        videos.addAll(SendvidExtractor(client).videosFromUrl(playerUrl))
+                        videos.addAll(SendvidExtractor(client, headers).videosFromUrl(playerUrl))
                     }
                 }
             } catch (e: Exception) { }
