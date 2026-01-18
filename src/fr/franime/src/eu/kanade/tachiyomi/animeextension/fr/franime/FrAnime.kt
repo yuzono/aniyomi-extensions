@@ -40,7 +40,6 @@ class FrAnime : AnimeHttpSource() {
             SAnime.create().apply {
                 val obj = element.jsonObject
                 title = obj["title"]?.jsonPrimitive?.content ?: ""
-                // On stocke l'ID original pour les appels API futurs
                 url = obj["url"]?.jsonPrimitive?.content ?: ""
                 thumbnail_url = obj["poster"]?.jsonPrimitive?.content
             }
@@ -68,44 +67,40 @@ class FrAnime : AnimeHttpSource() {
                 val ep = epElement.jsonObject
                 val episodeNumber = ep["ensemble_id"]?.jsonPrimitive?.content ?: "${eIdx + 1}"
                 
-                // On crée une version VOSTFR et VF si les lecteurs existent
                 val languages = listOf("vostfr", "vf")
                 languages.forEach { lang ->
                     if (ep.containsKey(lang)) {
-                        val sEpisode = SEpisode.create().apply {
+                        episodes.add(SEpisode.create().apply {
                             name = "Saison ${sIdx + 1} Ep $episodeNumber ($lang)"
-                            // On encode les données nécessaires pour videoListRequest dans l'URL
                             url = "${animeObj["url"]?.jsonPrimitive?.content}|$sIdx|$eIdx|$lang"
                             episode_number = episodeNumber.toFloatOrNull() ?: 0f
                             date_upload = 0L
-                        }
-                        episodes.add(sEpisode)
+                        })
                     }
                 }
             }
         }
-        return episodes.reversed() // Pour avoir les derniers épisodes en haut
+        return episodes.reversed()
     }
 
     // --- EXTRACTION DES LIENS VIDEOS ---
     override fun videoListRequest(episode: SEpisode): Request {
         val parts = episode.url.split("|")
-        return GET("https://api.franime.fr/api/anime/${parts[0]}", headers)
+        val request = GET("https://api.franime.fr/api/anime/${parts[0]}", headers)
+        // On attache l'épisode à la requête pour le récupérer dans videoListParse
+        return request.newBuilder().tag(SEpisode::class.java, episode).build()
     }
 
     override fun videoListParse(response: Response): List<Video> {
         val jsonData = response.body.string()
-        val parts = response.request.url.fragment?.split("|") ?: return emptyList() 
-        // Note: fragment ne marche pas ici, on utilise une ruse avec l'URL de l'épisode transmise via l'URL d'Aniyomi
-        
-        // Pour simplifier l'accès, on repasse par le JSON
-        val animeObj = Json.parseToJsonElement(jsonData).jsonObject
-        val data = response.request.tag(SEpisode::class.java)?.url?.split("|") ?: return emptyList()
+        val episode = response.request.tag(SEpisode::class.java) ?: return emptyList()
+        val data = episode.url.split("|")
         
         val sIdx = data[1].toInt()
         val eIdx = data[2].toInt()
         val lang = data[3]
 
+        val animeObj = Json.parseToJsonElement(jsonData).jsonObject
         val players = animeObj["saisons"]?.jsonArray?.get(sIdx)
             ?.jsonObject?.get("episodes")?.jsonArray?.get(eIdx)
             ?.jsonObject?.get(lang)?.jsonObject ?: return emptyList()
@@ -119,10 +114,10 @@ class FrAnime : AnimeHttpSource() {
                 when {
                     playerUrl.contains("sibnet") -> videos.addAll(SibnetExtractor(client).videosFromUrl(playerUrl))
                     playerUrl.contains("sendvid") -> videos.addAll(SendvidExtractor(client).videosFromUrl(playerUrl))
-                    playerUrl.contains("vidmoly") -> videos.addAll(VidmolyExtractor(client).videosFromUrl(playerUrl))
+                    playerUrl.contains("vidmoly") -> videos.addAll(VidmolyExtractor(client, headers).videosFromUrl(playerUrl))
                 }
             } catch (e: Exception) {
-                // On ignore les lecteurs qui plantent
+                // Ignore errors
             }
         }
         return videos
@@ -130,11 +125,20 @@ class FrAnime : AnimeHttpSource() {
 
     // --- RECHERCHE ET AUTRES ---
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        return GET("https://api.franime.fr/api/anime/search?q=$query", headers)
+        return if (query.startsWith(PREFIX_SEARCH)) {
+            val id = query.removePrefix(PREFIX_SEARCH)
+            GET("https://api.franime.fr/api/anime/$id", headers)
+        } else {
+            GET("https://api.franime.fr/api/anime/search?q=$query", headers)
+        }
     }
 
     override fun searchAnimeParse(response: Response) = popularAnimeParse(response)
     override fun latestUpdatesRequest(page: Int) = popularAnimeRequest(page)
     override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
     override fun animeDetailsParse(response: Response) = SAnime.create()
+
+    companion object {
+        const val PREFIX_SEARCH = "id:"
+    }
 }
