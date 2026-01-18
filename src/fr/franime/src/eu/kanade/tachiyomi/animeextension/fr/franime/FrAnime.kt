@@ -155,7 +155,7 @@ class FrAnime : AnimeHttpSource() {
                 "vidmoly" -> vidMolyExtractor.videosFromUrl(playerUrl)
                 else -> emptyList()
             }
-            extractedVideos.map { it.copy(headers = headersBuilder().build()) }
+            extractedVideos.map { it.copy(headers = newHeaders) }
         }
         return videos
     }
