@@ -34,14 +34,16 @@ class FrAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     private val json: Json by injectLazy()
     private val preferences by getPreferencesLazy()
 
+    override val client = network.cloudflareClient
+
     override fun headersBuilder() = super.headersBuilder()
         .add("Referer", "$baseUrl/")
         .add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
     private val database by lazy {
-        client.newCall(GET("$baseApiUrl/animes/", headers)).execute()
-            .body.string()
-            .let { json.decodeFromString<List<FrAnimeDto>>(it) }
+        client.newCall(GET("$baseApiUrl/animes/", headers)).execute().use { response ->
+            response.body.string().let { json.decodeFromString<List<FrAnimeDto>>(it) }
+        }
     }
 
     override suspend fun getPopularAnime(page: Int) = pagesToAnimesPage(database.sortedByDescending { it.note }, page)
