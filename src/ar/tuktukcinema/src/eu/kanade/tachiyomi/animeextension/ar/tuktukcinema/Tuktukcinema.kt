@@ -122,7 +122,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
         val document = response.asJsoup()
         return document.select(videoListSelector()).parallelCatchingFlatMapBlocking {
             val url = it.attr("data-link").substringBefore("0REL0Y").reversed()
-            extractVideos(Base64.decode(url, Base64.DEFAULT).let(::String), it.text())
+            extractVideos(String(Base64.decode(url, Base64.DEFAULT), Charsets.UTF_8), it.text())
         }
     }
 
@@ -220,7 +220,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
                         addPathSegment("genre")
                         addPathSegment(genreFilter.toUriPart())
                     } else {
-                        throw Exception("من فضلك اختر قسم او تصنيف")
+                        throw Exception(intl["please_choose_filters"])
                     }
                     addQueryParameter("page", page.toString())
                 }
@@ -237,7 +237,7 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
     override fun animeDetailsParse(document: Document): SAnime {
         return SAnime.create().apply {
             genre = document.select("div.catssection li a")
-                .mapNotNull { it.text().translateGenre() }
+                .mapNotNull { it.text().takeIf(String::isNotBlank)?.translateGenre()?.trim() }
                 .joinToString()
             title = document.select("h1.post-title").text().let(::editTitle)
             author = document.select("ul.RightTaxContent li:contains(دولة) a").text()
@@ -264,65 +264,67 @@ class Tuktukcinema : ConfigurableAnimeSource, ParsedAnimeHttpSource() {
 
         return title.trim()
     }
+    private val genreTranslations by lazy {
+        mapOf(
+            "جميع الافلام" to intl["All_Movies"],
+            "افلام نتفليكس" to intl["Netflix_Movies"],
+            "افلام اجنبي" to intl["Foreign_Movies"],
+            "افلام هندي" to intl["Indian_Movies"],
+            "افلام اسيوي" to intl["Asian_Movies"],
+            "افلام انمي" to intl["Anime_Movies"],
+            "افلام تركي" to intl["Turkish_Movies"],
+            "افلام مدبلجة" to intl["Dubbed_Movies"],
+            "أحدث المسلسلات الأجنبي" to intl["Latest_Foreign_Series"],
+            "أحدث المسلسلات التركي" to intl["Latest_Turkish_Series"],
+            "أحدث المسلسلات الأسيوي" to intl["Latest_Asian_Series"],
+            "مسلسلات نتفليكس" to intl["Netflix_Series"],
+            "أحدث الانميات" to intl["Latest_Anime"],
+            "أحدث البرامج التلفزيونية" to intl["Latest_TV_Shows"],
+            "أحدث المسلسلات الهندي" to intl["Latest_Indian_Series"],
+
+            "اكشن" to intl["Action"],
+            "مغامرة" to intl["Adventure"],
+            "كرتون" to intl["Animation"],
+            "فانتازيا" to intl["Fantasy"],
+            "خيال-علمي" to intl["Sci-Fi"],
+            "رومانسي" to intl["Romance"],
+            "كوميدي" to intl["Comedy"],
+            "عائلي" to intl["Family"],
+            "دراما" to intl["Drama"],
+            "اثارة" to intl["Thriller"],
+            "غموض" to intl["Mystery"],
+            "جريمة" to intl["Crime"],
+            "رعب" to intl["Horror"],
+            "وثائقي" to intl["Documentary"],
+            "تاريخي" to intl["Historical"],
+
+            "حلقات أجنبي" to intl["Foreign_Episodes"],
+            "حلقات الأنميات" to intl["Anime_Episodes"],
+            "حلقات أسيوي" to intl["Asian_Episodes"],
+            "حلقات تركي" to intl["Turkish_Episodes"],
+            "برامج تلفزيونية" to intl["TV_Shows"],
+            "حلقات هندي" to intl["Indian_Episodes"],
+            "عروض مصارعة" to intl["Wrestling_Shows"],
+            "الأفلام" to intl["Movies"],
+            "انميات" to intl["Anime"],
+
+            "تصفية الفئة العمرية" to intl["age_rating_filter"],
+            "لا يقل عن 14 عام" to intl["above_14"],
+            "لا يقل عن 17 عام" to intl["above_17"],
+            "غير مناسب للأطفال" to intl["not_children"],
+            "TV-+13 بارشاد عائلي لمن هم دون 13 سنه" to intl["tv_13"],
+            "مناسب للبالغين فقط" to intl["adult_only"],
+            "للأطفال أكبر من 7 سنوات" to intl["above_7"],
+            "+13 بارشاد عائلي لمن هم دون 13 سنه" to intl["parent_13"],
+            "TV-جميع الاعمار" to intl["tv_all_ages"],
+            "مناسب للجميع" to intl["all_ages"],
+            "لا يقل عن 13 عام" to intl["above_13"],
+            "اقل من 6 سنوات" to intl["under_6"],
+        )
+    }
 
     private fun String.translateGenre(): String {
-        return when (this) {
-            "جميع الافلام" -> intl["All_Movies"]
-            "افلام نتفليكس" -> intl["Netflix_Movies"]
-            "افلام اجنبي" -> intl["Foreign_Movies"]
-            "افلام هندي" -> intl["Indian_Movies"]
-            "افلام اسيوي" -> intl["Asian_Movies"]
-            "افلام انمي" -> intl["Anime_Movies"]
-            "افلام تركي" -> intl["Turkish_Movies"]
-            "افلام مدبلجة" -> intl["Dubbed_Movies"]
-            "أحدث المسلسلات الأجنبي" -> intl["Latest_Foreign_Series"]
-            "أحدث المسلسلات التركي" -> intl["Latest_Turkish_Series"]
-            "أحدث المسلسلات الأسيوي" -> intl["Latest_Asian_Series"]
-            "مسلسلات نتفليكس" -> intl["Netflix_Series"]
-            "أحدث الانميات" -> intl["Latest_Anime"]
-            "أحدث البرامج التلفزيونية" -> intl["Latest_TV_Shows"]
-            "أحدث المسلسلات الهندي" -> intl["Latest_Indian_Series"]
-
-            "اكشن" -> intl["Action"]
-            "مغامرة" -> intl["Adventure"]
-            "كرتون" -> intl["Animation"]
-            "فانتازيا" -> intl["Fantasy"]
-            "خيال-علمي" -> intl["Sci-Fi"]
-            "رومانسي" -> intl["Romance"]
-            "كوميدي" -> intl["Comedy"]
-            "عائلي" -> intl["Family"]
-            "دراما" -> intl["Drama"]
-            "اثارة" -> intl["Thriller"]
-            "غموض" -> intl["Mystery"]
-            "جريمة" -> intl["Crime"]
-            "رعب" -> intl["Horror"]
-            "وثائقي" -> intl["Documentary"]
-            "تاريخي" -> intl["Historical"]
-
-            "حلقات أجنبي" -> intl["Foreign_Episodes"]
-            "حلقات الأنميات" -> intl["Anime_Episodes"]
-            "حلقات أسيوي" -> intl["Asian_Episodes"]
-            "حلقات تركي" -> intl["Turkish_Episodes"]
-            "برامج تلفزيونية" -> intl["TV_Shows"]
-            "حلقات هندي" -> intl["Indian_Episodes"]
-            "عروض مصارعة" -> intl["Wrestling_Shows"]
-            "الأفلام" -> intl["Movies"]
-            "انميات" -> intl["Anime"]
-
-            "تصفية الفئة العمرية" -> intl["age_rating_filter"]
-            "لا يقل عن 14 عام" -> intl["above_14"]
-            "لا يقل عن 17 عام" -> intl["above_17"]
-            "غير مناسب للأطفال" -> intl["not_children"]
-            "TV-+13 بارشاد عائلي لمن هم دون 13 سنه" -> intl["tv_13"]
-            "مناسب للبالغين فقط" -> intl["adult_only"]
-            "للأطفال أكبر من 7 سنوات" -> intl["above_7"]
-            "+13 بارشاد عائلي لمن هم دون 13 سنه" -> intl["parent_13"]
-            "TV-جميع الاعمار" -> intl["tv_all_ages"]
-            "مناسب للجميع" -> intl["all_ages"]
-            "لا يقل عن 13 عام" -> intl["above_13"]
-            "اقل من 6 سنوات" -> intl["under_6"]
-            else -> this
-        }
+        return genreTranslations[this] ?: this
     }
 
     // =============================== Latest ===============================

@@ -44,9 +44,10 @@ class MegaMaxMultiServer(private val client: OkHttpClient, private val headers: 
 
     private fun getInertiaVersion(url: String): String {
         val resData = client.newCall(GET(url, headers)).execute().body.string()
-        return VERSION_REGEX.find(resData)?.groupValues?.get(1) ?: return "".also {
-                Log.e("MegaMaxMultiServer", "Inertia version not found for URL: $url")
-            }
+        return VERSION_REGEX.find(resData)?.groupValues?.get(1) ?: run {
+            Log.e("MegaMaxMultiServer", "Inertia version not found for URL: $url")
+            ""
+        }
     }
 
     data class Provider(val url: String, val name: String, val quality: String, val size: String)
