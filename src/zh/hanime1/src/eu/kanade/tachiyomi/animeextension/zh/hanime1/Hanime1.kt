@@ -166,7 +166,7 @@ class Hanime1 : AnimeHttpSource(), ConfigurableAnimeSource {
                         setUrlWithoutDomain(it.select("a.video-link").attr("href"))
                         thumbnail_url = it.select("img.main-thumb").attr("src")
                         title = it.select("div.title").text().appendInvisibleChar()
-                        author = it.select("div.subtitle").text().split(" • ", limit = 1).first()
+                        author = it.select("div.subtitle").text().substringBefore(" • ").trim()
                     }
                 }
             ?: emptyList()
