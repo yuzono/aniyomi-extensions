@@ -177,9 +177,13 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
                 element.select("a.thumbnail").let { a ->
                     getIDFromUrl(a)?.let { url = it }
                         ?: setUrlWithoutDomain(a.attr("href"))
-                    title = a.attr("alt")
                 }
-                thumbnail_url = element.select("img").attr("abs:src")
+                element.select("img").let {
+                    title = it.attr("alt").ifBlank {
+                        element.select("a.related-title").attr("title")
+                    }
+                    thumbnail_url = it.attr("abs:src")
+                }
             }
         }
     }
