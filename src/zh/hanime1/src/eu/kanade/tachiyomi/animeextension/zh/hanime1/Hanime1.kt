@@ -154,7 +154,7 @@ class Hanime1 : AnimeHttpSource(), ConfigurableAnimeSource {
                 .takeIf { it.isNotEmpty() }
                 ?.map {
                     SAnime.create().apply {
-                        it.parent()?.attr("href")?.let { setUrlWithoutDomain(it) }
+                        setUrlWithoutDomain(it.parent()!!.attr("href"))
                         thumbnail_url = it.select("img").attr("src")
                         title = it.select(".home-rows-videos-title").text().appendInvisibleChar()
                     }
