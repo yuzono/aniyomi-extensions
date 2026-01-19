@@ -42,6 +42,9 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val supportsLatest = true
 
+    override fun headersBuilder() = super.headersBuilder()
+        .set("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8")
+
     private val noRedirectClient = client.newBuilder()
         .followRedirects(false)
         .build()
@@ -151,7 +154,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
                     is StudioFilter,
                     is MakerFilter,
                     -> {
-                        if ((filter.state as String).isNotEmpty()) {
+                        if (filter.state.isNotEmpty()) {
                             val url = "$baseUrl${filter.toUrlPart()}" + if (page > 1) "page/$page/" else ""
                             val request = GET(url, headers)
                             return client.newCall(request)
@@ -364,7 +367,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
 
         private val IFRAME_B64_REGEX = Regex(""""iframe_url":"([^"]+)"""")
         private val IFRAME_OLID_REGEX = Regex("""var OLID = '([^']+)'""")
-        private val IFRAME_OLID_URL = Regex("""src="([^"]+)"""")
+        private val IFRAME_OLID_URL = Regex("""realSrc *= *'([^']+)'""")
 
         private const val PREF_QUALITY = "preferred_quality"
         private const val PREF_QUALITY_TITLE = "Preferred quality"
