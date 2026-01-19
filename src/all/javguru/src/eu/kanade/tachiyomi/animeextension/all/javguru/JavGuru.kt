@@ -170,6 +170,20 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
         throw Exception("Select at least one Filter")
     }
 
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        return document.select("div.woo-sc-related-posts li").map { element ->
+            SAnime.create().apply {
+                element.select("a.thumbnail").let { a ->
+                    getIDFromUrl(a)?.let { url = it }
+                        ?: setUrlWithoutDomain(a.attr("href"))
+                    title = a.attr("alt")
+                }
+                thumbnail_url = element.select("img").attr("abs:src")
+            }
+        }
+    }
+
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val url = baseUrl.toHttpUrl().newBuilder().apply {
             if (page > 1) addPathSegments("page/$page/")
@@ -202,6 +216,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
                 document.selectFirst(".infoleft li:contains(label)")?.text()?.let { append("$it\n") }
                 document.selectFirst(".infoleft li:contains(actor)")?.text()?.let { append("$it\n") }
                 document.selectFirst(".infoleft li:contains(actress)")?.text()?.let { append("$it\n") }
+                document.selectFirst(".infoleft li:contains(release date)")?.text()?.let { append("$it\n") }
             }
             thumbnail_url = if (preferences.fetchHDCovers) {
                 javId?.let { JavCoverFetcher.getCoverById(it) } ?: siteCover
