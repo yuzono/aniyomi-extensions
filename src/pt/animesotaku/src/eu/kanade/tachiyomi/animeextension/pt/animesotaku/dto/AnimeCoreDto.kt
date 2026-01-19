@@ -48,20 +48,19 @@ data class EpisodeItemDto(
     private fun parseReleasedDate(released: String): Long {
         return try {
             // Verifica se é apenas números (formato de dias desde 01/01/1900)
-            if (released.all { it.isDigit() }) {
-                val days = released.toLong()
+            released.toIntOrNull()?.let { days ->
                 val calendar = Calendar.getInstance()
                 calendar.set(1900, Calendar.JANUARY, 1, 0, 0, 0)
                 calendar.set(Calendar.MILLISECOND, 0)
-                calendar.add(Calendar.DAY_OF_YEAR, days.toInt())
+                calendar.add(Calendar.DAY_OF_YEAR, days)
                 calendar.timeInMillis
-            } else {
+            } ?: run {
                 // Formato DD/MM/YYYY
                 val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                 val date = formatter.parse(released)
                 date?.time ?: 0L
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             0L
         }
     }

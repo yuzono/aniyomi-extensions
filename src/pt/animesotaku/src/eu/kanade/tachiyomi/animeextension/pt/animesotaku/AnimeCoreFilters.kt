@@ -163,8 +163,8 @@ class AnimeCoreFilters(
             },
         )
 
-        // Select 2: Ano
-        val yearFilter = SelectFilter(
+        // Select 2: Order direction
+        val directionFilter = SelectFilter(
             "Ordem",
             "order",
             document.select("select[name='order'] option").map { option ->
@@ -182,7 +182,7 @@ class AnimeCoreFilters(
             premieredFilters,
             AnimeFilter.Separator(),
             orderFilter,
-            yearFilter,
+            directionFilter,
         )
     }
 }
