@@ -42,6 +42,9 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
 
     override val supportsLatest = true
 
+    override fun headersBuilder() = super.headersBuilder()
+        .set("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8")
+
     private val noRedirectClient = client.newBuilder()
         .followRedirects(false)
         .build()
@@ -151,7 +154,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
                     is StudioFilter,
                     is MakerFilter,
                     -> {
-                        if ((filter.state as String).isNotEmpty()) {
+                        if (filter.state.isNotEmpty()) {
                             val url = "$baseUrl${filter.toUrlPart()}" + if (page > 1) "page/$page/" else ""
                             val request = GET(url, headers)
                             return client.newCall(request)
@@ -165,6 +168,24 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
         }
 
         throw Exception("Select at least one Filter")
+    }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        return document.select("div.woo-sc-related-posts li").map { element ->
+            SAnime.create().apply {
+                element.select("a.thumbnail").let { a ->
+                    getIDFromUrl(a)?.let { url = it }
+                        ?: setUrlWithoutDomain(a.attr("href"))
+                }
+                element.select("img").let {
+                    title = it.attr("alt").ifBlank {
+                        element.select("a.related-title").attr("title")
+                    }
+                    thumbnail_url = it.attr("abs:src")
+                }
+            }
+        }
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
@@ -199,6 +220,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
                 document.selectFirst(".infoleft li:contains(label)")?.text()?.let { append("$it\n") }
                 document.selectFirst(".infoleft li:contains(actor)")?.text()?.let { append("$it\n") }
                 document.selectFirst(".infoleft li:contains(actress)")?.text()?.let { append("$it\n") }
+                document.selectFirst(".infoleft li:contains(release date)")?.text()?.let { append("$it\n") }
             }
             thumbnail_url = if (preferences.fetchHDCovers) {
                 javId?.let { JavCoverFetcher.getCoverById(it) } ?: siteCover
@@ -364,7 +386,7 @@ class JavGuru : AnimeHttpSource(), ConfigurableAnimeSource {
 
         private val IFRAME_B64_REGEX = Regex(""""iframe_url":"([^"]+)"""")
         private val IFRAME_OLID_REGEX = Regex("""var OLID = '([^']+)'""")
-        private val IFRAME_OLID_URL = Regex("""src="([^"]+)"""")
+        private val IFRAME_OLID_URL = Regex("""realSrc *= *'([^']+)'""")
 
         private const val PREF_QUALITY = "preferred_quality"
         private const val PREF_QUALITY_TITLE = "Preferred quality"
