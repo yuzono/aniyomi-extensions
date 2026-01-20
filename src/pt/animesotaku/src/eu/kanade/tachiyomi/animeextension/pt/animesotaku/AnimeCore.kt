@@ -51,30 +51,12 @@ class AnimeCore : AnimeHttpSource() {
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) = searchRequest("popular", page)
 
-    override fun popularAnimeParse(response: Response): AnimesPage {
-        animeCoreFilters.fetchFilters()
-        val results = response.parseAs<SearchResponseDto>()
-        val data = results.data
-        val doc = Jsoup.parseBodyFragment(data.html)
-        val animes = doc.select("article.anime-card").mapNotNull {
-            val element = it.selectFirst("h3 > a.stretched-link") ?: return@mapNotNull null
-            SAnime.create().apply {
-                thumbnail_url = it.selectFirst("img")?.attr("abs:src")
-                with(element) {
-                    title = attr("title").cleanTitle()
-                    setUrlWithoutDomain(attr("abs:href"))
-                }
-            }
-        }
-
-        val hasNextPage = data.currentPage < data.maxPages
-        return AnimesPage(animes, hasNextPage)
-    }
+    override fun popularAnimeParse(response: Response) = searchAnimeParse(response)
 
     // =============================== Latest ===============================
     override fun latestUpdatesRequest(page: Int) = searchRequest("updated", page)
 
-    override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
+    override fun latestUpdatesParse(response: Response) = searchAnimeParse(response)
 
     // =============================== Search ===============================
     override fun getFilterList() = animeCoreFilters.getFilterList()
@@ -123,8 +105,6 @@ class AnimeCore : AnimeHttpSource() {
         )
     }
 
-    override fun searchAnimeParse(response: Response) = popularAnimeParse(response)
-
     private fun searchRequest(orderby: String, page: Int): Request {
         val form = FormBody.Builder().apply {
             add("s_keyword", "")
@@ -139,6 +119,17 @@ class AnimeCore : AnimeHttpSource() {
             headers,
             form,
         )
+    }
+
+    override fun searchAnimeParse(response: Response): AnimesPage {
+        animeCoreFilters.fetchFilters()
+        val results = response.parseAs<SearchResponseDto>()
+        val data = results.data
+        val doc = Jsoup.parseBodyFragment(data.html)
+        val animes = doc.parseAnimes()
+
+        val hasNextPage = data.currentPage < data.maxPages
+        return AnimesPage(animes, hasNextPage)
     }
 
     private val regexId by lazy { Regex("""current_post_data_id *= *(\d+)""") }
@@ -157,7 +148,11 @@ class AnimeCore : AnimeHttpSource() {
 
         val recommendedDocument = Jsoup.parseBodyFragment(recommendedResponseDto.html)
 
-        return recommendedDocument.select("article.anime-card").mapNotNull {
+        return recommendedDocument.parseAnimes()
+    }
+
+    private fun Document.parseAnimes(): List<SAnime> {
+        return select("article.anime-card").mapNotNull {
             val element = it.selectFirst("h3 > a.stretched-link") ?: return@mapNotNull null
             val episodeUrl = element.attr("abs:href").ifBlank { return@mapNotNull null }
             val animeUrl = episodeToAnimeUrlRegex.find(episodeUrl)
@@ -230,8 +225,13 @@ class AnimeCore : AnimeHttpSource() {
     }
 
     private fun String.cleanTitle(): String {
-        return this.replace(" - Anime Core", "")
-            .replace(" Assistir Online", "")
+        return this.replace(titleCleanRegex, "")
+            .trim()
+    }
+
+    // ( Todos Episodios Assistir Online )
+    private val titleCleanRegex by lazy {
+        Regex("""- Anime Core *$|\(? *(?:Todos Episodios )?Assistir(?: Online)? *\)? *$""")
     }
 
     companion object {
