@@ -98,7 +98,7 @@ class Hanime1 : AnimeHttpSource(), ConfigurableAnimeSource {
                 name = element.select("div.card-mobile-title").text()
                 if (href == response.request.url.toString()) {
                     // current video, parse `觀看次數：362.5萬次 2025-12-26` to upload date
-                    jsoup.select("#shareBtn-title + div").text().substringAfterLast(" ").takeIf { it.isNotEmpty() }?.let {
+                    Regex("\\d{4}-\\d{2}-\\d{2}").find(jsoup.select("#shareBtn-title + div").text())?.value?.let {
                         date_upload = runCatching { uploadDateFormat.parse(it)?.time }.getOrNull() ?: 0L
                     }
                 }
