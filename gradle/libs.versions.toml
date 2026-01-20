@@ -1,6 +1,6 @@
 [versions]
 # NOTE: Don't upgrade `com.android.tools.build:gradle` version higher than `aniyomi-extensions-lib`
-agp_version = "8.2.2"
+agp_version = "8.13.2"
 coroutines_version = "1.8.1"
 kotlin_version = "2.0.0"
 okhttp_version = "5.0.0-alpha.16"
