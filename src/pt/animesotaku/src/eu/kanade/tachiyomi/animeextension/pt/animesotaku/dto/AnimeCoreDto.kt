@@ -62,7 +62,7 @@ data class EpisodeItemDto(
                 calendar.timeInMillis
             } ?: run {
                 // Formato DD/MM/YYYY
-                val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                val formatter = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
                 val date = formatter.parse(released)
                 date?.time ?: 0L
             }

@@ -86,8 +86,8 @@ class AnimeCore : AnimeHttpSource() {
     }
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val form = FormBody.Builder().apply {
-            add("s_keyword", "")
+        val formBuilder = FormBody.Builder().apply {
+            add("s_keyword", query)
             // add("orderby", orderBy)
             add("action", "advanced_search")
             add("page", page.toString())
@@ -95,29 +95,29 @@ class AnimeCore : AnimeHttpSource() {
 
         filters.filterIsInstance<AnimeCoreFilters.QueryParameterFilter>().forEach {
             val (name, values) = it.toQueryParameter()
-            values.forEach { value -> form.add(name, value) }
+            values.forEach { value -> formBuilder.add(name, value) }
         }
 
         return POST(
             "$baseUrl/wp-admin/admin-ajax.php",
             headers,
-            form.build(),
+            formBuilder.build(),
         )
     }
 
     private fun searchRequest(orderby: String, page: Int): Request {
-        val form = FormBody.Builder().apply {
+        val formBuilder = FormBody.Builder().apply {
             add("s_keyword", "")
             add("orderby", orderby)
             add("order", "DESC")
             add("action", "advanced_search")
             add("page", page.toString())
-        }.build()
+        }
 
         return POST(
             "$baseUrl/wp-admin/admin-ajax.php",
             headers,
-            form,
+            formBuilder.build(),
         )
     }
 
