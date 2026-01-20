@@ -55,6 +55,7 @@ class Hanime1 : AnimeHttpSource(), ConfigurableAnimeSource {
     private val preferences by getPreferencesLazy()
     private val json by injectLazy<Json>()
     private var filterUpdateState = FilterUpdateState.NONE
+    private val uploadDateRegex = Regex("""\d{4}-\d{2}-\d{2}""")
     private val uploadDateFormat: SimpleDateFormat by lazy {
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     }
@@ -98,7 +99,7 @@ class Hanime1 : AnimeHttpSource(), ConfigurableAnimeSource {
                 name = element.select("div.card-mobile-title").text()
                 if (href == response.request.url.toString()) {
                     // current video, parse `觀看次數：362.5萬次 2025-12-26` to upload date
-                    Regex("\\d{4}-\\d{2}-\\d{2}").find(jsoup.select("#shareBtn-title + div").text())?.value?.let {
+                    uploadDateRegex.find(jsoup.select("#shareBtn-title + div").text())?.value?.let {
                         date_upload = runCatching { uploadDateFormat.parse(it)?.time }.getOrNull() ?: 0L
                     }
                 }
