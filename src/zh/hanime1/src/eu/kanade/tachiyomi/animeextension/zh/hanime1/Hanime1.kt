@@ -118,8 +118,10 @@ class Hanime1 : AnimeHttpSource(), ConfigurableAnimeSource {
             .sortedByDescending { preferQuality == it.quality }
             .ifEmpty {
                 // Try to find the source from metadata
-                val videoUrl = doc.select("link[as=video][href]").attr("href")
-                listOf(Video(videoUrl, "Raw", videoUrl = videoUrl))
+                doc.select("link[as=video][href]").attr("href")
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { videoUrl -> listOf(Video(videoUrl, "Raw", videoUrl = videoUrl)) }
+                    ?: emptyList()
             }
     }
 
