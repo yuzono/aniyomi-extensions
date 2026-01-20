@@ -11,6 +11,12 @@ import java.util.Locale
 data class SearchResponseDto(val data: SearchDataDto, val success: Boolean)
 
 @Serializable
+data class RecommendedResponseDto(
+    @SerialName("result")
+    val html: String,
+)
+
+@Serializable
 data class SearchDataDto(
     val html: String,
     @SerialName("max_pages")
@@ -65,17 +71,3 @@ data class EpisodeItemDto(
         }
     }
 }
-
-@Serializable
-data class TaxonomyDto(val taxonomy: String = "", val terms: List<String> = emptyList())
-
-@Serializable
-data class SingleDto(
-    val paged: String,
-    @SerialName("meta_key")
-    val key: String?,
-    val order: String,
-    val orderBy: String,
-    val season: String?,
-    val year: String?,
-)

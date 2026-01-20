@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.animeextension.pt.animesotaku
 
 import eu.kanade.tachiyomi.animeextension.pt.animesotaku.dto.EpisodeResponseDto
+import eu.kanade.tachiyomi.animeextension.pt.animesotaku.dto.RecommendedResponseDto
 import eu.kanade.tachiyomi.animeextension.pt.animesotaku.dto.SearchResponseDto
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -45,7 +46,7 @@ class AnimeCore : AnimeHttpSource() {
     private val animeCoreFilters by lazy { AnimeCoreFilters(baseUrl, client) }
 
     override fun headersBuilder() = super.headersBuilder()
-        .add("Referer", baseUrl)
+        .add("Referer", "$baseUrl/")
 
     // ============================== Popular ===============================
     override fun popularAnimeRequest(page: Int) = searchRequest("popular", page)
@@ -55,12 +56,13 @@ class AnimeCore : AnimeHttpSource() {
         val results = response.parseAs<SearchResponseDto>()
         val data = results.data
         val doc = Jsoup.parseBodyFragment(data.html)
-        val animes = doc.select("article.anime-card").map {
+        val animes = doc.select("article.anime-card").mapNotNull {
+            val element = it.selectFirst("h3 > a.stretched-link") ?: return@mapNotNull null
             SAnime.create().apply {
-                thumbnail_url = it.selectFirst("img")?.attr("src")
-                with(it.selectFirst("h3 > a.stretched-link")!!) {
-                    title = attr("title").replace(" Assistir Online", "")
-                    setUrlWithoutDomain(attr("href"))
+                thumbnail_url = it.selectFirst("img")?.attr("abs:src")
+                with(element) {
+                    title = attr("title").cleanTitle()
+                    setUrlWithoutDomain(attr("abs:href"))
                 }
             }
         }
@@ -110,18 +112,8 @@ class AnimeCore : AnimeHttpSource() {
         }
 
         filters.filterIsInstance<AnimeCoreFilters.QueryParameterFilter>().forEach {
-            val (name, value) = it.toQueryParameter()
-            when (value) {
-                is AnimeCoreFilters.QueryParameterValue.Single -> {
-                    form.add(name, value.value)
-                }
-
-                is AnimeCoreFilters.QueryParameterValue.Multiple -> {
-                    value.values.forEach { v ->
-                        form.add(name, v)
-                    }
-                }
-            }
+            val (name, values) = it.toQueryParameter()
+            values.forEach { value -> form.add(name, value) }
         }
 
         return POST(
@@ -149,18 +141,47 @@ class AnimeCore : AnimeHttpSource() {
         )
     }
 
+    private val regexId by lazy { Regex("""current_post_data_id *= *(\d+)""") }
+    private val episodeToAnimeUrlRegex by lazy { Regex("""/watch/([^/]+)-episodio-\d+/?""") }
+
+    override fun relatedAnimeListParse(response: Response): List<SAnime> {
+        val document = response.asJsoup()
+        val script = document.selectFirst("script:containsData(current_post_data_id)") ?: return emptyList()
+        val animeId = regexId.find(script.data())?.groupValues?.get(1) ?: return emptyList()
+        val recommendedResponseDto = client.newCall(
+            GET(
+                "$baseUrl/wp-json/kiranime/v1/widget?name=recommended&id=$animeId",
+                headers,
+            ),
+        ).execute().parseAs<RecommendedResponseDto>()
+
+        val recommendedDocument = Jsoup.parseBodyFragment(recommendedResponseDto.html)
+
+        return recommendedDocument.select("article.anime-card").mapNotNull {
+            val element = it.selectFirst("h3 > a.stretched-link") ?: return@mapNotNull null
+            val episodeUrl = element.attr("abs:href").ifBlank { return@mapNotNull null }
+            val animeUrl = episodeToAnimeUrlRegex.find(episodeUrl)
+                ?.let { match ->
+                    "$baseUrl/anime/${match.groupValues[1]}"
+                } ?: episodeUrl
+            SAnime.create().apply {
+                thumbnail_url = it.selectFirst("img")?.attr("abs:src")
+                with(element) {
+                    title = attr("title").cleanTitle()
+                    setUrlWithoutDomain(animeUrl)
+                }
+            }
+        }
+    }
+
     // =========================== Anime Details ============================
     override fun animeDetailsParse(response: Response) = SAnime.create().apply {
         val document = getRealDoc(response.asJsoup())
 
         setUrlWithoutDomain(document.location())
-        thumbnail_url = document.selectFirst("img.wp-post-image")?.attr("src")
-        title =
-            document.selectFirst("title")!!.text()
-                .replace(" - Anime Core", "")
-                .replace(" Assistir Online", "")
-        genre =
-            document.select("div.flex a.hover\\:text-white").joinToString { it.text() }
+        thumbnail_url = document.selectFirst("img.wp-post-image")?.attr("abs:src")
+        title = document.selectFirst("title")!!.text().cleanTitle()
+        genre = document.select("div.flex a.hover\\:text-white").joinToString { it.text() }
         description = document.selectFirst("section p")?.text()
     }
 
@@ -169,13 +190,14 @@ class AnimeCore : AnimeHttpSource() {
         val document = getRealDoc(response.asJsoup())
         val animeId = document.selectFirst("#seasonContent")!!.attr("data-season")
 
-        return client
-            .newCall(
-                GET(
-                    "$baseUrl/wp-admin/admin-ajax.php?action=get_episodes&anime_id=$animeId&page=1&order=desc",
-                    headers,
-                ),
-            ).execute().parseAs<EpisodeResponseDto>().data.episodes.map { it.toSEpisode() }
+        return client.newCall(
+            GET(
+                "$baseUrl/wp-admin/admin-ajax.php?action=get_episodes&anime_id=$animeId&page=1&order=desc",
+                headers,
+            ),
+        ).execute()
+            .parseAs<EpisodeResponseDto>()
+            .data.episodes.map { it.toSEpisode() }
     }
 
     // ============================ Video Links =============================
@@ -188,31 +210,28 @@ class AnimeCore : AnimeHttpSource() {
     }
 
     private fun getPlayerVideos(player: Element): List<Video> {
-        val url = player.attr("src")
+        val url = player.attr("abs:src")
 
         return when {
             "blogger.com" in url -> bloggerExtractor.videosFromUrl(url, headers)
             "proxycdn.cc" in url -> {
-                listOf(
-                    Video(url, "Proxy CDN", url),
-                )
+                listOf(Video(url, "Proxy CDN", url))
             }
-
-            else -> null
-        } ?: emptyList()
+            else -> emptyList()
+        }
     }
 
     // ============================= Utilities ==============================
 
     private fun getRealDoc(document: Document): Document {
-        val menu = document.selectFirst("div.anime-information h4 a")
-        if (menu != null) {
-            val originalUrl = menu.attr("href")
-            val response = client.newCall(GET(originalUrl, headers)).execute()
-            return response.asJsoup()
-        }
+        val menu = document.selectFirst("div.anime-information h4 a") ?: return document
+        val originalUrl = menu.attr("abs:href").ifBlank { return document }
+        return client.newCall(GET(originalUrl, headers)).execute().use { it.asJsoup() }
+    }
 
-        return document
+    private fun String.cleanTitle(): String {
+        return this.replace(" - Anime Core", "")
+            .replace(" Assistir Online", "")
     }
 
     companion object {

@@ -15,13 +15,8 @@ class AnimeCoreFilters(
 
     private lateinit var filterList: AnimeFilterList
 
-    sealed class QueryParameterValue {
-        data class Single(val value: String) : QueryParameterValue()
-        data class Multiple(val values: List<String>) : QueryParameterValue()
-    }
-
     interface QueryParameterFilter {
-        fun toQueryParameter(): Pair<String, QueryParameterValue>
+        fun toQueryParameter(): Pair<String, List<String>>
     }
 
     private class Checkbox(name: String, state: Boolean = false) : AnimeFilter.CheckBox(name, state)
@@ -30,24 +25,19 @@ class AnimeCoreFilters(
         name: String,
         private val paramName: String,
         private val pairs: List<Pair<String, String>>,
-    ) :
-        AnimeFilter.Group<AnimeFilter.CheckBox>(name, pairs.map { Checkbox(it.first) }),
+    ) : AnimeFilter.Group<AnimeFilter.CheckBox>(
+        name,
+        pairs.map { Checkbox(it.first) },
+    ),
         QueryParameterFilter {
-        override fun toQueryParameter(): Pair<String, QueryParameterValue> {
+        override fun toQueryParameter(): Pair<String, List<String>> {
+            val lookup = pairs.associate { it.first to it.second }
             val selectedValues = state.asSequence()
                 .filter { it.state }
-                .map { checkbox -> pairs.find { it.first == checkbox.name }!!.second }
-                .filter(String::isNotBlank)
+                .mapNotNull { checkbox -> lookup[checkbox.name]?.ifBlank { null } }
                 .toList()
 
-            return Pair(
-                paramName,
-                if (selectedValues.size == 1) {
-                    QueryParameterValue.Single(selectedValues.first())
-                } else {
-                    QueryParameterValue.Multiple(selectedValues)
-                },
-            )
+            return Pair(paramName, selectedValues)
         }
     }
 
@@ -60,12 +50,9 @@ class AnimeCoreFilters(
         pairs.map { it.first }.toTypedArray(),
     ),
         QueryParameterFilter {
-        override fun toQueryParameter(): Pair<String, QueryParameterValue> {
+        override fun toQueryParameter(): Pair<String, List<String>> {
             val selectedValue = pairs[state].second
-            return Pair(
-                paramName,
-                QueryParameterValue.Single(selectedValue),
-            )
+            return Pair(paramName, listOf(selectedValue))
         }
     }
 
@@ -88,8 +75,9 @@ class AnimeCoreFilters(
             runCatching {
                 error = false
                 val document = client.newCall(GET("$baseUrl/busca-detalhada"))
-                    .execute()
-                    .asJsoup()
+                    .execute().use {
+                        it.asJsoup()
+                    }
                 filterList = filtersParse(document)
             }.onFailure {
                 error = true
