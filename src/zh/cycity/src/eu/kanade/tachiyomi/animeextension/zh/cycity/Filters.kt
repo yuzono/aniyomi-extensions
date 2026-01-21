@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.zh.cycity
 
-import eu.kanade.tachiyomi.animeextension.zh.cycity.Cycity.Companion.CALENDAR
 import eu.kanade.tachiyomi.animesource.model.AnimeFilter
 import java.util.Calendar
 
@@ -23,7 +22,7 @@ class ClassFilter : AnimeFilter.Select<String>(
 
 class YearFilter : AnimeFilter.Select<String>(
     "年份",
-    CALENDAR.get(Calendar.YEAR).inc().let { current ->
+    Calendar.getInstance().get(Calendar.YEAR).inc().let { current ->
         Array(current - 1999) { (current - it).toString() }.also { it[0] = "全部" }
     },
 ) {

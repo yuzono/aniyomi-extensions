@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.animeextension.zh.cycity
 
-import android.app.Application
 import android.util.Base64
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreferenceCompat
@@ -17,33 +16,26 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.util.parseAs
+import extensions.utils.getPreferencesLazy
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import java.net.URLDecoder
 import java.security.MessageDigest
 import java.util.Calendar
 
 class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
-    override val baseUrl = "https://www.cycani.org/search.html?wd="
+    override val baseUrl = "https://www.cycani.org"
     override val name = "次元城动漫"
     override val lang = "zh"
     override val supportsLatest = true
-
-    private val realUrl = "https://www.cycani.org"
-    private val apiUrl = "$realUrl/index.php/ds_api"
-    private val preferences by lazy {
-        Injekt.get<Application>().getSharedPreferences("source_$id", 0x0000)
-    }
+    private val apiUrl = "$baseUrl/index.php/ds_api"
+    private val preferences by getPreferencesLazy()
 
     companion object {
         val VIDEO_URL_REGEX = Regex("\\bplayer_aaaa[^<>]*\"url\": ?\"(.*?)\"[^<>]*\\}")
         val KEY_REGEX = Regex("now_(\\w+)")
         val URL_REGEX = Regex("\"url\": \"([^:]+?)\"")
-        val CALENDAR: Calendar = Calendar.getInstance()
-        val MD5: MessageDigest = MessageDigest.getInstance("MD5")
         const val PARSE_URL = "https://player.cycanime.com/?url="
         const val POPULAR_PREF = "POPULAR_DISPLAY"
     }
@@ -53,7 +45,7 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
             key = POPULAR_PREF
             title = "热门动画显示番剧周表"
             summary = "开启后，“热门”内容会显示当天应该更新的动画，但不一定更新"
-            setDefaultValue(true)
+            setDefaultValue(false)
         }.also(screen::addPreference)
     }
 
@@ -77,7 +69,8 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
      * }
      */
     private fun decrypt(url: String, k1: String, k2: String): String {
-        val prefix = CharArray(10)
+        val MD5 = MessageDigest.getInstance("MD5")
+        val prefix = CharArray(k2.length)
         k1.indices.forEach { prefix[k1[it] - '0'] = k2[it] }
         val txt = "${prefix.joinToString("")}YLwJVbXw77pk2eOrAnFdBo2c3mWkLtodMni2wk81GCnP94ZltW"
         val a = MD5.digest(txt.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -88,7 +81,7 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
 
     // https://www.cycani.org/show/20/by/time/class/%E6%BC%AB%E7%94%BB%E6%94%B9/page/2/year/2024.html
     private fun vodListRequest(by: String, page: Int): Request {
-        val url = realUrl.toHttpUrl().newBuilder()
+        val url = baseUrl.toHttpUrl().newBuilder()
             .addPathSegments("show/20/by/$by")
             .addPathSegments("page/$page.html")
         return POST(url.build().toString())
@@ -110,7 +103,8 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
     }
 
     private fun weeklyScheduleRequest(): Request {
-        val weekday = when (CALENDAR.get(Calendar.DAY_OF_WEEK)) {
+        val calendar = Calendar.getInstance()
+        val weekday = when (calendar.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> "一"
             Calendar.TUESDAY -> "二"
             Calendar.WEDNESDAY -> "三"
@@ -159,13 +153,22 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
     )
 
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
-        val url = realUrl.toHttpUrl().newBuilder()
+        val filters = filters.ifEmpty { getFilterList() }
+        val url = baseUrl.toHttpUrl().newBuilder()
         if (query.isNotBlank()) {
             url.addPathSegments("search/wd/$query")
         } else {
-            url.addPathSegments("show/${filters[1]}")
-            if (filters[2].toString() != "全部") url.addPathSegments("class/${filters[2]}")
-            if (filters[3].toString() != "全部") url.addPathSegments("year/${filters[3]}")
+            filters.filterIsInstance<TypeFilter>().firstOrNull()?.let {
+                url.addPathSegments("show/$it")
+            }
+            filters.filterIsInstance<ClassFilter>().firstOrNull()?.let {
+                val classFilter = it.toString()
+                if (classFilter != "全部") url.addPathSegments("class/$classFilter")
+            }
+            filters.filterIsInstance<YearFilter>().firstOrNull()?.let {
+                val year = it.toString()
+                if (year != "全部") url.addPathSegments("year/$year")
+            }
         }
         url.addPathSegments("page/$page.html")
         return GET(url.build())
@@ -187,16 +190,13 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
             }
             val tip = document.selectFirst(".page-tip")?.text()
             val pages = tip?.substringAfter("当前")?.substringBefore("页")?.split("/")
-            return AnimesPage(animeList, pages != null && pages[0] != pages[1])
+            val hasNextPage = pages != null && pages.getOrNull(0) != pages.getOrNull(1)
+            return AnimesPage(animeList, hasNextPage)
         }
         return vodListParse(response)
     }
 
     // Anime Details ===============================================================================
-
-    override fun getAnimeUrl(anime: SAnime) = realUrl + anime.url
-
-    override fun animeDetailsRequest(anime: SAnime) = GET(getAnimeUrl(anime))
 
     override fun animeDetailsParse(response: Response) = response.asJsoup().let { doc ->
         val infos = doc.select(".slide-info")
@@ -214,9 +214,9 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
         }
     }
 
-    override fun episodeListRequest(anime: SAnime) = GET(getAnimeUrl(anime))
+    override fun episodeListRequest(anime: SAnime) = animeDetailsRequest(anime)
 
-    override fun getEpisodeUrl(episode: SEpisode) = realUrl + episode.url
+    override fun getEpisodeUrl(episode: SEpisode) = baseUrl + episode.url
 
     override fun episodeListParse(response: Response) = response.asJsoup().let { doc ->
         val hosts = doc.select(".anthology-tab a").map {
@@ -227,7 +227,7 @@ class Cycity : AnimeHttpSource(), ConfigurableAnimeSource {
                 SEpisode.create().apply {
                     setUrlWithoutDomain(it.absUrl("href"))
                     name = it.text()
-                    scanlator = hosts[i]
+                    scanlator = hosts.getOrNull(i)
                 }
             }
         }.flatten().reversed()
