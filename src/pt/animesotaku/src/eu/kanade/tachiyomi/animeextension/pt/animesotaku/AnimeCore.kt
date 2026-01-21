@@ -31,7 +31,7 @@ class AnimeCore : AnimeHttpSource() {
     // AnimesOtaku -> AnimeCore
     override val id: Long = 9099608567050495800L
 
-    override val name = "Anime Core"
+    override val name = "AnimeCore"
 
     override val baseUrl = "https://animecore.to"
 
