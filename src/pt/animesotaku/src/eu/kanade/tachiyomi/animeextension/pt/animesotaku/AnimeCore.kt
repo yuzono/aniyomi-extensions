@@ -22,6 +22,8 @@ import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class AnimeCore : AnimeHttpSource() {
@@ -191,7 +193,7 @@ class AnimeCore : AnimeHttpSource() {
             ),
         ).execute()
             .parseAs<EpisodeResponseDto>()
-            .data.episodes.map { it.toSEpisode() }
+            .data.episodes.map { it.toSEpisode(dateFormat) }
     }
 
     // ============================ Video Links =============================
@@ -235,5 +237,8 @@ class AnimeCore : AnimeHttpSource() {
 
     companion object {
         const val PREFIX_SEARCH = "id:"
+
+        // Formato DD/MM/YYYY
+        private val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
     }
 }

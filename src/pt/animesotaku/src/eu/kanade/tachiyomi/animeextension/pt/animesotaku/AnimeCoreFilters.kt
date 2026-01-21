@@ -89,56 +89,70 @@ class AnimeCoreFilters(
         val genresFilters = CheckboxList(
             "Gênero",
             "genre[]",
-            document.select("#genre-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#genre-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 
         val statusFilters = CheckboxList(
             "Status",
             "status[]",
-            document.select("#status-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#status-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 
         val typeFilters = CheckboxList(
             "Tipo",
             "type[]",
-            document.select("#type-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#type-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 
         val studioFilters = CheckboxList(
             "Estúdio",
             "studio[]",
-            document.select("#studio-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#studio-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 
         val producerFilters = CheckboxList(
             "Produtor",
             "producer[]",
-            document.select("#producer-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#producer-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 
         val seasonFilters = CheckboxList(
             "Temporada",
             "season[]",
-            document.select("#season-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#season-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 
         val premieredFilters = CheckboxList(
             "Estreia",
             "premiered[]",
-            document.select("#premiered-content input[type='checkbox']").map { input ->
-                Pair(input.nextElementSibling()!!.text(), input.attr("value"))
+            document.select("#premiered-content input[type='checkbox']").mapNotNull { input ->
+                input.nextElementSibling()?.let {
+                    Pair(it.text(), input.attr("value"))
+                }
             },
         )
 

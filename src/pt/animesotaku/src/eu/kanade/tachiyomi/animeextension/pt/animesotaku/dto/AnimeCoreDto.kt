@@ -5,7 +5,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Locale
 
 @Serializable
 data class SearchResponseDto(val data: SearchDataDto, val success: Boolean)
@@ -44,14 +43,14 @@ data class EpisodeItemDto(
     @SerialName("meta_number")
     val metaNumber: String,
 ) {
-    fun toSEpisode() = SEpisode.create().apply {
+    fun toSEpisode(dateFormat: SimpleDateFormat) = SEpisode.create().apply {
         name = number
         episode_number = metaNumber.toFloatOrNull() ?: 1F
         url = "/watch/${this@EpisodeItemDto.url.substringAfter("/watch/")}"
-        date_upload = parseReleasedDate(released)
+        date_upload = parseReleasedDate(released, dateFormat)
     }
 
-    private fun parseReleasedDate(released: String): Long {
+    private fun parseReleasedDate(released: String, dateFormat: SimpleDateFormat): Long {
         return try {
             // Verifica se é apenas números (formato de dias desde 01/01/1900)
             released.toIntOrNull()?.let { days ->
@@ -61,9 +60,7 @@ data class EpisodeItemDto(
                 calendar.add(Calendar.DAY_OF_YEAR, days)
                 calendar.timeInMillis
             } ?: run {
-                // Formato DD/MM/YYYY
-                val formatter = SimpleDateFormat("dd/MM/yyyy", Locale("pt", "BR"))
-                val date = formatter.parse(released)
+                val date = dateFormat.parse(released)
                 date?.time ?: 0L
             }
         } catch (_: Exception) {
