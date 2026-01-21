@@ -88,7 +88,6 @@ class AnimeCore : AnimeHttpSource() {
     override fun searchAnimeRequest(page: Int, query: String, filters: AnimeFilterList): Request {
         val formBuilder = FormBody.Builder().apply {
             add("s_keyword", query)
-            // add("orderby", orderBy)
             add("action", "advanced_search")
             add("page", page.toString())
         }

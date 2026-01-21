@@ -87,7 +87,7 @@ class AnimeCoreFilters(
 
     private fun filtersParse(document: Document): AnimeFilterList {
         val genresFilters = CheckboxList(
-            "Genero",
+            "Gênero",
             "genre[]",
             document.select("#genre-content input[type='checkbox']").map { input ->
                 Pair(input.nextElementSibling()!!.text(), input.attr("value"))
@@ -111,7 +111,7 @@ class AnimeCoreFilters(
         )
 
         val studioFilters = CheckboxList(
-            "Estudio",
+            "Estúdio",
             "studio[]",
             document.select("#studio-content input[type='checkbox']").map { input ->
                 Pair(input.nextElementSibling()!!.text(), input.attr("value"))
