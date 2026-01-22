@@ -332,13 +332,15 @@ class KickAssAnime : ConfigurableAnimeSource, AnimeHttpSource() {
     }
 
     companion object {
-        private val SERVERS = arrayOf("VidStreaming", "DuckStream", "BirdStream")
+        // The one with CastStream: https://kaa.to/dekin-no-mogura-acd1/ep-3-1d2d46
+        private val SERVERS = arrayOf("VidStreaming", "DuckStream", "BirdStream", "CastStream")
 
         private val LOCALE = listOf(
             Pair("ja-JP", "Japanese"),
             Pair("en-US", "English"),
             Pair("es-ES", "Spanish (España)"),
             Pair("ko-KR", "Korean"),
+            Pair("ch-CH", "Chinese"),
         )
 
         const val PREFIX_SEARCH = "slug:"
