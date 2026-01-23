@@ -2,10 +2,11 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlinx-serialization'
 
-android {
-    // Ta config habituelle...
+ext {
+    extName = 'FrAnime'
+    extClass = '.FrAnime'
+    extVersionCode = 20 // Assurez-vous que ce code de version est incrémenté à chaque mise à jour
+    isNsfw = false
 }
 
-dependencies {
-    implementation(project(':core'))
-}
+apply from: "$rootDir/common.gradle"
