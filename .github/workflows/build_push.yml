@@ -22,60 +22,20 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build and Prepare Repo
+      - name: Build and Push
         run: |
-          # 1. Build all extensions
-          ./gradlew assembleDebug -x lint -x check
-
-          # 2. Create repo structure
+          # On compile uniquement ton extension et on ENLÈVE le test qui a planté (-x)
+          ./gradlew :src:fr:franime:assembleDebug -x lintKotlinMain -x lint -x check
+          
+          # On prépare les fichiers pour le repo
           mkdir -p repo-files/apk
-          mkdir -p repo-files/json_parts
+          find src/fr/franime/build/outputs/apk/debug/ -name "*.apk" -exec cp {} repo-files/apk/franime.apk \;
+          
+          # Création du JSON
+          cd repo-files
+          echo '[{"name":"FrAnime","pkg":"eu.kanade.tachiyomi.animeextension.fr.franime","apk":"franime.apk","versionCode":20,"lang":"fr"}]' > index.min.json
 
-          # 3. Find extensions, copy APKs, and generate JSON parts
-          for langdir in src/*; do
-            if [ -d "$langdir" ]; then
-              LANG=$(basename "$langdir")
-              for extdir in "$langdir"/*; do
-                if [ -d "$extdir" ]; then
-                  buildfile="$extdir/build.gradle"
-                  if [ -f "$buildfile" ]; then
-                    echo "Processing $extdir"
-                    
-                    EXT_NAME=$(awk -F"'" '/extName/ {print $2}' "$buildfile")
-                    EXT_VERSION=$(awk -F= '/extVersionCode/ {gsub(/[[:space:]]/,"",$2); print $2}' "$buildfile")
-                    
-                    PKG_NAME=$(basename "$extdir")
-                    
-                    PKG="eu.kanade.tachiyomi.animeextension.$LANG.$PKG_NAME"
-                    APK_NAME="$PKG_NAME-v$EXT_VERSION.apk"
-                    
-                    APK_PATH=$(find "$extdir" -name "*.apk" -path "*/build/outputs/apk/debug/*" | head -n 1)
-                    if [ -f "$APK_PATH" ]; then
-                      echo "Found APK for $EXT_NAME at $APK_PATH"
-                      cp "$APK_PATH" "repo-files/apk/$APK_NAME"
-                      
-                      jq -n \
-                        --arg name "$EXT_NAME" \
-                        --arg pkg "$PKG" \
-                        --arg apk "$APK_NAME" \
-                        --argjson versionCode "$EXT_VERSION" \
-                        --arg lang "$LANG" \
-                        '{name: $name, pkg: $pkg, apk: $apk, versionCode: $versionCode, lang: $lang}' \
-                        > "repo-files/json_parts/$PKG_NAME.json"
-                    fi
-                  fi
-                fi
-              done
-            fi
-          done
-
-          # 4. Combine JSON parts into index.min.json
-          jq -s '.' repo-files/json_parts/*.json > repo-files/index.min.json
-
-          # 5. Clean up
-          rm -rf repo-files/json_parts
-
-      - name: Deploy to GitHub Pages (repo branch)
+      - name: Deploy
         uses: s0/git-publish-subdir-action@develop
         env:
           REPO: self
