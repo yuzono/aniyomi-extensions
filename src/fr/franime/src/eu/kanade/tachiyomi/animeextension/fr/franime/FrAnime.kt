@@ -39,7 +39,17 @@ class FrAnime : AnimeHttpSource() {
             SAnime.create().apply {
                 val obj = element.jsonObject
                 title = obj["title"]?.jsonPrimitive?.content ?: ""
-                url = obj["url"]?.jsonPrimitive?.content ?: ""
+                
+                // CORRECTION ICI : On s'assure que l'URL est au format /anime/nom-de-l-anime
+                val slug = obj["url"]?.jsonPrimitive?.content ?: ""
+                url = if (slug.startsWith("http")) {
+                    "/" + slug.substringAfterLast("/")
+                } else if (slug.startsWith("/anime/")) {
+                    slug
+                } else {
+                    "/anime/$slug"
+                }
+                
                 thumbnail_url = obj["poster"]?.jsonPrimitive?.content
             }
         }
@@ -116,7 +126,11 @@ class FrAnime : AnimeHttpSource() {
     override fun searchAnimeParse(response: Response) = popularAnimeParse(response)
     override fun latestUpdatesRequest(page: Int) = popularAnimeRequest(page)
     override fun latestUpdatesParse(response: Response) = popularAnimeParse(response)
-    override fun animeDetailsParse(response: Response) = SAnime.create()
+
+    override fun animeDetailsParse(response: Response): SAnime = SAnime.create().apply {
+        // Cette fonction permet de remplir les détails si besoin, 
+        // mais pour l'instant on laisse vide pour éviter d'autres erreurs.
+    }
 
     companion object {
         const val PREFIX_SEARCH = "id:"
