@@ -1,47 +1,60 @@
-name: Build FRAnime Only
-
-on:
-  push:
-    branches:
-      - master
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build Only FRAnime
-        # On cible uniquement ton dossier pour éviter les erreurs des autres extensions
-        run: ./gradlew :src:fr:franime:assembleDebug -x lint -x check
-
-      - name: Prepare Repo
+- name: Build and Prepare Repo
         run: |
-          mkdir -p repo-files/apk
-          # On cherche l'APK précisément là où il est généré
-          find src/fr/franime/build/outputs/apk/debug/ -name "*.apk" -exec cp {} repo-files/apk/ \;
-          
-          cd repo-files
-          echo "[" > index.min.json
-          echo "  {" >> index.min.json
-          echo "    \"name\": \"FrAnime\"," >> index.min.json
-          echo "    \"pkg\": \"eu.kanade.tachiyomi.animeextension.fr.franime\"," >> index.min.json
-          echo "    \"apk\": \"$(ls apk/)\"," >> index.min.json
-          echo "    \"versionCode\": 20," >> index.min.json
-          echo "    \"lang\": \"fr\"" >> index.min.json
-          echo "  }" >> index.min.json
-          echo "]" >> index.min.json
+          # 1. Build all extensions
+          ./gradlew assembleDebug -x lint -x check
 
-      - name: Deploy to Repo Branch
+          # 2. Create repo structure
+          mkdir -p repo-files/apk
+          mkdir -p repo-files/json_parts
+
+          # 3. Find extensions, copy APKs, and generate JSON parts
+          for langdir in src/*; do
+            if [ -d "$langdir" ]; then
+              LANG=$(basename "$langdir")
+              for extdir in "$langdir"/*; do
+                if [ -d "$extdir" ]; then
+                  buildfile="$extdir/build.gradle"
+                  if [ -f "$buildfile" ]; then
+                    echo "Processing $extdir"
+                    
+                    EXT_NAME=$(awk -F"'" '/extName/ {print $2}' "$buildfile")
+                    EXT_VERSION=$(awk -F= '/extVersionCode/ {gsub(/[[:space:]]/,"",$2); print $2}' "$buildfile")
+                    
+                    PKG_NAME=$(basename "$extdir")
+                    
+                    PKG="eu.kanade.tachiyomi.animeextension.$LANG.$PKG_NAME"
+                    APK_NAME="$PKG_NAME-v$EXT_VERSION.apk"
+                    
+                    APK_PATH=$(find "$extdir" -name "*.apk" -path "*/build/outputs/apk/debug/*" | head -n 1)
+                    if [ -f "$APK_PATH" ]; then
+                      echo "Found APK for $EXT_NAME at $APK_PATH"
+                      cp "$APK_PATH" "repo-files/apk/$APK_NAME"
+                      
+                      jq -n \
+                        --arg name "$EXT_NAME" \
+                        --arg pkg "$PKG" \
+                        --arg apk "$APK_NAME" \
+                        --argjson versionCode "$EXT_VERSION" \
+                        --arg lang "$LANG" \
+                        '{name: $name, pkg: $pkg, apk: $apk, versionCode: $versionCode, lang: $lang}' \
+                        > "repo-files/json_parts/$PKG_NAME.json"
+                    fi
+                  fi
+                fi
+              done
+            fi
+          done
+
+          # 4. Combine JSON parts into index.min.json
+          jq -s '.' repo-files/json_parts/*.json > repo-files/index.min.json
+
+          # 5. Clean up
+          rm -rf repo-files/json_parts
+
+      - name: Deploy to GitHub Pages (repo branch)
+        uses: s0/git-publish-subdir-action@develop
         env:
           REPO: self
-          BRANCH: repo
+          BRANCH: repo # C'est cette branche qui servira de lien à Aniyomi
           FOLDER: repo-files
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,45 +1,11 @@
-ext {
-    extName = 'FrAnime'
-    extClass = '.FrAnime'
-    extVersionCode = 20
-    isNsfw = true
-}
-apply from: "$rootDir/common.gradle"
-
-dependencies {
-    implementation(project(':lib:vk-extractor'))
-    implementation(project(':lib:sendvid-extractor'))
-    implementation(project(':lib:sibnet-extractor'))
-}
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlinx-serialization'
 
 android {
-    // ... reste de la config
-
-    signingConfigs {
-        release {
-            storeFile = file("keystore.jks")
-            storePassword = System.getenv("RELEASE_STORE_PASSWORD")
-            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
-        }
-    }
-
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-            minifyEnabled false
-        }
-    }
-
-    lintOptions {
-        checkReleaseBuilds false
-        abortOnError false
-    }
+    // Ta config habituelle...
 }
 
-// Désactive complètement les tâches de vérification de style qui bloquent le build
-tasks.whenTaskAdded { task ->
-    if (task.name.contains("lint") || task.name.contains("ktlint")) {
-        task.enabled = false
-    }
+dependencies {
+    implementation(project(':core'))
 }
