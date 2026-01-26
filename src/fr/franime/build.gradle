@@ -1,15 +1,12 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlinx-serialization'
+
 ext {
     extName = 'FrAnime'
     extClass = '.FrAnime'
-    extVersionCode = 20
-    isNsfw = true
+    extVersionCode = 20 // Assurez-vous que ce code de version est incrémenté à chaque mise à jour
+    isNsfw = false
 }
-apply from: "$rootDir/common.gradle"
 
-dependencies {
-    implementation(project(':lib:vido-extractor'))
-    implementation(project(':lib:vk-extractor'))
-    implementation(project(':lib:sendvid-extractor'))
-    implementation(project(':lib:sibnet-extractor'))
-    implementation(project(':lib:vidmoly-extractor'))
-}
+apply from: "$rootDir/common.gradle"
