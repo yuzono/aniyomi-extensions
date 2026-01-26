@@ -274,14 +274,14 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
 
         return when {
             fragment.startsWith("seriesId") -> {
-                httpUrl.newBuilder().apply {
-                    encodedPath("/")
+                baseUrl.toHttpUrl().newBuilder().apply {
                     addPathSegment("Shows")
                     addPathSegment(fragment.split(",").last())
                     addPathSegment("Episodes")
                     addQueryParameter("seasonId", httpUrl.pathSegments.last())
                     addQueryParameter("userId", preferences.userId)
                     addQueryParameter("Fields", "Overview,MediaSources,DateCreated,OriginalTitle,SortName")
+                    fragment(fragment)
                 }.build()
             }
 
@@ -298,12 +298,12 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
             }
 
             fragment.startsWith("series") -> {
-                httpUrl.newBuilder().apply {
-                    encodedPath("/")
+                baseUrl.toHttpUrl().newBuilder().apply {
                     addPathSegment("Shows")
                     addPathSegment(itemId)
                     addPathSegment("Episodes")
                     addQueryParameter("Fields", "DateCreated,OriginalTitle,SortName")
+                    fragment(fragment)
                 }.build()
             }
 
@@ -316,7 +316,7 @@ class Jellyfin(private val suffix: String) : Source(), UnmeteredSource {
     }
 
     private fun episodeListParse(response: Response, prefix: String): List<SEpisode> {
-        val itemList = if (response.request.url.pathSize > 3) {
+        val itemList = if (response.request.url.pathSegments.contains("Items")) {
             listOf(response.parseAs<ItemDto>(json))
         } else {
             response.parseAs<ItemListDto>(json).items
