@@ -101,6 +101,13 @@ data class EpisodeDto(
     @SerialName("air_date") val airDate: String? = null,
 )
 
+// ============================ Xprime Token ============================
+@Serializable
+data class EncXprimeDto(
+    val status: Int,
+    val result: String? = null,
+)
+
 // ============================ Xprime Decryption ===========================
 @Serializable
 data class XprimeDecryptionDto(
